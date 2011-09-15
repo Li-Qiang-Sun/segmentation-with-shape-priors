@@ -28,6 +28,7 @@ namespace Research.GraphBasedShapePrior
         {
             ShapeConstraintsSet result = new ShapeConstraintsSet();
             result.ShapeModel = model;
+            result.vertexConstraints = new List<VertexConstraints>(vertexConstraints);
 
             if (result.vertexConstraints.Count != result.ShapeModel.VertexCount)
                 throw new ArgumentException("Vertex constraint should be given for every vertex (and for every vertex only).", "vertexConstraints");
@@ -131,6 +132,37 @@ namespace Research.GraphBasedShapePrior
         public VertexConstraints GetConstraintsForVertex(int index)
         {
             return this.vertexConstraints[index];
+        }
+
+        public void Draw(Graphics graphics)
+        {
+            foreach (VertexConstraints vertexConstraint in vertexConstraints)
+            {
+                PointF center = GetRectangleCenter(vertexConstraint.CoordRectangle);
+                graphics.DrawRectangle(Pens.Green, vertexConstraint.CoordRectangle);
+                graphics.DrawEllipse(Pens.DeepPink, new RectangleF(
+                    center.X - vertexConstraint.MinRadiusInclusive,
+                    center.Y - vertexConstraint.MinRadiusInclusive,
+                    vertexConstraint.MinRadiusInclusive * 2,
+                    vertexConstraint.MinRadiusInclusive * 2));
+                graphics.DrawEllipse(Pens.DeepPink, new RectangleF(
+                    center.X - vertexConstraint.MaxRadiusExclusive,
+                    center.Y - vertexConstraint.MaxRadiusExclusive,
+                    vertexConstraint.MaxRadiusExclusive * 2,
+                    vertexConstraint.MaxRadiusExclusive * 2));
+            }
+
+            foreach (ShapeEdge edge in this.ShapeModel.Edges)
+            {
+                PointF point1 = GetRectangleCenter(this.vertexConstraints[edge.Index1].CoordRectangle);
+                PointF point2 = GetRectangleCenter(this.vertexConstraints[edge.Index2].CoordRectangle);
+                graphics.DrawLine(Pens.Blue, point1, point2);
+            }
+        }
+
+        private PointF GetRectangleCenter(Rectangle rect)
+        {
+            return new PointF(rect.Left + rect.Width * 0.5f, rect.Top + rect.Height * 0.5f);
         }
     }
 }

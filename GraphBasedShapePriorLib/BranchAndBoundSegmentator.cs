@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using MicrosoftResearch.Infer.Distributions;
 
 namespace Research.GraphBasedShapePrior
@@ -13,6 +14,8 @@ namespace Research.GraphBasedShapePrior
         {
         }
 
+        public event EventHandler<BranchAndBoundStatusEventArgs> BranchAndBoundStatus;
+
         protected override Image2D<bool> SegmentImageImpl(
             Image2D<Color> shrinkedImage,
             double objectSize,
@@ -20,7 +23,7 @@ namespace Research.GraphBasedShapePrior
             Mixture<VectorGaussian> objectColorModel)
         {
             DebugConfiguration.WriteImportantDebugText("Branch-and-bound started.");
-            
+
             ShapeConstraintsSet initialConstraints = ShapeConstraintsSet.ConstraintToImage(
                 this.ShapeModel, shrinkedImage.Rectangle.Size);
 
@@ -28,7 +31,8 @@ namespace Research.GraphBasedShapePrior
             front.Add(new FrontItem(initialConstraints, Double.NegativeInfinity, Double.NegativeInfinity));
 
             int iteration = 1;
-            DateTime lastOutputTime = DateTime.Now;
+            DateTime startTime = DateTime.Now;
+            DateTime lastOutputTime = startTime;
             const int outputInterval = 20;
             int processedConstraintSets = 0;
             while (!front.Min.Constraints.CheckIfSatisfied())
@@ -43,7 +47,7 @@ namespace Research.GraphBasedShapePrior
                         constraintsSet, shrinkedImage, backgroundColorModel, objectColorModel);
                     double minSegmentationEnergy = info.Energy;
                     double minShapeEnergy = this.CalculateMinShapeEnergy(constraintsSet, objectSize);
-                    constraintsSet.ClearConvexHullCache(); // TODO: think more about it
+                    constraintsSet.ClearConvexHullCache();
 
                     FrontItem newFrontItem = new FrontItem(constraintsSet, minShapeEnergy, minSegmentationEnergy);
                     Debug.Assert(newFrontItem.LowerBound >= removedItem.LowerBound - 1e-4); // Lower bound should not decrease
@@ -52,20 +56,19 @@ namespace Research.GraphBasedShapePrior
                     ++processedConstraintSets;
                 }
 
+                // Some debug output
                 if (iteration % outputInterval == 0)
                 {
                     DateTime currentTime = DateTime.Now;
-                    
+
                     DebugConfiguration.WriteDebugText(
                         "On iteration {0} front contains {1} constraint sets.", iteration, front.Count);
                     DebugConfiguration.WriteDebugText(
                         "Current lower bound is {0:0.00000}.", front.Min.LowerBound);
-                    DebugConfiguration.WriteDebugText(
-                        "Processing speed is {0:0.000} items per sec", processedConstraintSets / (currentTime - lastOutputTime).TotalSeconds);
+                    double processingSpeed = processedConstraintSets / (currentTime - lastOutputTime).TotalSeconds;
+                    DebugConfiguration.WriteDebugText("Processing speed is {0:0.000} items per sec", processingSpeed);
 
-                    lastOutputTime = currentTime;
-                    processedConstraintSets = 0;
-
+                    // Compute constraint violations
                     int maxRadiusConstraintViolation = 0, maxCoordConstraintViolation = 0;
                     for (int vertex = 0; vertex < this.ShapeModel.VertexCount; ++vertex)
                     {
@@ -80,11 +83,36 @@ namespace Research.GraphBasedShapePrior
 
                     DebugConfiguration.WriteDebugText("Current constraint violations: {0} (radius), {1} (coord)", maxRadiusConstraintViolation, maxCoordConstraintViolation);
                     DebugConfiguration.WriteDebugText();
+
+                    // Report status
+                    this.ReportStatus(shrinkedImage, front, processingSpeed);
+
+                    lastOutputTime = currentTime;
+                    processedConstraintSets = 0;
                 }
+
                 iteration += 1;
             }
 
+            // Always report status in the end
+            this.ReportStatus(shrinkedImage, front, 0);
+
+            DebugConfiguration.WriteImportantDebugText("Segmentation finished in {0}", DateTime.Now - startTime);
+            DebugConfiguration.WriteImportantDebugText("Resulting energy is {0}", front.Min.LowerBound);
             return this.SegmentImageWithConstraints(front.Min.Constraints, shrinkedImage, backgroundColorModel, objectColorModel).SegmentationMask;
+        }
+
+        private void ReportStatus(Image2D<Color> shrinkedImage, SortedSet<FrontItem> front, double processingSpeed)
+        {
+            // Draw current constraints on top of an image
+            Image statusImage = Image2D.ToRegularImage(shrinkedImage);
+            using (Graphics graphics = Graphics.FromImage(statusImage))
+                front.Min.Constraints.Draw(graphics);
+
+            // Raise status report event
+            BranchAndBoundStatusEventArgs args = new BranchAndBoundStatusEventArgs(front.Min.LowerBound, front.Count, processingSpeed, statusImage);
+            if (this.BranchAndBoundStatus != null)
+                this.BranchAndBoundStatus.Invoke(this, args);
         }
 
         private ImageSegmentationInfo SegmentImageWithConstraints(
@@ -110,7 +138,7 @@ namespace Research.GraphBasedShapePrior
         public static Tuple<double, double> CalculateShapeTerm(ShapeConstraintsSet constraintsSet, Point point)
         {
             Vector pointAsVec = new Vector(point.X, point.Y);
-            
+
             // Calculate weight to sink (min price for object label at (x, y))
             double maxObjectPotential = Double.NegativeInfinity;
             foreach (ShapeEdge edge in constraintsSet.ShapeModel.Edges)
@@ -332,8 +360,6 @@ namespace Research.GraphBasedShapePrior
             public FrontItem(ShapeConstraintsSet constraints, double minShapeEnergy, double minSegmentationEnergy)
             {
                 Debug.Assert(constraints != null);
-                //Debug.Assert(minShapeEnergy >= 0);
-                //Debug.Assert(minSegmentationEnergy >= 0);
 
                 this.Constraints = constraints;
                 this.MinShapeEnergy = minShapeEnergy;

@@ -4,17 +4,17 @@ namespace Research.GraphBasedShapePrior
 {
     public class ShapeVertexParams
     {
-        public ShapeVertexParams(double lengthToObjectSizeRatio, double deviation)
+        public ShapeVertexParams(double lengthToObjectSizeRatio, double radiusRelativeDeviation)
         {
             Debug.Assert(lengthToObjectSizeRatio >= 0);
-            Debug.Assert(deviation >= 0);
+            Debug.Assert(radiusRelativeDeviation >= 0);
 
             this.LengthToObjectSizeRatio = lengthToObjectSizeRatio;
-            this.RadiusDeviation = deviation;
+            this.RadiusRelativeDeviation = radiusRelativeDeviation;
         }
 
         public double LengthToObjectSizeRatio { get; private set; }
 
-        public double RadiusDeviation { get; private set; }
+        public double RadiusRelativeDeviation { get; private set; }
     }
 }

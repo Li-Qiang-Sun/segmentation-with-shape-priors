@@ -7,6 +7,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GraphCuts", "GraphCuts\Grap
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestArea", "TestArea\TestArea.csproj", "{327356D3-F8F3-4580-89F7-557291E7627A}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OptimizedComputations", "OptimizedComputations\OptimizedComputations.vcxproj", "{D3767E2C-7721-4886-B290-5CBC32D8E47C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Segmentator", "Segmentator\Segmentator.csproj", "{E59A741F-C0D7-4937-A7D6-EC2193A1678E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +59,30 @@ Global
 		{327356D3-F8F3-4580-89F7-557291E7627A}.Release|Win32.ActiveCfg = Release|x86
 		{327356D3-F8F3-4580-89F7-557291E7627A}.Release|x86.ActiveCfg = Release|x86
 		{327356D3-F8F3-4580-89F7-557291E7627A}.Release|x86.Build.0 = Release|x86
+		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
+		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Debug|Mixed Platforms.Build.0 = Debug|Win32
+		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Debug|Win32.Build.0 = Debug|Win32
+		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Debug|x86.ActiveCfg = Debug|Win32
+		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Release|Any CPU.ActiveCfg = Release|Win32
+		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Release|Win32.ActiveCfg = Release|Win32
+		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Release|Win32.Build.0 = Release|Win32
+		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Release|x86.ActiveCfg = Release|Win32
+		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Debug|Mixed Platforms.ActiveCfg = Debug|x86
+		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Debug|Mixed Platforms.Build.0 = Debug|x86
+		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Debug|Win32.ActiveCfg = Debug|x86
+		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Debug|x86.ActiveCfg = Debug|x86
+		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Debug|x86.Build.0 = Debug|x86
+		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Release|Any CPU.ActiveCfg = Release|x86
+		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Release|Mixed Platforms.ActiveCfg = Release|x86
+		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Release|Mixed Platforms.Build.0 = Release|x86
+		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Release|Win32.ActiveCfg = Release|x86
+		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Release|x86.ActiveCfg = Release|x86
+		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

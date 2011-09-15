@@ -125,7 +125,8 @@ namespace Research.GraphBasedShapePrior
         public double CalculateVertexEnergyTerm(int vertex, double bodyLength, double radius)
         {
             double diff = radius - bodyLength * this.shapeVertexParams[vertex].LengthToObjectSizeRatio;
-            return diff * diff / this.shapeVertexParams[vertex].RadiusDeviation;
+            double stddev = bodyLength * this.shapeVertexParams[vertex].RadiusRelativeDeviation;
+            return diff * diff / (stddev * stddev);
         }
 
         public double CalculateEdgePairEnergyTerm(int edge1, int edge2, Vector edge1Vector, Vector edge2Vector)
@@ -138,28 +139,40 @@ namespace Research.GraphBasedShapePrior
             double lengthDiff = edge1Vector.Length - edge2Vector.Length * pairParams.LengthRatio;
             double lengthTerm = lengthDiff * lengthDiff / pairParams.LengthDeviation;
             double angleDiff = Vector.AngleBetween(edge1Vector, edge2Vector) - pairParams.MeanAngle;
-            double angleTerm = angleDiff * angleDiff / pairParams.AngleDeviation;
+            double angleTerm = angleDiff * angleDiff / (pairParams.AngleDeviation * pairParams.AngleDeviation);
             return lengthTerm + angleTerm;
         }
 
         public double CalculateObjectPotentialForEdge(Vector point, Circle edgePoint1, Circle edgePoint2)
         {
-            double width, distance;
-            if (edgePoint1.Center == edgePoint2.Center)
-            {
-                distance = point.DistanceToPoint(edgePoint1.Center);
-                width = Math.Min(edgePoint1.Radius, edgePoint2.Radius); // For consistency
-            }
-            else
-            {
-                double alpha, distanceSqr;
-                point.DistanceToSegmentSquared(edgePoint1.Center, edgePoint2.Center, out distanceSqr, out alpha);
-                distance = Math.Sqrt(distanceSqr);
-                alpha = Math.Min(Math.Max(alpha, 0), 1);
-                width = edgePoint1.Radius + (edgePoint2.Radius - edgePoint1.Radius) * alpha;
-            }
+            double result = OptimizedComputations.CalculateObjectPotentialForEdge(
+                point.X, point.Y,
+                edgePoint1.Center.X, edgePoint1.Center.Y, edgePoint1.Radius,
+                edgePoint2.Center.X, edgePoint2.Center.Y, edgePoint2.Radius,
+                this.ConstantProbabilityRate, this.Cutoff);
 
-            return DistanceToObjectPotential(distance, width);
+            //{
+
+            //    double width, distance;
+            //    if (edgePoint1.Center == edgePoint2.Center)
+            //    {
+            //        distance = point.DistanceToPoint(edgePoint1.Center);
+            //        width = Math.Min(edgePoint1.Radius, edgePoint2.Radius); // For consistency
+            //    }
+            //    else
+            //    {
+            //        double alpha, distanceSqr;
+            //        point.DistanceToSegmentSquared(edgePoint1.Center, edgePoint2.Center, out distanceSqr, out alpha);
+            //        distance = Math.Sqrt(distanceSqr);
+            //        alpha = Math.Min(Math.Max(alpha, 0), 1);
+            //        width = edgePoint1.Radius + (edgePoint2.Radius - edgePoint1.Radius) * alpha;
+            //    }
+
+            //    double result2 = DistanceToObjectPotential(distance, width);
+            //    Debug.Assert(Math.Abs(result2 - result) < 1e-6);
+            //}
+
+            return result;
         }
 
         private double DistanceToObjectPotential(double distance, double width)

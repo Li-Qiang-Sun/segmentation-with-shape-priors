@@ -6,6 +6,25 @@ namespace Research.GraphBasedShapePrior
 {
     public static class Image2D
     {
+        public static Image ToRegularImage(Image2D<Color> image)
+        {
+            return ToRegularImage(image, x => x);
+        }
+
+        public static Image ToRegularImage(Image2D<bool> image)
+        {
+            return ToRegularImage(image, x => x ? Color.White : Color.Black);
+        }
+
+        private static Image ToRegularImage<T>(Image2D<T> image, Func<T, Color> converter)
+        {
+            Bitmap result = new Bitmap(image.Width, image.Height);
+            for (int i = 0; i < image.Width; ++i)
+                for (int j = 0; j < image.Height; ++j)
+                    result.SetPixel(i, j, converter(image[i, j]));
+            return result;
+        }
+        
         public static Image2D<Color> LoadFromFile(string fileName, double scaleCoeff = 1)
         {
             using (Bitmap image = new Bitmap(fileName))

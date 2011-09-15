@@ -7,6 +7,8 @@ namespace Research.GraphBasedShapePrior
 {
     public class VertexConstraints
     {
+        private readonly List<Vector> corners = new List<Vector>();
+
         public VertexConstraints(Point minCoordInclusive, Point maxCoordExclusive, int minRadiusInclusive, int maxRadiusExclusive)
         {
             Debug.Assert(minCoordInclusive.X < maxCoordExclusive.X && minCoordInclusive.Y < maxCoordExclusive.Y);
@@ -16,6 +18,11 @@ namespace Research.GraphBasedShapePrior
             this.MaxCoordExclusive = maxCoordExclusive;
             this.MinRadiusInclusive = minRadiusInclusive;
             this.MaxRadiusExclusive = maxRadiusExclusive;
+
+            this.corners.Add(new Vector(this.MinCoordInclusive.X, this.MinCoordInclusive.Y));
+            this.corners.Add(new Vector(this.MinCoordInclusive.X, this.MaxCoordExclusive.Y - 1));
+            this.corners.Add(new Vector(this.MaxCoordExclusive.X - 1, this.MaxCoordExclusive.Y - 1));
+            this.corners.Add(new Vector(this.MaxCoordExclusive.X - 1, this.MinCoordInclusive.Y));
         }
 
         public Point MinCoordInclusive { get; private set; }
@@ -127,38 +134,40 @@ namespace Research.GraphBasedShapePrior
                 yield return new Vector(this.MinCoordInclusive.X, y);
         }
 
+        /// <summary>
+        /// Iterate through all four corners.
+        /// </summary>
+        /// <returns>Enumerable containing all four corners.</returns>
         public IEnumerable<Vector> IterateCorners()
         {
-            yield return new Vector(this.MinCoordInclusive.X, this.MinCoordInclusive.Y);
-            yield return new Vector(this.MinCoordInclusive.X, this.MaxCoordExclusive.Y - 1);
-            yield return new Vector(this.MaxCoordExclusive.X - 1, this.MaxCoordExclusive.Y - 1);
-            yield return new Vector(this.MaxCoordExclusive.X - 1, this.MinCoordInclusive.Y);
+            return this.corners;
         }
 
         /// <summary>
         /// Iterate through all four corners and also point closest to given (if given point is outside).
         /// </summary>
         /// <param name="point">Point closest to which must be returned.</param>
-        /// <returns>Enumerable containing all four corners and also point closest to given  (if given point is outside).</returns>
+        /// <returns>Enumerable containing all four corners and also point closest to the given one (if given point is outside and does not match with one of the corners).</returns>
         public IEnumerable<Vector> IterateCornersAndClosestPoint(Point point)
         {
-            foreach (Vector corner in IterateCorners())
-                yield return corner;
+            List<Vector> result = new List<Vector>(this.corners);
 
             if (point.X >= MinCoordInclusive.X && point.X < MaxCoordExclusive.X)
             {
                 if (point.Y < MinCoordInclusive.Y)
-                    yield return new Vector(point.X, MinCoordInclusive.Y);
+                    result.Add(new Vector(point.X, MinCoordInclusive.Y));
                 else if (point.Y >= MaxCoordExclusive.Y)
-                    yield return new Vector(point.X, MaxCoordExclusive.Y - 1);
+                    result.Add(new Vector(point.X, MaxCoordExclusive.Y - 1));
             }
             else if (point.Y >= MinCoordInclusive.Y && point.Y < MaxCoordExclusive.Y)
             {
                 if (point.X < MinCoordInclusive.X)
-                    yield return new Vector(MinCoordInclusive.X, point.Y);
+                    result.Add(new Vector(MinCoordInclusive.X, point.Y));
                 else if (point.X >= MaxCoordExclusive.X)
-                    yield return new Vector(MaxCoordExclusive.X - 1, point.Y);
+                    result.Add(new Vector(MaxCoordExclusive.X - 1, point.Y));
             }
+
+            return result;
         }
 
         public int Area

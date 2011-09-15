@@ -57,31 +57,39 @@ namespace Research.GraphBasedShapePrior
         {
             Debug.Assert(points != null);
             Debug.Assert(points.Count >= 3);
-            
+
+            // Leave only distinct points
+            points = new List<Vector>(points.Distinct());
+
+            // Find first point
             Vector hullStart = points[0];
             for (int i = 1; i < points.Count; ++i)
             {
                 Vector point = points[i];
-                if (point.X < hullStart.X || point.Y < hullStart.Y)
+                if (point.X < hullStart.X || (point.X == hullStart.X && point.Y < hullStart.Y))
                     hullStart = point;
             }
 
-            Vector convexHullPoint = hullStart;
+            Vector currentHullPoint = hullStart;
             Polygon result = new Polygon();
+            bool[] usedPoints = new bool[points.Count];
             do
             {
-                result.vertices.Add(convexHullPoint);
-                Vector endpoint = points[0];
+                result.vertices.Add(currentHullPoint);
+                
+                int nextHullPointIndex = 0;
                 for (int i = 1; i < points.Count; ++i)
                 {
-                    if (endpoint == convexHullPoint ||
-                        Vector.CrossProduct(points[i] - convexHullPoint, endpoint - convexHullPoint) < 0)
+                    if (usedPoints[nextHullPointIndex] ||
+                        Vector.CrossProduct(points[i] - currentHullPoint, points[nextHullPointIndex] - currentHullPoint) < 0)
                     {
-                        endpoint = points[i];
+                        nextHullPointIndex = i;
                     }
                 }
-                convexHullPoint = endpoint;
-            } while (convexHullPoint != hullStart);
+                
+                currentHullPoint = points[nextHullPointIndex];
+                usedPoints[nextHullPointIndex] = true;
+            } while (currentHullPoint != hullStart);
 
             return result;
         }

@@ -86,7 +86,7 @@ namespace TestArea
 
         static void MainForDistanceTransform()
         {
-            Image2D<Color> mask = Image2D.LoadFromFile("../../mask.png");
+            Image2D<Color> mask = Image2D.LoadFromFile("../../Images/mask.png");
             Func<Point, double> penaltyFunc = p => mask[p.X, p.Y].ToArgb() == Color.Black.ToArgb() ? 0 : 1e+10;
             GeneralizedDistanceTransform2D transform = new GeneralizedDistanceTransform2D(
                 Point.Empty, new Point(mask.Width, mask.Height), 1, 1, penaltyFunc);
@@ -110,7 +110,7 @@ namespace TestArea
             DebugConfiguration.VerbosityLevel = VerbosityLevel.Everything;
 
             const double scale = 0.15;
-            Image2D<Color> image = Image2D.LoadFromFile("../../simple_1.png", scale);
+            Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_1.png", scale);
             Rectangle bigLocation = new Rectangle(153, 124, 796, 480);
             Rectangle location = new Rectangle(
                 (int)(bigLocation.X * scale),

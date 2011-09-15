@@ -74,6 +74,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BranchAndBoundSegmentator.cs" />
+    <Compile Include="BranchAndBoundStatusEventArgs.cs" />
     <Compile Include="Circle.cs" />
     <Compile Include="ColorUtils.cs" />
     <Compile Include="GeneralizedDistanceTransform1D.cs" />
@@ -105,6 +106,10 @@
     <ProjectReference Include="..\GraphCuts\GraphCuts.vcxproj">
       <Project>{19F5BAC2-897A-4C7C-853A-752853165CCD}</Project>
       <Name>GraphCuts</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\OptimizedComputations\OptimizedComputations.vcxproj">
+      <Project>{D3767E2C-7721-4886-B290-5CBC32D8E47C}</Project>
+      <Name>OptimizedComputations</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
