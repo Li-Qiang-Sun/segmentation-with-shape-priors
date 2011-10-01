@@ -60,6 +60,21 @@ namespace Research.GraphBasedShapePrior
             }
         }
 
+        public int MiddleRadius
+        {
+            get { return (MinRadiusInclusive + MaxRadiusExclusive) / 2; }
+        }
+
+        public Point MiddleCoord
+        {
+            get
+            {
+                return new Point(
+                    (MinCoordInclusive.X + MaxCoordExclusive.X) / 2,
+                    (MinCoordInclusive.Y + MaxCoordExclusive.Y) / 2);
+            }
+        }
+
         public bool RadiusSatisfied
         {
             get { return this.RadiusViolation == 0; }
@@ -74,21 +89,29 @@ namespace Research.GraphBasedShapePrior
         {
             Debug.Assert(!this.RadiusSatisfied);
 
-            int middle = (MinRadiusInclusive + MaxRadiusExclusive) / 2;
             return new List<VertexConstraints>
             {
-                new VertexConstraints(MinCoordInclusive, MaxCoordExclusive, MinRadiusInclusive, middle),
-                new VertexConstraints(MinCoordInclusive, MaxCoordExclusive, middle, MaxRadiusExclusive)
+                new VertexConstraints(MinCoordInclusive, MaxCoordExclusive, MinRadiusInclusive, this.MiddleRadius),
+                new VertexConstraints(MinCoordInclusive, MaxCoordExclusive, this.MiddleRadius, MaxRadiusExclusive)
             };
+        }
+
+        public VertexConstraints Collapse()
+        {
+            int radius = this.MiddleRadius;
+            Point coord = this.MiddleCoord;
+            return new VertexConstraints(
+                coord,
+                new Point(coord.X + 1, coord.Y + 1), 
+                radius,
+                radius + 1);
         }
 
         public List<VertexConstraints> SplitByCoords()
         {
             Debug.Assert(!this.CoordSatisfied);
 
-            Point middle = new Point(
-                (MinCoordInclusive.X + MaxCoordExclusive.X) / 2,
-                (MinCoordInclusive.Y + MaxCoordExclusive.Y) / 2);
+            Point middle = this.MiddleCoord;
             List<VertexConstraints> result = new List<VertexConstraints>();
             if (middle.X != MinCoordInclusive.X && middle.Y != MinCoordInclusive.Y)
                 result.Add(new VertexConstraints(MinCoordInclusive, middle, MinRadiusInclusive, MaxRadiusExclusive));

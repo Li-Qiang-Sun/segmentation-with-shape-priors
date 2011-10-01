@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using MicrosoftResearch.Infer.Maths;
@@ -140,11 +138,12 @@ namespace Segmentator
             Rand.Restart(666);
 
             BranchAndBoundSegmentator segmentator = new BranchAndBoundSegmentator();
-            segmentator.ShapeModel = CreateSimpleShapeModel1();
-            //segmentator.ShapeModel = CreateSimpleShapeModel2();
-            segmentator.BranchAndBoundStatus += OnBranchAndBoundStatusUpdate;
-            segmentator.StatusReportRate = 200;
-            segmentator.HeightPessimizationWeight = 0;
+            //segmentator.ShapeModel = CreateSimpleShapeModel1();
+            segmentator.ShapeModel = CreateSimpleShapeModel2();
+            segmentator.UseDepthFirstSearch = false;
+            segmentator.BreadthFirstBranchAndBoundStatus += OnBFSStatusUpdate;
+            segmentator.DepthFirstBranchAndBoundStatus += OnDFSStatusUpdate;
+            segmentator.StatusReportRate = 50;
             segmentator.ShapeUnaryTermWeight = 3;
             segmentator.ShapeEnergyWeight = 10;
 
@@ -152,11 +151,11 @@ namespace Segmentator
 
             const double scale = 0.15;
             //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_1.png", scale);
-            Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_2.png", scale);
-            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_3.png", scale);
+            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_2.png", scale);
+            Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_3.png", scale);
             //Rectangle bigLocation = new Rectangle(153, 124, 796, 480); // 1
-            Rectangle bigLocation = new Rectangle(334, 37, 272, 547); // 2
-            //Rectangle bigLocation = new Rectangle(249, 22, 391, 495); // 3
+            //Rectangle bigLocation = new Rectangle(334, 37, 272, 547); // 2
+            Rectangle bigLocation = new Rectangle(249, 22, 391, 495); // 3
             Rectangle location = new Rectangle(
                 (int)(bigLocation.X * scale),
                 (int)(bigLocation.Y * scale),
@@ -167,7 +166,7 @@ namespace Segmentator
             e.Result = mask;
         }
 
-        void OnBranchAndBoundStatusUpdate(object sender, BranchAndBoundStatusEventArgs e)
+        void OnBFSStatusUpdate(object sender, BreadthFirstBranchAndBoundStatusEventArgs e)
         {
             this.Invoke(new MethodInvoker(
                 delegate
@@ -175,9 +174,22 @@ namespace Segmentator
                     if (this.currentImage.Image != null)
                         this.currentImage.Image.Dispose();
                     this.currentImage.Image = e.StatusImage;
-                    this.currentEnergyLabel.Text = String.Format("Lower bound: {0:0.000}", e.Energy);
+                    this.currentEnergyLabel.Text = String.Format("Lower bound: {0:0.000}", e.LowerBound);
                     this.frontSizeLabel.Text = String.Format("Front size: {0:0}", e.FrontSize);
                     this.processingSpeedLabel.Text = String.Format("Processing speed: {0:0.0} items/sec", e.FrontItemsPerSecond);
+                }));
+        }
+
+        void OnDFSStatusUpdate(object sender, DepthFirstBranchAndBoundStatusEventArgs e)
+        {
+            this.Invoke(new MethodInvoker(
+                delegate
+                {
+                    if (this.currentImage.Image != null)
+                        this.currentImage.Image.Dispose();
+                    this.currentImage.Image = e.StatusImage;
+                    this.currentEnergyLabel.Text = String.Format("Upper bound: {0:0.000}", e.UpperBound);
+                    this.resultImage.Image = Image2D.ToRegularImage(e.UpperBoundSegmentationMask);
                 }));
         }
 

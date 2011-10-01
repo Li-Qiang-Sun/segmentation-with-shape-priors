@@ -3,23 +3,24 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
-using System.Runtime.InteropServices;
 using MicrosoftResearch.Infer.Distributions;
 
 namespace Research.GraphBasedShapePrior
 {
     public class BranchAndBoundSegmentator : SegmentatorBase
     {
-        public event EventHandler<BranchAndBoundStatusEventArgs> BranchAndBoundStatus;
+        public event EventHandler<BreadthFirstBranchAndBoundStatusEventArgs> BreadthFirstBranchAndBoundStatus;
 
-        public double HeightPessimizationWeight { get; set; }
+        public event EventHandler<DepthFirstBranchAndBoundStatusEventArgs> DepthFirstBranchAndBoundStatus;
 
         public int StatusReportRate { get; set; }
 
+        public bool UseDepthFirstSearch { get; set; }
+
         public BranchAndBoundSegmentator()
         {
-            this.HeightPessimizationWeight = 0;
-            this.StatusReportRate = 20;
+            this.StatusReportRate = 50;
+            this.UseDepthFirstSearch = true;
         }
 
         protected override Image2D<bool> SegmentImageImpl(
@@ -28,16 +29,27 @@ namespace Research.GraphBasedShapePrior
             Mixture<VectorGaussian> backgroundColorModel,
             Mixture<VectorGaussian> objectColorModel)
         {
-            Debug.Assert(this.HeightPessimizationWeight >= 0);
             Debug.Assert(this.StatusReportRate > 0);
-            
-            DebugConfiguration.WriteImportantDebugText("Branch-and-bound started.");
 
+            return
+                this.UseDepthFirstSearch
+                    ? this.DepthFirstBranchAndBound(shrinkedImage, objectSize, backgroundColorModel, objectColorModel)
+                    : this.BreadthFirstBranchAndBound(shrinkedImage, objectSize, backgroundColorModel, objectColorModel);
+        }
+
+        private Image2D<bool> BreadthFirstBranchAndBound(
+            Image2D<Color> shrinkedImage,
+            double objectSize,
+            Mixture<VectorGaussian> backgroundColorModel,
+            Mixture<VectorGaussian> objectColorModel)
+        {
+            DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound started.");
+            
             ShapeConstraintsSet initialConstraints = ShapeConstraintsSet.ConstraintToImage(
                 this.ShapeModel, shrinkedImage.Rectangle.Size);
 
-            SortedSet<FrontItem> front = new SortedSet<FrontItem>();
-            front.Add(new FrontItem(initialConstraints, -1e+20, -1e+20, this.ShapeEnergyWeight, this.HeightPessimizationWeight));
+            SortedSet<EnergyBound> front = new SortedSet<EnergyBound>();
+            front.Add(new EnergyBound(initialConstraints, -1e+20, -1e+20, this.ShapeEnergyWeight, null));
 
             int currentIteration = 1;
             DateTime startTime = DateTime.Now;
@@ -45,29 +57,20 @@ namespace Research.GraphBasedShapePrior
             int processedConstraintSets = 0;
             while (!front.Min.Constraints.CheckIfSatisfied())
             {
-                FrontItem removedItem = front.Min;
-                front.Remove(removedItem);
+                EnergyBound parentLowerBound = front.Min;
+                front.Remove(parentLowerBound);
 
-                List<ShapeConstraintsSet> expandedConstraints = removedItem.Constraints.SplitMostViolated();
+                List<ShapeConstraintsSet> expandedConstraints = parentLowerBound.Constraints.SplitMostViolated();
                 foreach (ShapeConstraintsSet constraintsSet in expandedConstraints)
                 {
-                    ImageSegmentationInfo info = this.SegmentImageWithConstraints(
-                        constraintsSet, shrinkedImage, backgroundColorModel, objectColorModel);
-                    double minSegmentationEnergy = info.Energy;
-                    double minShapeEnergy = this.CalculateMinShapeEnergy(constraintsSet, objectSize);
-                    constraintsSet.ClearConvexHullCache();
-
-                    FrontItem newFrontItem = new FrontItem(
-                        constraintsSet,
-                        minShapeEnergy,
-                        minSegmentationEnergy,
-                        this.ShapeEnergyWeight,
-                        this.HeightPessimizationWeight);
-                    front.Add(newFrontItem);
+                    EnergyBound lowerBound = this.CalculateEnergyBound(
+                        constraintsSet, shrinkedImage, objectSize, backgroundColorModel, objectColorModel);
+                    lowerBound.CleanupSegmentationMask();
+                    front.Add(lowerBound);
 
                     // Lower bound should not decrease
-                    Debug.Assert(newFrontItem.MinSegmentationEnergy >= removedItem.MinSegmentationEnergy - 1e-6);
-                    Debug.Assert(newFrontItem.MinShapeEnergy >= removedItem.MinShapeEnergy - 1e-6);
+                    Debug.Assert(lowerBound.SegmentationEnergy >= parentLowerBound.SegmentationEnergy - 1e-6);
+                    Debug.Assert(lowerBound.ShapeEnergy >= parentLowerBound.ShapeEnergy - 1e-6);
 
                     ++processedConstraintSets;
                 }
@@ -76,16 +79,15 @@ namespace Research.GraphBasedShapePrior
                 if (currentIteration % this.StatusReportRate == 0)
                 {
                     DateTime currentTime = DateTime.Now;
-                    FrontItem currentMin = front.Min;
+                    EnergyBound currentMin = front.Min;
 
                     DebugConfiguration.WriteDebugText(
                         "On iteration {0} front contains {1} constraint sets.", currentIteration, front.Count);
                     DebugConfiguration.WriteDebugText(
-                        "Current lower bound is {0:0.0000} ({1:0.0000} + {2:0.0000} + {3:0.0000}).",
-                        currentMin.LowerBound,
-                        currentMin.MinSegmentationEnergy,
-                        currentMin.MinShapeEnergy * this.ShapeEnergyWeight,
-                        currentMin.HeightPessimization);
+                        "Current lower bound is {0:0.0000} ({1:0.0000} + {2:0.0000}).",
+                        currentMin.Bound,
+                        currentMin.SegmentationEnergy,
+                        currentMin.ShapeEnergy * this.ShapeEnergyWeight);
                     double processingSpeed = processedConstraintSets / (currentTime - lastOutputTime).TotalSeconds;
                     DebugConfiguration.WriteDebugText("Processing speed is {0:0.000} items per sec", processingSpeed);
 
@@ -106,7 +108,7 @@ namespace Research.GraphBasedShapePrior
                     DebugConfiguration.WriteDebugText();
 
                     // Report status
-                    this.ReportStatus(shrinkedImage, front, processingSpeed);
+                    this.ReportBreadthFirstSearchStatus(shrinkedImage, front, processingSpeed);
 
                     lastOutputTime = currentTime;
                     processedConstraintSets = 0;
@@ -116,16 +118,138 @@ namespace Research.GraphBasedShapePrior
             }
 
             // Always report status in the end
-            this.ReportStatus(shrinkedImage, front, 0);
+            this.ReportBreadthFirstSearchStatus(shrinkedImage, front, 0);
 
             DebugConfiguration.WriteImportantDebugText(
-                "Segmentation finished in {0} ({1} iterations)", DateTime.Now - startTime, currentIteration);
+                "Branch-and-bound finished in {0} ({1} iterations)", DateTime.Now - startTime, currentIteration);
             DebugConfiguration.WriteImportantDebugText(
-                "Resulting energy is {0}", front.Min.LowerBound);
+                "Resulting energy is {0}", front.Min.Bound);
             return this.SegmentImageWithConstraints(front.Min.Constraints, shrinkedImage, backgroundColorModel, objectColorModel).SegmentationMask;
         }
 
-        private void ReportStatus(Image2D<Color> shrinkedImage, SortedSet<FrontItem> front, double processingSpeed)
+        private Image2D<bool> DepthFirstBranchAndBound(
+            Image2D<Color> shrinkedImage,
+            double objectSize,
+            Mixture<VectorGaussian> backgroundColorModel,
+            Mixture<VectorGaussian> objectColorModel)
+        {
+            ShapeConstraintsSet initialConstraints = ShapeConstraintsSet.ConstraintToImage(
+                this.ShapeModel, shrinkedImage.Rectangle.Size);
+
+            DateTime startTime = DateTime.Now;
+            DebugConfiguration.WriteImportantDebugText("Depth-first branch-and-bound started.");
+
+            EnergyBound bestUpperBound = null;
+            int lowerBoundsCalculated = 0;
+            int upperBoundsCalculated = 0;
+            int branchesTruncated = 0;
+            int iteration = 1;
+            this.DepthFirstBranchAndBoundTraverse(
+                shrinkedImage,
+                objectSize,
+                backgroundColorModel,
+                objectColorModel,
+                initialConstraints,
+                ref bestUpperBound,
+                ref lowerBoundsCalculated,
+                ref upperBoundsCalculated,
+                ref branchesTruncated,
+                ref iteration);
+
+            TimeSpan elapsedTime = DateTime.Now - startTime;
+            DebugConfiguration.WriteImportantDebugText(string.Format("Depth-first branch-and-bound finished in {0}.", elapsedTime));
+
+            return this.SegmentImageWithConstraints(bestUpperBound.Constraints, shrinkedImage, backgroundColorModel, objectColorModel).SegmentationMask;
+        }
+
+        private void DepthFirstBranchAndBoundTraverse(
+            Image2D<Color> shrinkedImage,
+            double objectSize,
+            Mixture<VectorGaussian> backgroundColorModel,
+            Mixture<VectorGaussian> objectColorModel,
+            ShapeConstraintsSet currentNode,
+            ref EnergyBound bestUpperBound,
+            ref int lowerBoundsCalculated,
+            ref int upperBoundsCalculated,
+            ref int branchesTruncated,
+            ref int iteration)
+        {
+            Debug.Assert(!currentNode.CheckIfSatisfied());
+
+            if (iteration % this.StatusReportRate == 0)
+            {
+                // Write some text
+                DebugConfiguration.WriteDebugText(
+                    "On iteration {0} best upper bound is {1:0.0000} ({2:0.0000} + {3:0.0000}).",
+                    iteration,
+                    bestUpperBound.Bound,
+                    bestUpperBound.SegmentationEnergy,
+                    bestUpperBound.ShapeEnergy * this.ShapeEnergyWeight);
+                DebugConfiguration.WriteDebugText("Lower bounds calculated: {0}", lowerBoundsCalculated);
+                DebugConfiguration.WriteDebugText("Upper bounds calculated: {0}", upperBoundsCalculated);
+                DebugConfiguration.WriteDebugText("Branches truncated: {0}", branchesTruncated);
+                DebugConfiguration.WriteDebugText();
+
+                // Report status
+                this.ReportDepthFirstSearchStatus(shrinkedImage, bestUpperBound);
+            }
+            
+            List<ShapeConstraintsSet> children = currentNode.SplitMostViolated();
+
+            // Traverse only subtrees with good lower bounds
+            for (int i = 0; i < children.Count; ++i)
+            {
+                EnergyBound upperBound = this.CalculateEnergyBound(
+                    children[i].GuessSolution(), shrinkedImage, objectSize, backgroundColorModel, objectColorModel);
+                upperBoundsCalculated += 1;
+                if (bestUpperBound == null || upperBound.Bound < bestUpperBound.Bound)
+                    bestUpperBound = upperBound;
+                
+                // Lower bound equals upper bound for leafs
+                if (children[i].CheckIfSatisfied())
+                    continue;
+
+                EnergyBound lowerBound = this.CalculateEnergyBound(
+                    children[i], shrinkedImage, objectSize, backgroundColorModel, objectColorModel);
+                lowerBoundsCalculated += 1;
+
+                // No minimum in that subtree
+                if (lowerBound.Bound >= bestUpperBound.Bound)
+                {
+                    branchesTruncated += 1;
+                    continue;
+                }
+
+                iteration += 1;
+                this.DepthFirstBranchAndBoundTraverse(
+                    shrinkedImage,
+                    objectSize,
+                    backgroundColorModel,
+                    objectColorModel,
+                    children[i],
+                    ref bestUpperBound,
+                    ref lowerBoundsCalculated,
+                    ref upperBoundsCalculated,
+                    ref branchesTruncated,
+                    ref iteration);
+            }
+        }
+
+        private void ReportDepthFirstSearchStatus(Image2D<Color> shrinkedImage, EnergyBound upperBound)
+        {
+            // Draw current constraints on top of an image
+            Image statusImage = Image2D.ToRegularImage(shrinkedImage);
+            using (Graphics graphics = Graphics.FromImage(statusImage))
+                upperBound.Constraints.Draw(graphics);
+
+            // Raise status report event
+            DepthFirstBranchAndBoundStatusEventArgs args = new DepthFirstBranchAndBoundStatusEventArgs(
+                upperBound.Bound, statusImage, upperBound.SegmentationMask);
+            if (this.DepthFirstBranchAndBoundStatus != null)
+                this.DepthFirstBranchAndBoundStatus.Invoke(this, args);
+        }
+
+        private void ReportBreadthFirstSearchStatus(Image2D<Color> shrinkedImage, SortedSet<EnergyBound> front, double processingSpeed)
         {
             // Draw current constraints on top of an image
             Image statusImage = Image2D.ToRegularImage(shrinkedImage);
@@ -133,9 +257,25 @@ namespace Research.GraphBasedShapePrior
                 front.Min.Constraints.Draw(graphics);
 
             // Raise status report event
-            BranchAndBoundStatusEventArgs args = new BranchAndBoundStatusEventArgs(front.Min.LowerBound, front.Count, processingSpeed, statusImage);
-            if (this.BranchAndBoundStatus != null)
-                this.BranchAndBoundStatus.Invoke(this, args);
+            BreadthFirstBranchAndBoundStatusEventArgs args = new BreadthFirstBranchAndBoundStatusEventArgs(front.Min.Bound, front.Count, processingSpeed, statusImage);
+            if (this.BreadthFirstBranchAndBoundStatus != null)
+                this.BreadthFirstBranchAndBoundStatus.Invoke(this, args);
+        }
+
+        private EnergyBound CalculateEnergyBound(
+            ShapeConstraintsSet constraintsSet,
+            Image2D<Color> shrinkedImage,
+            double objectSize,
+            Mixture<VectorGaussian> backgroundColorModel,
+            Mixture<VectorGaussian> objectColorModel)
+        {
+            ImageSegmentationInfo boundInfo = this.SegmentImageWithConstraints(
+                constraintsSet, shrinkedImage, backgroundColorModel, objectColorModel);
+
+            double segmentationEnergy = boundInfo.Energy;
+            double shapeEnergy = this.CalculateMinShapeEnergy(constraintsSet, objectSize);
+
+            return new EnergyBound(constraintsSet, shapeEnergy, segmentationEnergy, this.ShapeEnergyWeight, boundInfo.SegmentationMask);
         }
 
         private ImageSegmentationInfo SegmentImageWithConstraints(
@@ -164,7 +304,7 @@ namespace Research.GraphBasedShapePrior
             Vector pointAsVec = new Vector(point.X, point.Y);
 
             // Calculate weight to sink (min price for object label at (x, y))
-            double maxObjectPotential = Double.NegativeInfinity;
+            double minDistanceToEdge = Double.PositiveInfinity;
             foreach (ShapeEdge edge in constraintsSet.ShapeModel.Edges)
             {
                 VertexConstraints constraints1 = constraintsSet.GetConstraintsForVertex(edge.Index1);
@@ -173,45 +313,47 @@ namespace Research.GraphBasedShapePrior
                 Polygon convexHull = constraintsSet.GetConvexHullForVertexPair(edge.Index1, edge.Index2);
                 if (convexHull.IsPointInside(pointAsVec))
                 {
-                    maxObjectPotential = 1;
+                    minDistanceToEdge = 0;
                     break;
                 }
 
                 foreach (Vector point1 in constraints1.IterateCornersAndClosestPoint(point))
                     foreach (Vector point2 in constraints2.IterateCornersAndClosestPoint(point))
                     {
-                        maxObjectPotential = Math.Max(
-                            maxObjectPotential,
-                            constraintsSet.ShapeModel.CalculateObjectPotentialForEdge(
+                        minDistanceToEdge = Math.Min(
+                            minDistanceToEdge,
+                            constraintsSet.ShapeModel.CalculateRelativeDistanceToEdge(
                                 pointAsVec,
                                 new Circle(point1, constraints1.MaxRadiusExclusive - 1),
                                 new Circle(point2, constraints2.MaxRadiusExclusive - 1)));
                     }
             }
+            double maxObjectPotential = constraintsSet.ShapeModel.RelativeDistanceToObjectPotential(minDistanceToEdge);
             double toSink = -MathHelper.LogInf(maxObjectPotential);
 
             // Calculate weight to source (min price for background label at (x, y))
-            double maxBackgroundPotential = Double.NegativeInfinity;
+            double maxDistanceToEdge = Double.PositiveInfinity;
             foreach (ShapeEdge edge in constraintsSet.ShapeModel.Edges)
             {
                 VertexConstraints constraints1 = constraintsSet.GetConstraintsForVertex(edge.Index1);
                 VertexConstraints constraints2 = constraintsSet.GetConstraintsForVertex(edge.Index2);
 
                 // Solution will connect 2 corners (need to prove this fact)
-                double minObjectPotentialForEdge = Double.PositiveInfinity;
+                double maxDistanceToCurrentEdge = 0;
                 foreach (Vector point1 in constraints1.IterateCorners())
                     foreach (Vector point2 in constraints2.IterateCorners())
                     {
-                        double currentPotential =
-                            constraintsSet.ShapeModel.CalculateObjectPotentialForEdge(
+                        maxDistanceToCurrentEdge = Math.Max(
+                            maxDistanceToCurrentEdge,
+                            constraintsSet.ShapeModel.CalculateRelativeDistanceToEdge(
                                 pointAsVec,
                                 new Circle(point1, constraints1.MinRadiusInclusive),
-                                new Circle(point2, constraints2.MinRadiusInclusive));
-                        minObjectPotentialForEdge = Math.Min(minObjectPotentialForEdge, currentPotential);
+                                new Circle(point2, constraints2.MinRadiusInclusive)));
                     }
 
-                maxBackgroundPotential = Math.Max(maxBackgroundPotential, 1 - minObjectPotentialForEdge);
+                maxDistanceToEdge = Math.Min(maxDistanceToEdge, maxDistanceToCurrentEdge);
             }
+            double maxBackgroundPotential = 1 - constraintsSet.ShapeModel.RelativeDistanceToObjectPotential(maxDistanceToEdge);
             double toSource = -MathHelper.LogInf(maxBackgroundPotential);
 
             return new Tuple<double, double>(toSource, toSink);
@@ -377,63 +519,53 @@ namespace Research.GraphBasedShapePrior
                 penaltyFunction);
         }
 
-        private class FrontItem : IComparable<FrontItem>
+        private class EnergyBound : IComparable<EnergyBound>
         {
             public ShapeConstraintsSet Constraints { get; private set; }
 
-            public double LowerBound { get; private set; }
+            public double Bound { get; private set; }
 
-            public double MinShapeEnergy { get; private set; }
+            public double ShapeEnergy { get; private set; }
 
-            public double MinSegmentationEnergy { get; private set; }
+            public double SegmentationEnergy { get; private set; }
 
-            public double HeightPessimization { get; private set; }
+            public Image2D<bool> SegmentationMask { get; private set; }
 
             private static int instanceCount = 0;
 
-            public int InstanceId { get; private set; }
+            private readonly int instanceId;
 
-            public FrontItem(
+            public EnergyBound(
                 ShapeConstraintsSet constraints,
-                double minShapeEnergy,
-                double minSegmentationEnergy,
+                double shapeEnergy,
+                double segmentationEnergy,
                 double shapeEnergyWeight,
-                double heightPessimizationWeight)
+                Image2D<bool> segmentationMask = null)
             {
                 Debug.Assert(constraints != null);
-                Debug.Assert(heightPessimizationWeight >= 0);
-
-                double distanceToLeaf = 0;
-                for (int i = 0; i < constraints.ShapeModel.VertexCount; ++i)
-                {
-                    VertexConstraints vertexConstraints = constraints.GetConstraintsForVertex(i);
-                    distanceToLeaf +=
-                        vertexConstraints.CoordViolation > 0
-                        ? Math.Log(vertexConstraints.CoordViolation, 2)
-                        : 0;
-                    distanceToLeaf +=
-                        vertexConstraints.RadiusViolation > 0
-                        ? Math.Log(vertexConstraints.RadiusViolation, 2)
-                        : 0;
-                }
 
                 this.Constraints = constraints;
-                this.MinShapeEnergy = minShapeEnergy;
-                this.MinSegmentationEnergy = minSegmentationEnergy;
-                this.HeightPessimization = distanceToLeaf * heightPessimizationWeight;
-                this.LowerBound = minShapeEnergy * shapeEnergyWeight + minSegmentationEnergy + this.HeightPessimization;
+                this.ShapeEnergy = shapeEnergy;
+                this.SegmentationEnergy = segmentationEnergy;
+                this.SegmentationMask = segmentationMask;
+                this.Bound = shapeEnergy * shapeEnergyWeight + segmentationEnergy;
 
                 // Yeah, this is not thread-safe
-                this.InstanceId = ++instanceCount;
+                this.instanceId = ++instanceCount;
             }
 
-            public int CompareTo(FrontItem other)
+            public void CleanupSegmentationMask()
             {
-                if (this.LowerBound < other.LowerBound)
+                this.SegmentationMask = null;
+            }
+
+            public int CompareTo(EnergyBound other)
+            {
+                if (this.Bound < other.Bound)
                     return -1;
-                if (this.LowerBound > other.LowerBound)
+                if (this.Bound > other.Bound)
                     return 1;
-                return Comparer<int>.Default.Compare(this.InstanceId, other.InstanceId);
+                return Comparer<int>.Default.Compare(this.instanceId, other.instanceId);
             }
         }
     }

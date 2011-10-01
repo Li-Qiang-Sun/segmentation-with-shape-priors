@@ -4,9 +4,9 @@ using System.Drawing;
 
 namespace Research.GraphBasedShapePrior
 {
-    public class BranchAndBoundStatusEventArgs : EventArgs
+    public class BreadthFirstBranchAndBoundStatusEventArgs : EventArgs
     {
-        public double Energy { get; private set; }
+        public double LowerBound { get; private set; }
         
         public int FrontSize { get; private set; }
 
@@ -14,11 +14,11 @@ namespace Research.GraphBasedShapePrior
 
         public Image StatusImage { get; private set; }
 
-        public BranchAndBoundStatusEventArgs(double lowerBound, int frontSize, double frontItemsPerSecond, Image statusImage)
+        public BreadthFirstBranchAndBoundStatusEventArgs(double lowerBound, int frontSize, double frontItemsPerSecond, Image statusImage)
         {
             Debug.Assert(statusImage != null);
             
-            this.Energy = lowerBound;
+            this.LowerBound = lowerBound;
             this.FrontSize = frontSize;
             this.FrontItemsPerSecond = frontItemsPerSecond;
             this.StatusImage = statusImage;

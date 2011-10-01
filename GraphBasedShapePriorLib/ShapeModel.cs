@@ -143,42 +143,37 @@ namespace Research.GraphBasedShapePrior
             return lengthTerm + angleTerm;
         }
 
-        public double CalculateObjectPotentialForEdge(Vector point, Circle edgePoint1, Circle edgePoint2)
+        // Result is 1 when point is on the edge area border, 0 when point is on the edge
+        public double CalculateRelativeDistanceToEdge(Vector point, Circle edgePoint1, Circle edgePoint2)
         {
-            double result = OptimizedComputations.CalculateObjectPotentialForEdge(
-                point.X, point.Y,
-                edgePoint1.Center.X, edgePoint1.Center.Y, edgePoint1.Radius,
-                edgePoint2.Center.X, edgePoint2.Center.Y, edgePoint2.Radius,
-                this.ConstantProbabilityRate, this.Cutoff);
+            double width, distance;
+            if (edgePoint1.Center == edgePoint2.Center)
+            {
+                distance = point.DistanceToPoint(edgePoint1.Center);
+                width = Math.Min(edgePoint1.Radius, edgePoint2.Radius); // For consistency
+            }
+            else
+            {
+                double alpha, distanceSqr;
+                point.DistanceToSegmentSquared(edgePoint1.Center, edgePoint2.Center, out distanceSqr, out alpha);
+                distance = Math.Sqrt(distanceSqr);
+                alpha = Math.Min(Math.Max(alpha, 0), 1);
+                width = edgePoint1.Radius + (edgePoint2.Radius - edgePoint1.Radius) * alpha;
+            }
 
-            //{
-
-            //    double width, distance;
-            //    if (edgePoint1.Center == edgePoint2.Center)
-            //    {
-            //        distance = point.DistanceToPoint(edgePoint1.Center);
-            //        width = Math.Min(edgePoint1.Radius, edgePoint2.Radius); // For consistency
-            //    }
-            //    else
-            //    {
-            //        double alpha, distanceSqr;
-            //        point.DistanceToSegmentSquared(edgePoint1.Center, edgePoint2.Center, out distanceSqr, out alpha);
-            //        distance = Math.Sqrt(distanceSqr);
-            //        alpha = Math.Min(Math.Max(alpha, 0), 1);
-            //        width = edgePoint1.Radius + (edgePoint2.Radius - edgePoint1.Radius) * alpha;
-            //    }
-
-            //    double result2 = DistanceToObjectPotential(distance, width);
-            //    Debug.Assert(Math.Abs(result2 - result) < 1e-6);
-            //}
-
-            return result;
+            return distance / width;
         }
 
-        private double DistanceToObjectPotential(double distance, double width)
+        public double CalculateObjectPotentialForEdge(Vector point, Circle edgePoint1, Circle edgePoint2)
         {
-            double result = Math.Max(distance - this.ConstantProbabilityRate * width, 0);
-            result /= (1 - this.ConstantProbabilityRate) * width;
+            double relativeDistance = CalculateRelativeDistanceToEdge(point, edgePoint1, edgePoint2);
+            return RelativeDistanceToObjectPotential(relativeDistance);
+        }
+
+        public double RelativeDistanceToObjectPotential(double relativeDistance)
+        {
+            double result = Math.Max(relativeDistance - this.ConstantProbabilityRate, 0);
+            result /= (1 - this.ConstantProbabilityRate);
             result = Math.Exp(-this.Cutoff * result * result);
 
             return result;

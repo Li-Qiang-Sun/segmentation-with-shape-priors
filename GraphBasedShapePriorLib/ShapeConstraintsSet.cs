@@ -160,7 +160,15 @@ namespace Research.GraphBasedShapePrior
             }
         }
 
-        private PointF GetRectangleCenter(Rectangle rect)
+        public ShapeConstraintsSet GuessSolution()
+        {
+            List<VertexConstraints> collapsedConstraints = new List<VertexConstraints>(this.ShapeModel.VertexCount);
+            for (int i = 0; i < this.vertexConstraints.Count; ++i)
+                collapsedConstraints.Add(this.vertexConstraints[i].Collapse());
+            return Create(this.ShapeModel, collapsedConstraints);
+        }
+
+        private static PointF GetRectangleCenter(Rectangle rect)
         {
             return new PointF(rect.Left + rect.Width * 0.5f, rect.Top + rect.Height * 0.5f);
         }
