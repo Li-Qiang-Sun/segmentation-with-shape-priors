@@ -35,7 +35,7 @@ namespace Research.GraphBasedShapePrior
 
         public double this[int x, int y]
         {
-            get { return this.values[x, y]; }
+            get { return this.values[x - this.GridMinInclusive.X, y - this.GridMinInclusive.Y]; }
         }
 
         private void Calculate()
@@ -53,12 +53,12 @@ namespace Research.GraphBasedShapePrior
             for (int x = this.GridMinInclusive.X; x < this.GridMaxExclusive.X; ++x)
             {
                 int xCopy = x;
-                Func<int, double> yPenaltyFunc = y => distanseTransformsForFixedY[y][xCopy];
+                Func<int, double> yPenaltyFunc = y => distanseTransformsForFixedY[y - this.GridMinInclusive.Y][xCopy];
                 GeneralizedDistanceTransform1D distanceTranformForX = new GeneralizedDistanceTransform1D(
                     this.GridMinInclusive.Y, this.GridMaxExclusive.Y, this.DistanceScaleY, yPenaltyFunc);
 
                 for (int y = this.GridMinInclusive.Y; y < this.GridMaxExclusive.Y; ++y)
-                    this.values[x, y] = distanceTranformForX[y];
+                    this.values[x - this.GridMinInclusive.X, y - this.GridMinInclusive.Y] = distanceTranformForX[y];
             }
         }
     }

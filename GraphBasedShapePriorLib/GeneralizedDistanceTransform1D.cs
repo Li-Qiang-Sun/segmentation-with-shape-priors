@@ -71,13 +71,13 @@ namespace Research.GraphBasedShapePrior
 
             int currentParabola = 0;
             this.values = new double[length];
-            for (int i = this.GridMinInclusive; i < this.GridMaxExclusive; ++i)
+            for (int i = 0; i < length; ++i)
             {
                 while (parabolaRange[currentParabola + 1] < i)
                     currentParabola += 1;
 
                 int diff = i - envelope[currentParabola];
-                this.values[i] = functionValues[envelope[currentParabola]] + diff * diff;
+                this.values[i] = functionValues[envelope[currentParabola]] + diff * diff * this.DistanceScale;
             }
         }
     }

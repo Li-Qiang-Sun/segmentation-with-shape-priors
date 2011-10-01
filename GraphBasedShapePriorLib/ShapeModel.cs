@@ -103,7 +103,7 @@ namespace Research.GraphBasedShapePrior
         public ShapeEdgePairParams GetEdgeParams(int edgeIndex1, int edgeIndex2)
         {
             bool shouldSwap = false;
-            if (edgeIndex2 > edgeIndex1)
+            if (edgeIndex1 > edgeIndex2)
             {
                 Helper.Swap(ref edgeIndex1, ref edgeIndex2);
                 shouldSwap = true;

@@ -10,11 +10,17 @@ namespace Research.GraphBasedShapePrior
 {
     public class BranchAndBoundSegmentator : SegmentatorBase
     {
+        public event EventHandler<BranchAndBoundStatusEventArgs> BranchAndBoundStatus;
+
+        public double HeightPessimizationWeight { get; set; }
+
+        public int StatusReportRate { get; set; }
+
         public BranchAndBoundSegmentator()
         {
+            this.HeightPessimizationWeight = 0;
+            this.StatusReportRate = 20;
         }
-
-        public event EventHandler<BranchAndBoundStatusEventArgs> BranchAndBoundStatus;
 
         protected override Image2D<bool> SegmentImageImpl(
             Image2D<Color> shrinkedImage,
@@ -22,18 +28,20 @@ namespace Research.GraphBasedShapePrior
             Mixture<VectorGaussian> backgroundColorModel,
             Mixture<VectorGaussian> objectColorModel)
         {
+            Debug.Assert(this.HeightPessimizationWeight >= 0);
+            Debug.Assert(this.StatusReportRate > 0);
+            
             DebugConfiguration.WriteImportantDebugText("Branch-and-bound started.");
 
             ShapeConstraintsSet initialConstraints = ShapeConstraintsSet.ConstraintToImage(
                 this.ShapeModel, shrinkedImage.Rectangle.Size);
 
             SortedSet<FrontItem> front = new SortedSet<FrontItem>();
-            front.Add(new FrontItem(initialConstraints, Double.NegativeInfinity, Double.NegativeInfinity));
+            front.Add(new FrontItem(initialConstraints, -1e+20, -1e+20, this.ShapeEnergyWeight, this.HeightPessimizationWeight));
 
-            int iteration = 1;
+            int currentIteration = 1;
             DateTime startTime = DateTime.Now;
             DateTime lastOutputTime = startTime;
-            const int outputInterval = 20;
             int processedConstraintSets = 0;
             while (!front.Min.Constraints.CheckIfSatisfied())
             {
@@ -49,22 +57,35 @@ namespace Research.GraphBasedShapePrior
                     double minShapeEnergy = this.CalculateMinShapeEnergy(constraintsSet, objectSize);
                     constraintsSet.ClearConvexHullCache();
 
-                    FrontItem newFrontItem = new FrontItem(constraintsSet, minShapeEnergy, minSegmentationEnergy);
-                    Debug.Assert(newFrontItem.LowerBound >= removedItem.LowerBound - 1e-4); // Lower bound should not decrease
+                    FrontItem newFrontItem = new FrontItem(
+                        constraintsSet,
+                        minShapeEnergy,
+                        minSegmentationEnergy,
+                        this.ShapeEnergyWeight,
+                        this.HeightPessimizationWeight);
                     front.Add(newFrontItem);
+
+                    // Lower bound should not decrease
+                    Debug.Assert(newFrontItem.MinSegmentationEnergy >= removedItem.MinSegmentationEnergy - 1e-6);
+                    Debug.Assert(newFrontItem.MinShapeEnergy >= removedItem.MinShapeEnergy - 1e-6);
 
                     ++processedConstraintSets;
                 }
 
                 // Some debug output
-                if (iteration % outputInterval == 0)
+                if (currentIteration % this.StatusReportRate == 0)
                 {
                     DateTime currentTime = DateTime.Now;
+                    FrontItem currentMin = front.Min;
 
                     DebugConfiguration.WriteDebugText(
-                        "On iteration {0} front contains {1} constraint sets.", iteration, front.Count);
+                        "On iteration {0} front contains {1} constraint sets.", currentIteration, front.Count);
                     DebugConfiguration.WriteDebugText(
-                        "Current lower bound is {0:0.00000}.", front.Min.LowerBound);
+                        "Current lower bound is {0:0.0000} ({1:0.0000} + {2:0.0000} + {3:0.0000}).",
+                        currentMin.LowerBound,
+                        currentMin.MinSegmentationEnergy,
+                        currentMin.MinShapeEnergy * this.ShapeEnergyWeight,
+                        currentMin.HeightPessimization);
                     double processingSpeed = processedConstraintSets / (currentTime - lastOutputTime).TotalSeconds;
                     DebugConfiguration.WriteDebugText("Processing speed is {0:0.000} items per sec", processingSpeed);
 
@@ -72,7 +93,7 @@ namespace Research.GraphBasedShapePrior
                     int maxRadiusConstraintViolation = 0, maxCoordConstraintViolation = 0;
                     for (int vertex = 0; vertex < this.ShapeModel.VertexCount; ++vertex)
                     {
-                        VertexConstraints vertexConstraints = front.Min.Constraints.GetConstraintsForVertex(vertex);
+                        VertexConstraints vertexConstraints = currentMin.Constraints.GetConstraintsForVertex(vertex);
                         maxRadiusConstraintViolation = Math.Max(
                             maxRadiusConstraintViolation, vertexConstraints.MaxRadiusExclusive - vertexConstraints.MinRadiusInclusive - 1);
                         maxCoordConstraintViolation = Math.Max(
@@ -91,14 +112,16 @@ namespace Research.GraphBasedShapePrior
                     processedConstraintSets = 0;
                 }
 
-                iteration += 1;
+                currentIteration += 1;
             }
 
             // Always report status in the end
             this.ReportStatus(shrinkedImage, front, 0);
 
-            DebugConfiguration.WriteImportantDebugText("Segmentation finished in {0}", DateTime.Now - startTime);
-            DebugConfiguration.WriteImportantDebugText("Resulting energy is {0}", front.Min.LowerBound);
+            DebugConfiguration.WriteImportantDebugText(
+                "Segmentation finished in {0} ({1} iterations)", DateTime.Now - startTime, currentIteration);
+            DebugConfiguration.WriteImportantDebugText(
+                "Resulting energy is {0}", front.Min.LowerBound);
             return this.SegmentImageWithConstraints(front.Min.Constraints, shrinkedImage, backgroundColorModel, objectColorModel).SegmentationMask;
         }
 
@@ -135,6 +158,7 @@ namespace Research.GraphBasedShapePrior
         /// <param name="constraintsSet"></param>
         /// <param name="point"></param>
         /// <returns>First item is penalty for being background, second is penalty for being object.</returns>
+        // TODO: make this shit private
         public static Tuple<double, double> CalculateShapeTerm(ShapeConstraintsSet constraintsSet, Point point)
         {
             Vector pointAsVec = new Vector(point.X, point.Y);
@@ -193,7 +217,8 @@ namespace Research.GraphBasedShapePrior
             return new Tuple<double, double>(toSource, toSink);
         }
 
-        private double CalculateMinShapeEnergy(ShapeConstraintsSet constraintsSet, double objectSize)
+        // TODO: make this shit private
+        public double CalculateMinShapeEnergy(ShapeConstraintsSet constraintsSet, double objectSize)
         {
             // Here we use the fact that energy can be separated into vertex energy that depends on radii
             // and edge energy that depends on edge vertex positions
@@ -213,7 +238,7 @@ namespace Research.GraphBasedShapePrior
                 double maxRatio2 = (from edgePair in this.ShapeModel.ConstrainedEdgePairs
                                     select 1.0 / this.ShapeModel.GetEdgeParams(edgePair.Item1, edgePair.Item2).LengthRatio).Max();
                 double maxRatio = Math.Max(maxRatio1, maxRatio2);
-                int lengthGridSize = (int)(Math.Round(objectSize * maxRatio) + 1);
+                int lengthGridSize = (int)(Math.Round(objectSize * maxRatio * 2) + 1);
 
                 List<GeneralizedDistanceTransform2D> childTransforms = new List<GeneralizedDistanceTransform2D>();
                 foreach (int edgeIndex in this.ShapeModel.IterateNeighboringEdgeIndices(0))
@@ -230,15 +255,21 @@ namespace Research.GraphBasedShapePrior
                 Debug.Assert(maxPossibleLength >= minPossibleLength && maxPossibleAngle >= minPossibleAngle);
 
                 minEdgeEnergy = Double.PositiveInfinity;
+                int bestLength, bestAngle;
                 for (int length = minPossibleLength; length <= maxPossibleLength; ++length)
                 {
-                    for (int angle = minPossibleAngle; angle <= maxPossibleLength; ++angle)
+                    for (int angle = minPossibleAngle; angle <= maxPossibleAngle; ++angle)
                     {
                         double energySum = 0;
                         foreach (GeneralizedDistanceTransform2D childTransform in childTransforms)
                             energySum += childTransform[length, angle];
 
-                        minEdgeEnergy = Math.Min(minEdgeEnergy, energySum);
+                        if (energySum < minEdgeEnergy)
+                        {
+                            minEdgeEnergy = energySum;
+                            bestLength = length;
+                            bestAngle = angle;
+                        }
                     }
                 }
             }
@@ -267,11 +298,16 @@ namespace Research.GraphBasedShapePrior
                     minLength = Math.Min(minLength, length);
                     maxLength = Math.Max(maxLength, length);
 
-                    // Angle should be from -180 to 180
-                    int angle = (int)MathHelper.ToDegrees(
-                        Math.Round(Vector.AngleBetween(new Vector(1, 0), point2 - point1) - Math.PI));
-                    minAngle = Math.Min(minAngle, angle);
-                    maxAngle = Math.Max(maxAngle, angle);
+                    if (point1 != point2)
+                    {
+                        double angle = Vector.AngleBetween(new Vector(1, 0), point2 - point1);
+                        // Angle must be in [-180, 180]
+                        if (angle > Math.PI)
+                            angle -= Math.PI * 2;
+                        int degrees = (int)Math.Round(MathHelper.ToDegrees(angle));
+                        minAngle = Math.Min(minAngle, degrees);
+                        maxAngle = Math.Max(maxAngle, degrees);
+                    }
                 }
         }
 
@@ -333,13 +369,11 @@ namespace Research.GraphBasedShapePrior
                     return sum;
                 };
 
-            // TODO: explain why angle is in [-360, 360)
-            const double angleDeviationScale = (180 / Math.PI) * (180 / Math.PI);
             return new GeneralizedDistanceTransform2D(
                 new Point(0, -360),
                 new Point(lengthGridSize, 360),
-                pairParams.LengthDeviation,
-                pairParams.AngleDeviation * angleDeviationScale,
+                1.0 / MathHelper.Sqr(pairParams.LengthDeviation),
+                1.0 / MathHelper.Sqr(MathHelper.ToDegrees(pairParams.AngleDeviation * Math.PI)),
                 penaltyFunction);
         }
 
@@ -353,18 +387,41 @@ namespace Research.GraphBasedShapePrior
 
             public double MinSegmentationEnergy { get; private set; }
 
+            public double HeightPessimization { get; private set; }
+
             private static int instanceCount = 0;
 
             public int InstanceId { get; private set; }
 
-            public FrontItem(ShapeConstraintsSet constraints, double minShapeEnergy, double minSegmentationEnergy)
+            public FrontItem(
+                ShapeConstraintsSet constraints,
+                double minShapeEnergy,
+                double minSegmentationEnergy,
+                double shapeEnergyWeight,
+                double heightPessimizationWeight)
             {
                 Debug.Assert(constraints != null);
+                Debug.Assert(heightPessimizationWeight >= 0);
+
+                double distanceToLeaf = 0;
+                for (int i = 0; i < constraints.ShapeModel.VertexCount; ++i)
+                {
+                    VertexConstraints vertexConstraints = constraints.GetConstraintsForVertex(i);
+                    distanceToLeaf +=
+                        vertexConstraints.CoordViolation > 0
+                        ? Math.Log(vertexConstraints.CoordViolation, 2)
+                        : 0;
+                    distanceToLeaf +=
+                        vertexConstraints.RadiusViolation > 0
+                        ? Math.Log(vertexConstraints.RadiusViolation, 2)
+                        : 0;
+                }
 
                 this.Constraints = constraints;
                 this.MinShapeEnergy = minShapeEnergy;
                 this.MinSegmentationEnergy = minSegmentationEnergy;
-                this.LowerBound = minShapeEnergy + minSegmentationEnergy;
+                this.HeightPessimization = distanceToLeaf * heightPessimizationWeight;
+                this.LowerBound = minShapeEnergy * shapeEnergyWeight + minSegmentationEnergy + this.HeightPessimization;
 
                 // Yeah, this is not thread-safe
                 this.InstanceId = ++instanceCount;

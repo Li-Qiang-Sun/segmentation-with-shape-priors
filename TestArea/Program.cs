@@ -26,6 +26,24 @@ namespace TestArea
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
         }
 
+        private static ShapeModel CreateSimpleShapeModel2()
+        {
+            List<ShapeEdge> edges = new List<ShapeEdge>();
+            edges.Add(new ShapeEdge(0, 1));
+            edges.Add(new ShapeEdge(1, 2));
+
+            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
+            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+
+            Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
+                new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
+            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.5, 1, 0.1, 10)); // TODO: we need deviations to be relative
+
+            return ShapeModel.Create(edges, vertexParams, edgePairParams);
+        }
+
         static ShapeModel CreateGiraffeShapeModel()
         {
             List<ShapeEdge> edges = new List<ShapeEdge>();
@@ -57,6 +75,23 @@ namespace TestArea
             edgePairParams.Add(new Tuple<int, int>(5, 6), new ShapeEdgePairParams(0, 1, 0.1, 0.1));
 
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
+        }
+
+        static void MainForShapeEnergyCheck()
+        {
+            ShapeModel model = CreateSimpleShapeModel2();
+
+            VertexConstraints constraint1 = new VertexConstraints(new Point(10, 10), new Point(20, 20), 0, 100);
+            VertexConstraints constraint2 = new VertexConstraints(new Point(70, 20), new Point(80, 30), 0, 100);
+            VertexConstraints constraint3 = new VertexConstraints(new Point(40, 40), new Point(50, 50), 0, 100);
+            ShapeConstraintsSet constraintsSet = ShapeConstraintsSet.Create(
+                model,
+                new[] { constraint1, constraint2, constraint3 });
+
+            BranchAndBoundSegmentator segmentator = new BranchAndBoundSegmentator();
+            segmentator.ShapeModel = model;
+
+            double minShapeEnergy = segmentator.CalculateMinShapeEnergy(constraintsSet, 100);
         }
         
         static void MainForUnaryPotentialsCheck()
@@ -146,8 +181,9 @@ namespace TestArea
             Rand.Restart(666);
             
             //MainForUnaryPotentialsCheck();
-            MainForSegmentation();
+            //MainForSegmentation();
             //MainForConvexHull();
+            MainForShapeEnergyCheck();
         }
     }
 }

@@ -29,6 +29,24 @@ namespace Segmentator
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
         }
 
+        private static ShapeModel CreateSimpleShapeModel2()
+        {
+            List<ShapeEdge> edges = new List<ShapeEdge>();
+            edges.Add(new ShapeEdge(0, 1));
+            edges.Add(new ShapeEdge(1, 2));
+
+            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
+            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+
+            Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
+                new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
+            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.5, 1, 0.1, 10)); // TODO: we need deviations to be relative
+
+            return ShapeModel.Create(edges, vertexParams, edgePairParams);
+        }
+
         private static ShapeModel CreateGiraffeShapeModel()
         {
             List<ShapeEdge> edges = new List<ShapeEdge>();
@@ -123,13 +141,22 @@ namespace Segmentator
 
             BranchAndBoundSegmentator segmentator = new BranchAndBoundSegmentator();
             segmentator.ShapeModel = CreateSimpleShapeModel1();
+            //segmentator.ShapeModel = CreateSimpleShapeModel2();
             segmentator.BranchAndBoundStatus += OnBranchAndBoundStatusUpdate;
+            segmentator.StatusReportRate = 200;
+            segmentator.HeightPessimizationWeight = 0;
+            segmentator.ShapeUnaryTermWeight = 3;
+            segmentator.ShapeEnergyWeight = 10;
 
             DebugConfiguration.VerbosityLevel = VerbosityLevel.Everything;
 
             const double scale = 0.15;
-            Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_1.png", scale);
-            Rectangle bigLocation = new Rectangle(153, 124, 796, 480);
+            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_1.png", scale);
+            Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_2.png", scale);
+            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_3.png", scale);
+            //Rectangle bigLocation = new Rectangle(153, 124, 796, 480); // 1
+            Rectangle bigLocation = new Rectangle(334, 37, 272, 547); // 2
+            //Rectangle bigLocation = new Rectangle(249, 22, 391, 495); // 3
             Rectangle location = new Rectangle(
                 (int)(bigLocation.X * scale),
                 (int)(bigLocation.Y * scale),

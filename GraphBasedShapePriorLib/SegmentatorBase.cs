@@ -22,6 +22,10 @@ namespace Research.GraphBasedShapePrior
 
         public double UnaryTermWeight { get; set; }
 
+        public double ShapeUnaryTermWeight { get; set; }
+
+        public double ShapeEnergyWeight { get; set; }
+
         // Cached info about last segmentation
 
         private Tuple<double, double>[,] lastColorTerms;
@@ -41,6 +45,8 @@ namespace Research.GraphBasedShapePrior
             this.BrightnessBinaryTermCutoff = 1.2;
             this.ConstantBinaryTermWeight = 1;
             this.UnaryTermWeight = 0.15;
+            this.ShapeUnaryTermWeight = 1;
+            this.ShapeEnergyWeight = 25;
         }
 
         public Image2D<bool> SegmentImage(Image2D<Color> image, Rectangle estimatedObjectLocation)
@@ -54,6 +60,7 @@ namespace Research.GraphBasedShapePrior
             Debug.Assert(this.BrightnessBinaryTermCutoff >= 0);
             Debug.Assert(this.ConstantBinaryTermWeight >= 0);
             Debug.Assert(this.UnaryTermWeight >= 0);
+            Debug.Assert(this.ShapeEnergyWeight >= 0);
 
             DebugConfiguration.WriteImportantDebugText("Learning color models for object and background...");
             Mixture<VectorGaussian> backgroundColorModel, objectColorModel;
@@ -61,7 +68,7 @@ namespace Research.GraphBasedShapePrior
 
             DebugConfiguration.WriteImportantDebugText("Shrinking image...");
             image = image.Shrink(estimatedObjectLocation);
-            double objectSize = Math.Min(estimatedObjectLocation.Width, estimatedObjectLocation.Height);
+            double objectSize = Math.Max(estimatedObjectLocation.Width, estimatedObjectLocation.Height);
 
             Image2D<bool> mask = this.SegmentImageImpl(image, objectSize, backgroundColorModel, objectColorModel);
 
@@ -167,8 +174,8 @@ namespace Research.GraphBasedShapePrior
                 {
                     Tuple<double, double> shapeTerms = shapeTermCalculator(new Point(x, y));
                     Debug.Assert(shapeTerms.Item1 >= 0 && shapeTerms.Item2 >= 0);
-                    double toSourceNew = (this.lastColorTerms[x, y].Item1 + shapeTerms.Item1) * this.UnaryTermWeight;
-                    double toSinkNew = (this.lastColorTerms[x, y].Item2 + shapeTerms.Item2) * this.UnaryTermWeight;
+                    double toSourceNew = (this.lastColorTerms[x, y].Item1 + shapeTerms.Item1 * this.ShapeUnaryTermWeight) * this.UnaryTermWeight;
+                    double toSinkNew = (this.lastColorTerms[x, y].Item2 + shapeTerms.Item2 * this.ShapeUnaryTermWeight) * this.UnaryTermWeight;
 
                     if (imageChanged || toSourceNew != this.lastUnaryTerms[x, y].Item1 || toSinkNew != this.lastUnaryTerms[x, y].Item2)
                     {

@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -6,6 +7,7 @@ namespace Research.GraphBasedShapePrior
     {
         public ShapeEdgePairParams(double meanAngle, double lengthRatio, double angleDeviation, double lengthDeviation)
         {
+            Debug.Assert(meanAngle >= -Math.PI && meanAngle <= Math.PI);
             Debug.Assert(lengthRatio >= 0);
             Debug.Assert(angleDeviation >= 0);
             Debug.Assert(lengthDeviation >= 0);

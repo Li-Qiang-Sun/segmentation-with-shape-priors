@@ -20,6 +20,11 @@ namespace Research.GraphBasedShapePrior
             return Math.Min(max, Math.Max(value, min));
         }
 
+        public static double Sqr(double x)
+        {
+            return x * x;
+        }
+
         public static double LogInf(double x)
         {
             Debug.Assert(x >= 0);
