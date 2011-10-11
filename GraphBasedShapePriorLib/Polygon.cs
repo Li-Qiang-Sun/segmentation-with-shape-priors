@@ -81,6 +81,7 @@ namespace Research.GraphBasedShapePrior
                 for (int i = 1; i < points.Count; ++i)
                 {
                     if (usedPoints[nextHullPointIndex] ||
+                        points[nextHullPointIndex] == currentHullPoint ||
                         Vector.CrossProduct(points[i] - currentHullPoint, points[nextHullPointIndex] - currentHullPoint) < 0)
                     {
                         nextHullPointIndex = i;

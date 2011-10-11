@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Threading;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -12,13 +13,14 @@ namespace Research.GraphBasedShapePrior
 
         private Polygon[,] convexHullsForEdges;
 
+        public ShapeModel ShapeModel { get; private set; }
+
         private ShapeConstraintsSet()
         {
         }
 
-        public ShapeModel ShapeModel { get; private set; }
-
         private ShapeConstraintsSet(ShapeConstraintsSet other)
+            : this()
         {
             this.vertexConstraints = new List<VertexConstraints>(other.vertexConstraints);
             this.ShapeModel = other.ShapeModel;
@@ -76,7 +78,7 @@ namespace Research.GraphBasedShapePrior
                 }
             }
 
-            bool splitByRadius = radiusViolation > coordViolation;
+            bool splitByRadius = radiusViolation * 2 > coordViolation; // We multiply here by 2 because diameter is a better measure for violation scale
             int vertex = splitByRadius ? mostViolatedRadiusConstraint : mostViolatedCoordConstraint;
             List<VertexConstraints> splittedVertexConstraints =
                 splitByRadius ? this.vertexConstraints[vertex].SplitByRadius() : this.vertexConstraints[vertex].SplitByCoords();
@@ -97,13 +99,13 @@ namespace Research.GraphBasedShapePrior
             // Convex hull is order-invariant
             if (vertex1 > vertex2)
                 Helper.Swap(ref vertex1, ref vertex2);
-            
+
             // Do some caching
             if (this.convexHullsForEdges == null)
-                this.convexHullsForEdges = new Polygon[this.vertexConstraints.Count, this.vertexConstraints.Count]; 
+                this.convexHullsForEdges = new Polygon[this.vertexConstraints.Count, this.vertexConstraints.Count];
             if (this.convexHullsForEdges[vertex1, vertex2] != null)
                 return this.convexHullsForEdges[vertex1, vertex2];
-            
+
             // Calculate convex hull
             List<Vector> points = new List<Vector>();
             points.AddRange(this.GetConstraintsForVertex(vertex1).IterateCorners());
@@ -127,6 +129,30 @@ namespace Research.GraphBasedShapePrior
                 if (!vertexConstraints[i].CoordSatisfied || !vertexConstraints[i].RadiusSatisfied)
                     return false;
             return true;
+        }
+
+        public int GetMaxViolation()
+        {
+            int maxViolation = 0;
+            for (int i = 0; i < vertexConstraints.Count; ++i)
+            {
+                maxViolation = Math.Max(maxViolation, vertexConstraints[i].CoordViolation);
+                maxViolation = Math.Max(maxViolation, vertexConstraints[i].RadiusViolation);
+            }
+
+            return maxViolation;
+        }
+
+        public int GetViolationSum()
+        {
+            int sum = 0;
+            for (int i = 0; i < vertexConstraints.Count; ++i)
+            {
+                sum += vertexConstraints[i].CoordViolation;
+                sum += vertexConstraints[i].RadiusViolation;
+            }
+
+            return sum;
         }
 
         public VertexConstraints GetConstraintsForVertex(int index)

@@ -75,6 +75,7 @@
   <ItemGroup>
     <Compile Include="BranchAndBoundSegmentator.cs" />
     <Compile Include="BranchAndBoundStatusEventArgs.cs" />
+    <Compile Include="BranchAndBoundType.cs" />
     <Compile Include="Circle.cs" />
     <Compile Include="ColorUtils.cs" />
     <Compile Include="DepthFirstBranchAndBoundStatusEventArgs.cs" />

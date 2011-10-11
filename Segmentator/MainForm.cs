@@ -40,7 +40,33 @@ namespace Segmentator
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
-            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.5, 1, 0.1, 10)); // TODO: we need deviations to be relative
+            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.5, 1, 0.1, 10)); // TODO: we need edge length deviations to be relative
+
+            return ShapeModel.Create(edges, vertexParams, edgePairParams);
+        }
+
+        private static ShapeModel CreateLetterShapeModel()
+        {
+            List<ShapeEdge> edges = new List<ShapeEdge>();
+            edges.Add(new ShapeEdge(0, 1));
+            edges.Add(new ShapeEdge(0, 2));
+            edges.Add(new ShapeEdge(2, 3));
+            edges.Add(new ShapeEdge(2, 4));
+            edges.Add(new ShapeEdge(4, 5));
+
+            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
+            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
+            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
+            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
+            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
+            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
+            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
+
+            Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams = new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
+            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(-Math.PI * 0.5, 1.3, 0.1, 10)); // TODO: we need edge length deviations to be relative
+            edgePairParams.Add(new Tuple<int, int>(1, 2), new ShapeEdgePairParams(Math.PI * 0.5, 1, 0.1, 10));
+            edgePairParams.Add(new Tuple<int, int>(2, 3), new ShapeEdgePairParams(-Math.PI * 0.5, 1, 0.1, 10));
+            edgePairParams.Add(new Tuple<int, int>(3, 4), new ShapeEdgePairParams(Math.PI * 0.5, 0.77, 0.1, 10));
 
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
         }
@@ -140,22 +166,26 @@ namespace Segmentator
             BranchAndBoundSegmentator segmentator = new BranchAndBoundSegmentator();
             //segmentator.ShapeModel = CreateSimpleShapeModel1();
             segmentator.ShapeModel = CreateSimpleShapeModel2();
-            segmentator.UseDepthFirstSearch = false;
-            segmentator.BreadthFirstBranchAndBoundStatus += OnBFSStatusUpdate;
-            segmentator.DepthFirstBranchAndBoundStatus += OnDFSStatusUpdate;
-            segmentator.StatusReportRate = 50;
+            //segmentator.ShapeModel = CreateLetterShapeModel();
+            segmentator.BranchAndBoundType = BranchAndBoundType.Combined;
+            segmentator.MaxBfsIterationsInCombinedMode = 30000;
+            segmentator.BreadthFirstBranchAndBoundStatus += OnBfsStatusUpdate;
+            segmentator.DepthFirstBranchAndBoundStatus += OnDfsStatusUpdate;
+            segmentator.StatusReportRate = 100;
             segmentator.ShapeUnaryTermWeight = 3;
             segmentator.ShapeEnergyWeight = 10;
 
             DebugConfiguration.VerbosityLevel = VerbosityLevel.Everything;
 
             const double scale = 0.15;
-            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_1.png", scale);
-            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_2.png", scale);
-            Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_3.png", scale);
-            //Rectangle bigLocation = new Rectangle(153, 124, 796, 480); // 1
-            //Rectangle bigLocation = new Rectangle(334, 37, 272, 547); // 2
-            Rectangle bigLocation = new Rectangle(249, 22, 391, 495); // 3
+            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_1.png", scale); // Simple model 1
+            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_2.png", scale); // Simple model 1
+            Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_3.png", scale); // Simple model 2
+            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/letter_1.jpg", scale); // Letter model
+            //Rectangle bigLocation = new Rectangle(153, 124, 796, 480); // simple_1.png
+            //Rectangle bigLocation = new Rectangle(334, 37, 272, 547); // simple_2.png
+            Rectangle bigLocation = new Rectangle(249, 22, 391, 495); // simple_3.png
+            //Rectangle bigLocation = new Rectangle(68, 70, 203, 359); // letter_1.jpg
             Rectangle location = new Rectangle(
                 (int)(bigLocation.X * scale),
                 (int)(bigLocation.Y * scale),
@@ -166,7 +196,7 @@ namespace Segmentator
             e.Result = mask;
         }
 
-        void OnBFSStatusUpdate(object sender, BreadthFirstBranchAndBoundStatusEventArgs e)
+        void OnBfsStatusUpdate(object sender, BreadthFirstBranchAndBoundStatusEventArgs e)
         {
             this.Invoke(new MethodInvoker(
                 delegate
@@ -180,7 +210,7 @@ namespace Segmentator
                 }));
         }
 
-        void OnDFSStatusUpdate(object sender, DepthFirstBranchAndBoundStatusEventArgs e)
+        void OnDfsStatusUpdate(object sender, DepthFirstBranchAndBoundStatusEventArgs e)
         {
             this.Invoke(new MethodInvoker(
                 delegate

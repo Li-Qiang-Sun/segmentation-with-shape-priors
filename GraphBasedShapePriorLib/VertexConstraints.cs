@@ -177,16 +177,17 @@ namespace Research.GraphBasedShapePrior
 
             if (point.X >= MinCoordInclusive.X && point.X < MaxCoordExclusive.X)
             {
-                if (point.Y < MinCoordInclusive.Y)
+                if (point.Y <= MinCoordInclusive.Y)
                     result.Add(new Vector(point.X, MinCoordInclusive.Y));
-                else if (point.Y >= MaxCoordExclusive.Y)
+                else if (point.Y >= MaxCoordExclusive.Y - 1)
                     result.Add(new Vector(point.X, MaxCoordExclusive.Y - 1));
             }
-            else if (point.Y >= MinCoordInclusive.Y && point.Y < MaxCoordExclusive.Y)
+
+            if (result.Count == 4 && point.Y >= MinCoordInclusive.Y && point.Y < MaxCoordExclusive.Y)
             {
-                if (point.X < MinCoordInclusive.X)
+                if (point.X <= MinCoordInclusive.X)
                     result.Add(new Vector(MinCoordInclusive.X, point.Y));
-                else if (point.X >= MaxCoordExclusive.X)
+                else if (point.X >= MaxCoordExclusive.X - 1)
                     result.Add(new Vector(MaxCoordExclusive.X - 1, point.Y));
             }
 

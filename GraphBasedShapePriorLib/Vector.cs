@@ -76,9 +76,14 @@ namespace Research.GraphBasedShapePrior
             }
         }
 
+        public double DistanceToPointSquared(Vector vector)
+        {
+            return (vector - this).LengthSquared;
+        }
+
         public double DistanceToPoint(Vector vector)
         {
-            return (vector - this).Length;
+            return Math.Sqrt(this.DistanceToPointSquared(vector));
         }
 
         public double DistanceToSegmentSquared(Vector segmentStart, Vector segmentEnd)

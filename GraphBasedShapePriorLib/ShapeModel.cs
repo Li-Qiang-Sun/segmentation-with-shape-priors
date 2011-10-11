@@ -124,7 +124,7 @@ namespace Research.GraphBasedShapePrior
 
         public double CalculateVertexEnergyTerm(int vertex, double bodyLength, double radius)
         {
-            double diff = radius - bodyLength * this.shapeVertexParams[vertex].LengthToObjectSizeRatio;
+            double diff = radius - bodyLength * this.shapeVertexParams[vertex].RadiusToObjectSizeRatio;
             double stddev = bodyLength * this.shapeVertexParams[vertex].RadiusRelativeDeviation;
             return diff * diff / (stddev * stddev);
         }
@@ -144,30 +144,29 @@ namespace Research.GraphBasedShapePrior
         }
 
         // Result is 1 when point is on the edge area border, 0 when point is on the edge
-        public double CalculateRelativeDistanceToEdge(Vector point, Circle edgePoint1, Circle edgePoint2)
+        public double CalculateRelativeDistanceToEdgeSquared(Vector point, Circle edgePoint1, Circle edgePoint2)
         {
-            double width, distance;
+            double width, distanceSqr;
             if (edgePoint1.Center == edgePoint2.Center)
             {
-                distance = point.DistanceToPoint(edgePoint1.Center);
+                distanceSqr = point.DistanceToPointSquared(edgePoint1.Center);
                 width = Math.Min(edgePoint1.Radius, edgePoint2.Radius); // For consistency
             }
             else
             {
-                double alpha, distanceSqr;
+                double alpha;
                 point.DistanceToSegmentSquared(edgePoint1.Center, edgePoint2.Center, out distanceSqr, out alpha);
-                distance = Math.Sqrt(distanceSqr);
                 alpha = Math.Min(Math.Max(alpha, 0), 1);
                 width = edgePoint1.Radius + (edgePoint2.Radius - edgePoint1.Radius) * alpha;
             }
 
-            return distance / width;
+            return distanceSqr / (width * width);
         }
 
         public double CalculateObjectPotentialForEdge(Vector point, Circle edgePoint1, Circle edgePoint2)
         {
-            double relativeDistance = CalculateRelativeDistanceToEdge(point, edgePoint1, edgePoint2);
-            return RelativeDistanceToObjectPotential(relativeDistance);
+            double relativeDistanceSqr = CalculateRelativeDistanceToEdgeSquared(point, edgePoint1, edgePoint2);
+            return RelativeDistanceToObjectPotential(Math.Sqrt(relativeDistanceSqr));
         }
 
         public double RelativeDistanceToObjectPotential(double relativeDistance)
