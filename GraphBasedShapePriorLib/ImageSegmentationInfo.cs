@@ -1,4 +1,6 @@
-﻿namespace Research.GraphBasedShapePrior
+﻿using System;
+
+namespace Research.GraphBasedShapePrior
 {
     public class ImageSegmentationInfo
     {
@@ -6,9 +8,7 @@
 
         public Image2D<bool> SegmentationMask { get; private set; }
 
-        public ImageSegmentationInfo(
-            double energy,
-            Image2D<bool> segmentationMask)
+        public ImageSegmentationInfo(double energy, Image2D<bool> segmentationMask)
         {
             this.Energy = energy;
             this.SegmentationMask = segmentationMask;

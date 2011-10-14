@@ -10,8 +10,6 @@ namespace Research.GraphBasedShapePrior
     {
         public double Cutoff { get; private set; }
 
-        public double ConstantProbabilityRate { get; private set; }
-
         private List<ShapeVertexParams> shapeVertexParams;
 
         private Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams;
@@ -22,8 +20,8 @@ namespace Research.GraphBasedShapePrior
 
         private ShapeModel()
         {
-            this.ConstantProbabilityRate = 0.7;
-            this.Cutoff = Math.Log(2);
+            // TODO: this parameter should probably be made relative to object size somehow
+            this.Cutoff = 0.05;
         }
 
         public static ShapeModel Create(
@@ -55,7 +53,7 @@ namespace Research.GraphBasedShapePrior
                     throw new ArgumentException("Edge pair constraint can't be specified for the single edge.", "edgePairParams");
                 if (edgePairParams.ContainsKey(new Tuple<int, int>(edgePair.Item2, edgePair.Item1)))
                     throw new ArgumentException("Duplicate pairwise constraints specified for some pair of edges.", "edgePairParams");
-                
+
                 ShapeEdge edge1 = edges[edgePair.Item1];
                 ShapeEdge edge2 = edges[edgePair.Item2];
                 if (edge1.Index1 != edge2.Index1 && edge1.Index2 != edge2.Index1 &&
@@ -92,7 +90,7 @@ namespace Research.GraphBasedShapePrior
 
         public int PairwiseEdgeConstraintCount
         {
-            get { return this.edgePairParams.Count; }   
+            get { return this.edgePairParams.Count; }
         }
 
         public ShapeVertexParams GetVertexParams(int vertexIndex)
@@ -137,45 +135,43 @@ namespace Research.GraphBasedShapePrior
                 throw new ArgumentException("Given edge pair has no common pairwise constraints.");
 
             double lengthDiff = edge1Vector.Length - edge2Vector.Length * pairParams.LengthRatio;
-            double lengthTerm = lengthDiff * lengthDiff / pairParams.LengthDeviation;
+            double lengthTerm = lengthDiff * lengthDiff / (pairParams.LengthDeviation * pairParams.LengthDeviation);
             double angleDiff = Vector.AngleBetween(edge1Vector, edge2Vector) - pairParams.MeanAngle;
             double angleTerm = angleDiff * angleDiff / (pairParams.AngleDeviation * pairParams.AngleDeviation);
             return lengthTerm + angleTerm;
         }
 
-        // Result is 1 when point is on the edge area border, 0 when point is on the edge
-        public double CalculateRelativeDistanceToEdgeSquared(Vector point, Circle edgePoint1, Circle edgePoint2)
+        public double CalculateDistanceToEdge(Vector point, Circle edgePoint1, Circle edgePoint2, Polygon preCalculatedPulleyPoints = null)
         {
-            double width, distanceSqr;
-            if (edgePoint1.Center == edgePoint2.Center)
-            {
-                distanceSqr = point.DistanceToPointSquared(edgePoint1.Center);
-                width = Math.Min(edgePoint1.Radius, edgePoint2.Radius); // For consistency
-            }
-            else
-            {
-                double alpha;
-                point.DistanceToSegmentSquared(edgePoint1.Center, edgePoint2.Center, out distanceSqr, out alpha);
-                alpha = Math.Min(Math.Max(alpha, 0), 1);
-                width = edgePoint1.Radius + (edgePoint2.Radius - edgePoint1.Radius) * alpha;
-            }
+            double distance = point.DistanceToCircleOut(edgePoint1);
+            distance = Math.Min(distance, point.DistanceToCircleOut(edgePoint2));
 
-            return distanceSqr / (width * width);
+            if (edgePoint1.Contains(edgePoint2) || edgePoint2.Contains(edgePoint1))
+                return distance;
+
+            if (preCalculatedPulleyPoints == null)
+                preCalculatedPulleyPoints = MathHelper.SolvePulleyProblem(edgePoint1, edgePoint2);
+            Debug.Assert(preCalculatedPulleyPoints.Vertices.Count == 4);
+
+            if (preCalculatedPulleyPoints.IsPointInside(point))
+                return 0;
+
+            distance = Math.Min(distance, point.DistanceToSegment(preCalculatedPulleyPoints.Vertices[0], preCalculatedPulleyPoints.Vertices[1]));
+            distance = Math.Min(distance, point.DistanceToSegment(preCalculatedPulleyPoints.Vertices[2], preCalculatedPulleyPoints.Vertices[3]));
+            
+            return distance;
         }
 
         public double CalculateObjectPotentialForEdge(Vector point, Circle edgePoint1, Circle edgePoint2)
         {
-            double relativeDistanceSqr = CalculateRelativeDistanceToEdgeSquared(point, edgePoint1, edgePoint2);
-            return RelativeDistanceToObjectPotential(Math.Sqrt(relativeDistanceSqr));
+            double distance = CalculateDistanceToEdge(point, edgePoint1, edgePoint2);
+            return DistanceToObjectPotential(distance);
         }
 
-        public double RelativeDistanceToObjectPotential(double relativeDistance)
+        public double DistanceToObjectPotential(double distance)
         {
-            double result = Math.Max(relativeDistance - this.ConstantProbabilityRate, 0);
-            result /= (1 - this.ConstantProbabilityRate);
-            result = Math.Exp(-this.Cutoff * result * result);
-
-            return result;
+            Debug.Assert(distance >= 0);
+            return Math.Exp(-this.Cutoff * MathHelper.Sqr(distance));
         }
 
         private void BuildEdgeTree()

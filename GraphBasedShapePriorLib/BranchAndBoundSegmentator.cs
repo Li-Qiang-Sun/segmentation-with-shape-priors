@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -17,6 +18,8 @@ namespace Research.GraphBasedShapePrior
 
         public int StatusReportRate { get; set; }
 
+        public int BfsFrontSaveFrequency { get; set; }
+
         public BranchAndBoundType BranchAndBoundType { get; set; }
 
         public int MaxBfsIterationsInCombinedMode { get; set; }
@@ -24,6 +27,7 @@ namespace Research.GraphBasedShapePrior
         public BranchAndBoundSegmentator()
         {
             this.StatusReportRate = 50;
+            this.BfsFrontSaveFrequency = Int32.MaxValue;
             this.MaxBfsIterationsInCombinedMode = 3000;
             this.BranchAndBoundType = BranchAndBoundType.BreadthFirst;
         }
@@ -191,23 +195,23 @@ namespace Research.GraphBasedShapePrior
                     lowerBound.CleanupSegmentationMask();
                     front.Add(lowerBound);
 
-                    // TODO: strong lower bound check, remove it or comment
-                    Tuple<double, double>[,] lowerBoundShapeTerm = new Tuple<double, double>[shrinkedImage.Width, shrinkedImage.Height];
-                    for (int i = 0; i < shrinkedImage.Width; ++i)
-                        for (int j = 0; j < shrinkedImage.Height; ++j)
-                            lowerBoundShapeTerm[i, j] = CalculateShapeTerm(lowerBound.Constraints, new Point(i, j));
-                    Tuple<double, double>[,] parentLowerBoundShapeTerm = new Tuple<double, double>[shrinkedImage.Width, shrinkedImage.Height];
-                    for (int i = 0; i < shrinkedImage.Width; ++i)
-                        for (int j = 0; j < shrinkedImage.Height; ++j)
-                            parentLowerBoundShapeTerm[i, j] = CalculateShapeTerm(parentLowerBound.Constraints, new Point(i, j));
-                    for (int i = 0; i < shrinkedImage.Width; ++i)
-                        for (int j = 0; j < shrinkedImage.Height; ++j)
-                        {
-                            Debug.Assert(lowerBoundShapeTerm[i, j].Item1 >= parentLowerBoundShapeTerm[i, j].Item1);
-                            Debug.Assert(lowerBoundShapeTerm[i, j].Item2 >= parentLowerBoundShapeTerm[i, j].Item2);
-                            CalculateShapeTerm(lowerBound.Constraints, new Point(6, 17));
-                            CalculateShapeTerm(parentLowerBound.Constraints, new Point(6, 17));
-                        }
+                    // Uncomment for strong invariants check
+                    //Tuple<double, double>[,] lowerBoundShapeTerm = new Tuple<double, double>[shrinkedImage.Width, shrinkedImage.Height];
+                    //for (int i = 0; i < shrinkedImage.Width; ++i)
+                    //    for (int j = 0; j < shrinkedImage.Height; ++j)
+                    //        lowerBoundShapeTerm[i, j] = CalculateShapeTerm(lowerBound.Constraints, new Point(i, j));
+                    //Tuple<double, double>[,] parentLowerBoundShapeTerm = new Tuple<double, double>[shrinkedImage.Width, shrinkedImage.Height];
+                    //for (int i = 0; i < shrinkedImage.Width; ++i)
+                    //    for (int j = 0; j < shrinkedImage.Height; ++j)
+                    //        parentLowerBoundShapeTerm[i, j] = CalculateShapeTerm(parentLowerBound.Constraints, new Point(i, j));
+                    //for (int i = 0; i < shrinkedImage.Width; ++i)
+                    //    for (int j = 0; j < shrinkedImage.Height; ++j)
+                    //    {
+                    //        Debug.Assert(lowerBoundShapeTerm[i, j].Item1 >= parentLowerBoundShapeTerm[i, j].Item1 - 1e-7);
+                    //        Debug.Assert(lowerBoundShapeTerm[i, j].Item2 >= parentLowerBoundShapeTerm[i, j].Item2 - 1e-7);
+                    //        //CalculateShapeTerm(lowerBound.Constraints, new Point(0, 67));
+                    //        //CalculateShapeTerm(parentLowerBound.Constraints, new Point(0, 67));
+                    //    }
 
                     // Lower bound should not decrease
                     Debug.Assert(lowerBound.SegmentationEnergy >= parentLowerBound.SegmentationEnergy - 1e-6);
@@ -216,8 +220,7 @@ namespace Research.GraphBasedShapePrior
                     ++processedConstraintSets;
                 }
 
-                // TODO: remove me, this is for debug only
-                if (currentIteration % 2000 == 0)
+                if (currentIteration % this.BfsFrontSaveFrequency == 0)
                 {
                     string directory = string.Format("front_{0:00000}", currentIteration);
                     SaveEnergyBounds(shrinkedImage, front, directory);
@@ -397,6 +400,8 @@ namespace Research.GraphBasedShapePrior
             }
         }
 
+        //private static int imageCounter = 0;
+
         private EnergyBound CalculateEnergyBound(
             ShapeConstraintsSet constraintsSet,
             Image2D<Color> shrinkedImage,
@@ -408,8 +413,7 @@ namespace Research.GraphBasedShapePrior
                 constraintsSet, shrinkedImage, backgroundColorModel, objectColorModel);
 
             double segmentationEnergy = boundInfo.Energy;
-            double shapeEnergy = this.CalculateMinShapeEnergy(constraintsSet, objectSize);
-
+            double shapeEnergy = this.CalculateMinShapeEnergy(constraintsSet, objectSize);    
             return new EnergyBound(constraintsSet, shapeEnergy, segmentationEnergy, this.ShapeEnergyWeight, boundInfo.SegmentationMask);
         }
 
@@ -439,17 +443,17 @@ namespace Research.GraphBasedShapePrior
             Vector pointAsVec = new Vector(point.X, point.Y);
 
             // Calculate weight to sink (min price for object label at (x, y))
-            double minDistanceToEdgeSqr = Double.PositiveInfinity;
+            double minDistanceToEdge = Double.PositiveInfinity;
             bool inConvexHull = false;
 
             // First check if pixel is in convex hull for some edge
-            for (int i = 0; i < constraintsSet.ShapeModel.Edges.Count; ++i)
+            for (int edgeIndex = 0; edgeIndex < constraintsSet.ShapeModel.Edges.Count; ++edgeIndex)
             {
-                ShapeEdge edge = constraintsSet.ShapeModel.Edges[i];
+                ShapeEdge edge = constraintsSet.ShapeModel.Edges[edgeIndex];
                 Polygon convexHull = constraintsSet.GetConvexHullForVertexPair(edge.Index1, edge.Index2);
                 if (convexHull.IsPointInside(pointAsVec))
                 {
-                    minDistanceToEdgeSqr = 0;
+                    minDistanceToEdge = 0;
                     inConvexHull = true;
                     break;
                 }
@@ -458,59 +462,98 @@ namespace Research.GraphBasedShapePrior
             // If not, find closest edge possible
             if (!inConvexHull)
             {
-                for (int i = 0; i < constraintsSet.ShapeModel.Edges.Count; ++i)
+                for (int edgeIndex = 0; edgeIndex < constraintsSet.ShapeModel.Edges.Count; ++edgeIndex)
                 {
-                    ShapeEdge edge = constraintsSet.ShapeModel.Edges[i];
+                    double distance;
+                    
+                    ShapeEdge edge = constraintsSet.ShapeModel.Edges[edgeIndex];
                     VertexConstraints constraints1 = constraintsSet.GetConstraintsForVertex(edge.Index1);
                     VertexConstraints constraints2 = constraintsSet.GetConstraintsForVertex(edge.Index2);
 
-                    foreach (Vector point1 in constraints1.IterateCornersAndClosestPoint(point))
+                    Vector? closestPoint1 = constraints1.GetClosestPoint(point);
+                    Vector? closestPoint2 = constraints2.GetClosestPoint(point);
+                    for (int corner1 = 0; corner1 < 4; ++corner1)
                     {
-                        foreach (Vector point2 in constraints2.IterateCornersAndClosestPoint(point))
+                        
+                        for (int corner2 = 0; corner2 < 4; ++corner2)
                         {
-                            minDistanceToEdgeSqr = Math.Min(
-                                minDistanceToEdgeSqr,
-                                constraintsSet.ShapeModel.CalculateRelativeDistanceToEdgeSquared(
+                            // Check pair of corners
+                            Polygon pulleyPoints = constraintsSet.GetPulleyPointsForVertexPair(
+                                edge.Index1, edge.Index2, corner1, corner2, true);
+                            distance = constraintsSet.ShapeModel.CalculateDistanceToEdge(
+                                pointAsVec,
+                                new Circle(constraints1.Corners[corner1], constraints1.MaxRadiusExclusive - 1),
+                                new Circle(constraints2.Corners[corner2], constraints2.MaxRadiusExclusive - 1),
+                                pulleyPoints);
+                            minDistanceToEdge = Math.Min(minDistanceToEdge, distance);
+
+                            // Check closest point simultaneously
+                            if (corner1 == 0 && closestPoint1.HasValue)
+                            {
+                                distance = constraintsSet.ShapeModel.CalculateDistanceToEdge(
                                     pointAsVec,
-                                    new Circle(point1, constraints1.MaxRadiusExclusive - 1),
-                                    new Circle(point2, constraints2.MaxRadiusExclusive - 1)));
+                                    new Circle(closestPoint1.Value, constraints1.MaxRadiusExclusive - 1),
+                                    new Circle(constraints2.Corners[corner2], constraints2.MaxRadiusExclusive - 1));
+                                minDistanceToEdge = Math.Min(minDistanceToEdge, distance);
+                            }
                         }
+
+                        // Also check closest point
+                        if (closestPoint2.HasValue)
+                        {
+                            distance = constraintsSet.ShapeModel.CalculateDistanceToEdge(
+                                pointAsVec,
+                                new Circle(constraints1.Corners[corner1], constraints1.MaxRadiusExclusive - 1),
+                                new Circle(closestPoint2.Value, constraints2.MaxRadiusExclusive - 1));
+                            minDistanceToEdge = Math.Min(minDistanceToEdge, distance);
+                        }
+                    }
+
+                    // Also try both corners
+                    if (closestPoint1.HasValue && closestPoint2.HasValue)
+                    {
+                        distance = constraintsSet.ShapeModel.CalculateDistanceToEdge(
+                            pointAsVec,
+                            new Circle(closestPoint1.Value, constraints1.MaxRadiusExclusive - 1),
+                            new Circle(closestPoint2.Value, constraints2.MaxRadiusExclusive - 1));
+                        minDistanceToEdge = Math.Min(minDistanceToEdge, distance);
                     }
                 }
             }
 
-            double maxObjectPotential = constraintsSet.ShapeModel.RelativeDistanceToObjectPotential(
-                Math.Sqrt(minDistanceToEdgeSqr));
+            double maxObjectPotential = constraintsSet.ShapeModel.DistanceToObjectPotential(minDistanceToEdge);
             double toSink = -MathHelper.LogInf(maxObjectPotential);
 
             // Calculate weight to source (min price for background label at (x, y))
-            double maxDistanceToEdgeSqr = Double.PositiveInfinity;
-            for (int i = 0; i < constraintsSet.ShapeModel.Edges.Count; ++i)
+            double maxDistanceToEdge = Double.PositiveInfinity;
+            for (int edgeIndex = 0; edgeIndex < constraintsSet.ShapeModel.Edges.Count; ++edgeIndex)
             {
-                ShapeEdge edge = constraintsSet.ShapeModel.Edges[i];
+                ShapeEdge edge = constraintsSet.ShapeModel.Edges[edgeIndex];
                 VertexConstraints constraints1 = constraintsSet.GetConstraintsForVertex(edge.Index1);
                 VertexConstraints constraints2 = constraintsSet.GetConstraintsForVertex(edge.Index2);
 
                 // Solution will connect 2 corners (need to prove this fact)
-                double maxDistanceToCurrentEdgeSqr = 0;
-                foreach (Vector point1 in constraints1.IterateCorners())
+                double maxDistanceToCurrentEdge = 0;
+                for (int corner1 = 0; corner1 < 4; ++corner1)
                 {
-                    foreach (Vector point2 in constraints2.IterateCorners())
+                    for (int corner2 = 0; corner2 < 4; ++corner2)
                     {
-                        maxDistanceToCurrentEdgeSqr = Math.Max(
-                            maxDistanceToCurrentEdgeSqr,
-                            constraintsSet.ShapeModel.CalculateRelativeDistanceToEdgeSquared(
-                                pointAsVec,
-                                new Circle(point1, constraints1.MinRadiusInclusive),
-                                new Circle(point2, constraints2.MinRadiusInclusive)));
+                        Polygon pulleyPoints = constraintsSet.GetPulleyPointsForVertexPair(
+                            edge.Index1, edge.Index2, corner1, corner2, false);
+                        double distance = constraintsSet.ShapeModel.CalculateDistanceToEdge(
+                            pointAsVec,
+                            new Circle(constraints1.Corners[corner1], constraints1.MinRadiusInclusive),
+                            new Circle(constraints2.Corners[corner2], constraints2.MinRadiusInclusive),
+                            pulleyPoints);
+
+                        maxDistanceToCurrentEdge = Math.Max(maxDistanceToCurrentEdge, distance);
                     }
                 }
 
-                maxDistanceToEdgeSqr = Math.Min(maxDistanceToEdgeSqr, maxDistanceToCurrentEdgeSqr);
+                maxDistanceToEdge = Math.Min(maxDistanceToEdge, maxDistanceToCurrentEdge);
             }
 
-            double maxBackgroundPotential = 1 - constraintsSet.ShapeModel.RelativeDistanceToObjectPotential(
-                Math.Sqrt(maxDistanceToEdgeSqr));
+            double maxBackgroundPotential = 1 - constraintsSet.ShapeModel.DistanceToObjectPotential(maxDistanceToEdge);
             double toSource = -MathHelper.LogInf(maxBackgroundPotential);
 
             return new Tuple<double, double>(toSource, toSink);
@@ -667,7 +710,7 @@ namespace Research.GraphBasedShapePrior
                 new Point(0, -360),
                 new Point(lengthGridSize, 360),
                 1.0 / MathHelper.Sqr(pairParams.LengthDeviation),
-                1.0 / MathHelper.Sqr(MathHelper.ToDegrees(pairParams.AngleDeviation * Math.PI)),
+                1.0 / MathHelper.Sqr(MathHelper.ToDegrees(pairParams.AngleDeviation)),
                 penaltyFunction);
         }
 

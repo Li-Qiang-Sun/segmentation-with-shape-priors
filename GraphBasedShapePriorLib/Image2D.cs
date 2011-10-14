@@ -16,6 +16,13 @@ namespace Research.GraphBasedShapePrior
             return ToRegularImage(image, x => x ? Color.White : Color.Black);
         }
 
+        public static Image ToRegularImage(Image2D<double> image, double min, double max)
+        {
+            Debug.Assert(max >= min);
+            double diff = max - min;
+            return ToRegularImage(image, x => ZeroOneToRedBlue((MathHelper.Trunc(x, min, max) - min) / diff));
+        }
+
         private static Image ToRegularImage<T>(Image2D<T> image, Func<T, Color> converter)
         {
             Bitmap result = new Bitmap(image.Width, image.Height);
@@ -44,19 +51,17 @@ namespace Research.GraphBasedShapePrior
 
         public static void SaveToFile(Image2D<Color> image, string fileName)
         {
-            SaveToFile(image, fileName, x => x);
+            ToRegularImage(image).Save(fileName);
         }
 
         public static void SaveToFile(Image2D<bool> image, string fileName)
         {
-            SaveToFile(image, fileName, x => x ? Color.White : Color.Black);
+            ToRegularImage(image).Save(fileName);
         }
 
         public static void SaveToFile(Image2D<double> image, double min, double max, string fileName)
         {
-            Debug.Assert(max >= min);
-            double diff = max - min;
-            SaveToFile(image, fileName, x => ZeroOneToRedBlue((MathHelper.Trunc(x, min, max) - min) / diff));
+            ToRegularImage(image, min, max).Save(fileName);
         }
 
         private static Color ZeroOneToRedBlue(double brightness)
@@ -74,17 +79,6 @@ namespace Research.GraphBasedShapePrior
                 int color = (int)Math.Round(255 * brightness);
                 return Color.FromArgb(0, 0, color);    
             }
-        }
-
-        private static void SaveToFile<T>(Image2D<T> image, string fileName, Func<T, Color> converter)
-        {
-            Bitmap result = new Bitmap(image.Width, image.Height);
-
-            for (int x = 0; x < image.Width; ++x)
-                for (int y = 0; y < image.Height; ++y)
-                    result.SetPixel(x, y, converter(image[x, y]));
-
-            result.Save(fileName);
         }
     }
 

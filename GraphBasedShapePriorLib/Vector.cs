@@ -86,6 +86,24 @@ namespace Research.GraphBasedShapePrior
             return Math.Sqrt(this.DistanceToPointSquared(vector));
         }
 
+        public double DistanceToSegment(Vector segmentStart, Vector segmentEnd)
+        {
+            double distance, alpha;
+            this.DistanceToSegment(segmentStart, segmentEnd, out distance, out alpha);
+            if (alpha < 0)
+                return this.DistanceToPoint(segmentStart);
+            if (alpha > 1)
+                return this.DistanceToPoint(segmentEnd);
+            return distance;
+        }
+
+        public void DistanceToSegment(Vector segmentStart, Vector segmentEnd, out double distance, out double alpha)
+        {
+            double distanceSqr;
+            this.DistanceToSegmentSquared(segmentStart, segmentEnd, out distanceSqr, out alpha);
+            distance = Math.Sqrt(distanceSqr);
+        }
+
         public double DistanceToSegmentSquared(Vector segmentStart, Vector segmentEnd)
         {
             double distanceSqr, alpha;
@@ -114,10 +132,10 @@ namespace Research.GraphBasedShapePrior
             return this * (1.0 / this.Length);
         }
 
-        public double DistanceToCircle(Circle circle)
+        public double DistanceToCircleOut(Circle circle)
         {
             double distToCenter = (this - circle.Center).Length;
-            return Math.Abs(distToCenter - circle.Radius);
+            return Math.Max(distToCenter - circle.Radius, 0);
         }
 
         public static double AngleBetween(Vector vector1, Vector vector2)
@@ -142,6 +160,11 @@ namespace Research.GraphBasedShapePrior
         public static double CrossProduct(Vector vector1, Vector vector2)
         {
             return vector1.X * vector2.Y - vector1.Y * vector2.X;
+        }
+
+        public override string ToString()
+        {
+            return string.Format("{0} {1}", this.X, this.Y);
         }
     }
 }

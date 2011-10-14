@@ -47,6 +47,7 @@
     <CodeContractsRuntimeCheckingLevel>Full</CodeContractsRuntimeCheckingLevel>
     <CodeContractsReferenceAssembly>%28none%29</CodeContractsReferenceAssembly>
     <CodeContractsAnalysisWarningLevel>0</CodeContractsAnalysisWarningLevel>
+    <GpuNetAccelerationEnabled>True</GpuNetAccelerationEnabled>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -71,6 +72,7 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="TidePowerd.DeviceMethods, Version=2.0.0.0, Culture=neutral, PublicKeyToken=450c6f1107a3324d, processorArchitecture=MSIL" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BranchAndBoundSegmentator.cs" />

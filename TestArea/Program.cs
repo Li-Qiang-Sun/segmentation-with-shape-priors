@@ -96,15 +96,11 @@ namespace TestArea
         
         static void MainForUnaryPotentialsCheck()
         {
-            ShapeModel model = CreateSimpleShapeModel1();
-            
             Image2D<Color> result = new Image2D<Color>(320, 240);
-            Circle edgeStart = new Circle(new Vector(100, 50), 70);
-            Circle edgeEnd = new Circle(new Vector(150, 100), 20);
 
-            VertexConstraints constraint1 = new VertexConstraints(new Point(80, 100), new Point(130, 140), 40, 41);
-            VertexConstraints constraint2 = new VertexConstraints(new Point(260, 180), new Point(300, 210), 20, 21);
-            ShapeConstraintsSet constraintsSet = ShapeConstraintsSet.Create(CreateSimpleShapeModel1(), new []{constraint1, constraint2});
+            VertexConstraints constraint1 = new VertexConstraints(new Point(80, 100), new Point(81, 101), 10, 11);
+            VertexConstraints constraint2 = new VertexConstraints(new Point(200, 140), new Point(201, 141), 1, 51);
+            ShapeConstraintsSet constraintsSet = ShapeConstraintsSet.Create(CreateSimpleShapeModel1(), new []{constraint2, constraint1});
 
             for (int x = 0; x < result.Width; ++x)
                 for (int y = 0; y < result.Height; ++y)
@@ -115,6 +111,8 @@ namespace TestArea
                     int redColor = diff < 0 ? 0 : (int) Math.Min(diff * 200, 255);
                     int blueColor = diff > 0 ? 0 : (int) Math.Min(-diff * 200, 255);
                     result[x, y] = Color.FromArgb(redColor, 0, blueColor);
+                    //int color = (int)(Math.Exp(-potentials.Item1) * 255.0);
+                    //result[x, y] = Color.FromArgb(color, color, color);
                 }
             Image2D.SaveToFile(result, "../../potentials.png");
         }
@@ -180,10 +178,10 @@ namespace TestArea
         {
             Rand.Restart(666);
             
-            //MainForUnaryPotentialsCheck();
+            MainForUnaryPotentialsCheck();
             //MainForSegmentation();
             //MainForConvexHull();
-            MainForShapeEnergyCheck();
+            //MainForShapeEnergyCheck();
         }
     }
 }

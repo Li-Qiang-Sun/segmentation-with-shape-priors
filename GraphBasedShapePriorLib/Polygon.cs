@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -10,8 +11,16 @@ namespace Research.GraphBasedShapePrior
     {
         private readonly List<Vector> vertices = new List<Vector>();
 
+        private readonly ReadOnlyCollection<Vector> verticesReadOnly;
+
         private Polygon()
         {
+            this.verticesReadOnly = new ReadOnlyCollection<Vector>(this.vertices);
+        }
+
+        public ReadOnlyCollection<Vector> Vertices
+        {
+            get { return this.verticesReadOnly; }
         }
 
         /// <summary>
@@ -92,6 +101,20 @@ namespace Research.GraphBasedShapePrior
                 usedPoints[nextHullPointIndex] = true;
             } while (currentHullPoint != hullStart);
 
+            return result;
+        }
+
+        public static Polygon FromPoints(IEnumerable<Vector> vertices)
+        {
+            Polygon result = new Polygon();
+            result.vertices.AddRange(vertices);
+            return result;
+        }
+
+        public static Polygon FromPoints(params Vector[] vertices)
+        {
+            Polygon result = new Polygon();
+            result.vertices.AddRange(vertices);
             return result;
         }
     }

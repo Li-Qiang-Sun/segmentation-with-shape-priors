@@ -12,6 +12,8 @@ namespace Research.GraphBasedShapePrior
         private List<VertexConstraints> vertexConstraints;
 
         private Polygon[,] convexHullsForEdges;
+        private Polygon[,,,] minRadiusPulleysForEdges;
+        private Polygon[,,,] maxRadiusPulleysForEdges;
 
         public ShapeModel ShapeModel { get; private set; }
 
@@ -44,8 +46,9 @@ namespace Research.GraphBasedShapePrior
             result.ShapeModel = model;
             result.vertexConstraints = new List<VertexConstraints>();
 
-            int minRadius = 1; // We don't want singular radii
-            int maxRadius = Math.Min(imageSize.Width, imageSize.Height) / 2;
+            // TODO: move this to configuration
+            int minRadius = 2; // We don't want singular radii
+            int maxRadius = Math.Min(imageSize.Width, imageSize.Height) / 6; // Max circle will constitute to 1/3 of image
             for (int i = 0; i < model.VertexCount; ++i)
             {
                 result.vertexConstraints.Add(
@@ -94,6 +97,41 @@ namespace Research.GraphBasedShapePrior
             return result;
         }
 
+        public Polygon GetPulleyPointsForVertexPair(int vertex1, int vertex2, int corner1, int corner2, bool maximizeRadius)
+        {
+            if (this.minRadiusPulleysForEdges == null)
+                this.minRadiusPulleysForEdges = new Polygon[this.vertexConstraints.Count, this.vertexConstraints.Count, 4, 4];
+            if (this.maxRadiusPulleysForEdges == null)
+                this.maxRadiusPulleysForEdges = new Polygon[this.vertexConstraints.Count, this.vertexConstraints.Count, 4, 4];
+            Polygon[,,,] storage = maximizeRadius ? this.maxRadiusPulleysForEdges : this.minRadiusPulleysForEdges;
+            
+            // Pulley points are order-invariant
+            if (vertex1 > vertex2)
+                Helper.Swap(ref vertex1, ref vertex2);
+
+            // Do some caching
+            if (storage[vertex1, vertex2, corner1, corner2] != null)
+                return storage[vertex1, vertex2, corner1, corner2];
+
+            // Make pulley parts
+            Circle circle1 = new Circle(
+                vertexConstraints[vertex1].Corners[corner1],
+                maximizeRadius ? vertexConstraints[vertex1].MaxRadiusExclusive - 1 : vertexConstraints[vertex1].MinRadiusInclusive);
+            Circle circle2 = new Circle(
+                vertexConstraints[vertex2].Corners[corner2],
+                maximizeRadius ? vertexConstraints[vertex2].MaxRadiusExclusive - 1 : vertexConstraints[vertex2].MinRadiusInclusive);
+
+            // Is it valid pulley
+            if (!circle1.Contains(circle2) && !circle2.Contains(circle1))
+            {
+                Polygon pulleyPoints = MathHelper.SolvePulleyProblem(circle1, circle2);
+                storage[vertex1, vertex2, corner1, corner2] = pulleyPoints;
+                return pulleyPoints;    
+            }
+
+            return null;
+        }
+
         public Polygon GetConvexHullForVertexPair(int vertex1, int vertex2)
         {
             // Convex hull is order-invariant
@@ -108,8 +146,8 @@ namespace Research.GraphBasedShapePrior
 
             // Calculate convex hull
             List<Vector> points = new List<Vector>();
-            points.AddRange(this.GetConstraintsForVertex(vertex1).IterateCorners());
-            points.AddRange(this.GetConstraintsForVertex(vertex2).IterateCorners());
+            points.AddRange(this.GetConstraintsForVertex(vertex1).Corners);
+            points.AddRange(this.GetConstraintsForVertex(vertex2).Corners);
             Polygon convexHull = Polygon.ConvexHull(points);
 
             // Store result in cache
@@ -118,9 +156,11 @@ namespace Research.GraphBasedShapePrior
             return convexHull;
         }
 
-        public void ClearConvexHullCache()
+        public void ClearCaches()
         {
             this.convexHullsForEdges = null;
+            this.minRadiusPulleysForEdges = null;
+            this.maxRadiusPulleysForEdges = null;
         }
 
         public bool CheckIfSatisfied()
@@ -182,7 +222,7 @@ namespace Research.GraphBasedShapePrior
             {
                 PointF point1 = GetRectangleCenter(this.vertexConstraints[edge.Index1].CoordRectangle);
                 PointF point2 = GetRectangleCenter(this.vertexConstraints[edge.Index2].CoordRectangle);
-                graphics.DrawLine(Pens.Blue, point1, point2);
+                graphics.DrawLine(Pens.Orange, point1, point2);
             }
         }
 

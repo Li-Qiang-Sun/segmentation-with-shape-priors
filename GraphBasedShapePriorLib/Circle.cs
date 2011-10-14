@@ -19,8 +19,13 @@ namespace Research.GraphBasedShapePrior
 
         public bool Contains(Circle circle)
         {
-            return circle.Radius < this.Radius &&
-                   (circle.Center - this.Center).LengthSquared < this.Radius * this.Radius;
+            return circle.Radius <= this.Radius &&
+                   (circle.Center - this.Center).LengthSquared <= MathHelper.Sqr(this.Radius - circle.Radius);
+        }
+
+        public override string ToString()
+        {
+            return string.Format("C={0} R={1}", this.Center, this.Radius);
         }
     }
 }

@@ -18,8 +18,8 @@ namespace Segmentator
             edges.Add(new ShapeEdge(0, 1));
 
             List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            vertexParams.Add(new ShapeVertexParams(0.1, 0.1));
+            vertexParams.Add(new ShapeVertexParams(0.1, 0.1));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
@@ -34,13 +34,13 @@ namespace Segmentator
             edges.Add(new ShapeEdge(1, 2));
 
             List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            vertexParams.Add(new ShapeVertexParams(0.1, 0.1));
+            vertexParams.Add(new ShapeVertexParams(0.1, 0.1));
+            vertexParams.Add(new ShapeVertexParams(0.1, 0.1));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
-            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.5, 1, 0.1, 10)); // TODO: we need edge length deviations to be relative
+            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.5, 1, Math.PI * 0.1, 10)); // TODO: we need edge length deviations to be relative
 
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
         }
@@ -165,27 +165,28 @@ namespace Segmentator
 
             BranchAndBoundSegmentator segmentator = new BranchAndBoundSegmentator();
             //segmentator.ShapeModel = CreateSimpleShapeModel1();
-            segmentator.ShapeModel = CreateSimpleShapeModel2();
-            //segmentator.ShapeModel = CreateLetterShapeModel();
+            //segmentator.ShapeModel = CreateSimpleShapeModel2();
+            segmentator.ShapeModel = CreateLetterShapeModel();
             segmentator.BranchAndBoundType = BranchAndBoundType.Combined;
-            segmentator.MaxBfsIterationsInCombinedMode = 30000;
+            segmentator.MaxBfsIterationsInCombinedMode = 20000;
             segmentator.BreadthFirstBranchAndBoundStatus += OnBfsStatusUpdate;
             segmentator.DepthFirstBranchAndBoundStatus += OnDfsStatusUpdate;
-            segmentator.StatusReportRate = 100;
-            segmentator.ShapeUnaryTermWeight = 3;
+            segmentator.StatusReportRate = 200;
+            segmentator.ShapeUnaryTermWeight = 10;
             segmentator.ShapeEnergyWeight = 10;
+            segmentator.BfsFrontSaveFrequency = 5000;
 
             DebugConfiguration.VerbosityLevel = VerbosityLevel.Everything;
 
             const double scale = 0.15;
             //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_1.png", scale); // Simple model 1
             //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_2.png", scale); // Simple model 1
-            Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_3.png", scale); // Simple model 2
-            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/letter_1.jpg", scale); // Letter model
+            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_3.png", scale); // Simple model 2
+            Image2D<Color> image = Image2D.LoadFromFile("../../../Images/letter_1.jpg", scale); // Letter model
             //Rectangle bigLocation = new Rectangle(153, 124, 796, 480); // simple_1.png
             //Rectangle bigLocation = new Rectangle(334, 37, 272, 547); // simple_2.png
-            Rectangle bigLocation = new Rectangle(249, 22, 391, 495); // simple_3.png
-            //Rectangle bigLocation = new Rectangle(68, 70, 203, 359); // letter_1.jpg
+            //Rectangle bigLocation = new Rectangle(249, 22, 391, 495); // simple_3.png
+            Rectangle bigLocation = new Rectangle(68, 70, 203, 359); // letter_1.jpg
             Rectangle location = new Rectangle(
                 (int)(bigLocation.X * scale),
                 (int)(bigLocation.Y * scale),

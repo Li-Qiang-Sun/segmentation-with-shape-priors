@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Drawing;
 
@@ -7,7 +8,9 @@ namespace Research.GraphBasedShapePrior
 {
     public class VertexConstraints
     {
-        private readonly List<Vector> corners = new List<Vector>();
+        private readonly Vector[] corners = new Vector[4];
+
+        private readonly ReadOnlyCollection<Vector> cornersReadOnly;
 
         public VertexConstraints(Point minCoordInclusive, Point maxCoordExclusive, int minRadiusInclusive, int maxRadiusExclusive)
         {
@@ -19,10 +22,12 @@ namespace Research.GraphBasedShapePrior
             this.MinRadiusInclusive = minRadiusInclusive;
             this.MaxRadiusExclusive = maxRadiusExclusive;
 
-            this.corners.Add(new Vector(this.MinCoordInclusive.X, this.MinCoordInclusive.Y));
-            this.corners.Add(new Vector(this.MinCoordInclusive.X, this.MaxCoordExclusive.Y - 1));
-            this.corners.Add(new Vector(this.MaxCoordExclusive.X - 1, this.MaxCoordExclusive.Y - 1));
-            this.corners.Add(new Vector(this.MaxCoordExclusive.X - 1, this.MinCoordInclusive.Y));
+            this.corners[0] = new Vector(this.MinCoordInclusive.X, this.MinCoordInclusive.Y);
+            this.corners[1] = new Vector(this.MinCoordInclusive.X, this.MaxCoordExclusive.Y - 1);
+            this.corners[2] = new Vector(this.MaxCoordExclusive.X - 1, this.MaxCoordExclusive.Y - 1);
+            this.corners[3] = new Vector(this.MaxCoordExclusive.X - 1, this.MinCoordInclusive.Y);
+
+            this.cornersReadOnly = new ReadOnlyCollection<Vector>(corners);
         }
 
         public Point MinCoordInclusive { get; private set; }
@@ -131,7 +136,7 @@ namespace Research.GraphBasedShapePrior
             return this.CoordRectangle.Contains(point);
         }
 
-        public IEnumerable<Vector> Iterate()
+        public IEnumerable<Vector> IterateInterior()
         {
             for (int x = this.MinCoordInclusive.X; x <= this.MaxCoordExclusive.X; ++x)
                 for (int y = this.MinCoordInclusive.Y; y <= this.MaxCoordExclusive.Y; ++y)
@@ -157,41 +162,30 @@ namespace Research.GraphBasedShapePrior
                 yield return new Vector(this.MinCoordInclusive.X, y);
         }
 
-        /// <summary>
-        /// Iterate through all four corners.
-        /// </summary>
-        /// <returns>Enumerable containing all four corners.</returns>
-        public IEnumerable<Vector> IterateCorners()
+        public ReadOnlyCollection<Vector> Corners
         {
-            return this.corners;
+            get { return this.cornersReadOnly; }
         }
 
-        /// <summary>
-        /// Iterate through all four corners and also point closest to given (if given point is outside).
-        /// </summary>
-        /// <param name="point">Point closest to which must be returned.</param>
-        /// <returns>Enumerable containing all four corners and also point closest to the given one (if given point is outside and does not match with one of the corners).</returns>
-        public IEnumerable<Vector> IterateCornersAndClosestPoint(Point point)
+        public Vector? GetClosestPoint(Point point)
         {
-            List<Vector> result = new List<Vector>(this.corners);
-
             if (point.X >= MinCoordInclusive.X && point.X < MaxCoordExclusive.X)
             {
                 if (point.Y <= MinCoordInclusive.Y)
-                    result.Add(new Vector(point.X, MinCoordInclusive.Y));
-                else if (point.Y >= MaxCoordExclusive.Y - 1)
-                    result.Add(new Vector(point.X, MaxCoordExclusive.Y - 1));
+                    return new Vector(point.X, MinCoordInclusive.Y);
+                if (point.Y >= MaxCoordExclusive.Y - 1)
+                    return new Vector(point.X, MaxCoordExclusive.Y - 1);
             }
 
-            if (result.Count == 4 && point.Y >= MinCoordInclusive.Y && point.Y < MaxCoordExclusive.Y)
+            if (point.Y >= MinCoordInclusive.Y && point.Y < MaxCoordExclusive.Y)
             {
                 if (point.X <= MinCoordInclusive.X)
-                    result.Add(new Vector(MinCoordInclusive.X, point.Y));
-                else if (point.X >= MaxCoordExclusive.X - 1)
-                    result.Add(new Vector(MaxCoordExclusive.X - 1, point.Y));
+                    return new Vector(MinCoordInclusive.X, point.Y);
+                if (point.X >= MaxCoordExclusive.X - 1)
+                    return new Vector(MaxCoordExclusive.X - 1, point.Y);
             }
 
-            return result;
+            return null;
         }
 
         public int Area
