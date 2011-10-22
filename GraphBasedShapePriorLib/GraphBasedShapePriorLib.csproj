@@ -47,7 +47,7 @@
     <CodeContractsRuntimeCheckingLevel>Full</CodeContractsRuntimeCheckingLevel>
     <CodeContractsReferenceAssembly>%28none%29</CodeContractsReferenceAssembly>
     <CodeContractsAnalysisWarningLevel>0</CodeContractsAnalysisWarningLevel>
-    <GpuNetAccelerationEnabled>True</GpuNetAccelerationEnabled>
+    <GpuNetAccelerationEnabled>False</GpuNetAccelerationEnabled>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -58,11 +58,13 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Infer.Compiler">
-      <HintPath>C:\Program Files (x86)\Microsoft Research\Infer.NET 2.4 Beta\bin\Release\Infer.Compiler.dll</HintPath>
+    <Reference Include="Infer.Compiler, Version=2.4.1217.0, Culture=neutral, PublicKeyToken=e4813102a62778da, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\References\Infer.Compiler.dll</HintPath>
     </Reference>
-    <Reference Include="Infer.Runtime">
-      <HintPath>C:\Program Files (x86)\Microsoft Research\Infer.NET 2.4 Beta\bin\Release\Infer.Runtime.dll</HintPath>
+    <Reference Include="Infer.Runtime, Version=2.4.1217.0, Culture=neutral, PublicKeyToken=e4813102a62778da, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\References\Infer.Runtime.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -72,9 +74,13 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-    <Reference Include="TidePowerd.DeviceMethods, Version=2.0.0.0, Culture=neutral, PublicKeyToken=450c6f1107a3324d, processorArchitecture=MSIL" />
+    <Reference Include="TidePowerd.DeviceMethods, Version=2.1.1.0, Culture=neutral, PublicKeyToken=450c6f1107a3324d, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>C:\Program Files (x86)\TidePowerd\GPU.NET\bin\TidePowerd.DeviceMethods.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BranchAndBoundGPU.cs" />
     <Compile Include="BranchAndBoundSegmentator.cs" />
     <Compile Include="BranchAndBoundStatusEventArgs.cs" />
     <Compile Include="BranchAndBoundType.cs" />
@@ -83,6 +89,7 @@
     <Compile Include="DepthFirstBranchAndBoundStatusEventArgs.cs" />
     <Compile Include="GeneralizedDistanceTransform1D.cs" />
     <Compile Include="GeneralizedDistanceTransform2D.cs" />
+    <Compile Include="GPUMathHelper.cs" />
     <Compile Include="Helper.cs" />
     <Compile Include="ImageSegmentationInfo.cs" />
     <Compile Include="MathHelper.cs" />
@@ -110,10 +117,6 @@
     <ProjectReference Include="..\GraphCuts\GraphCuts.vcxproj">
       <Project>{19F5BAC2-897A-4C7C-853A-752853165CCD}</Project>
       <Name>GraphCuts</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\OptimizedComputations\OptimizedComputations.vcxproj">
-      <Project>{D3767E2C-7721-4886-B290-5CBC32D8E47C}</Project>
-      <Name>OptimizedComputations</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

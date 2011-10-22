@@ -10,27 +10,13 @@ namespace Research.GraphBasedShapePrior
     {
         private readonly List<Circle> vertices;
 
-        public Shape(ShapeModel model)
-        {
-            Debug.Assert(model != null);
-
-            this.vertices = new List<Circle>();
-            this.Model = model;
-        }
-
         public Shape(ShapeModel model, IEnumerable<Circle> vertices)
-            : this(model)
         {
-            int index = 0;
-            foreach (Circle shapeVertex in vertices)
-            {
-                if (index >= this.vertices.Count)
-                    throw new ArgumentException("Too many vertices for given model", "vertices");
-                this.vertices[index++] = shapeVertex;
-            }
+            this.Model = model;
+            this.vertices = new List<Circle>(vertices);
 
-            if (index != this.vertices.Count)
-                throw new ArgumentException("Too few vertices for given model", "vertices");
+            if (this.vertices.Count != model.VertexCount)
+                throw new ArgumentException("Wrong number of vertices given.", "vertices");
         }
 
         public ShapeModel Model { get; private set; }

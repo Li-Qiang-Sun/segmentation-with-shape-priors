@@ -165,13 +165,13 @@ namespace Segmentator
 
             BranchAndBoundSegmentator segmentator = new BranchAndBoundSegmentator();
             //segmentator.ShapeModel = CreateSimpleShapeModel1();
-            //segmentator.ShapeModel = CreateSimpleShapeModel2();
-            segmentator.ShapeModel = CreateLetterShapeModel();
+            segmentator.ShapeModel = CreateSimpleShapeModel2();
+            //segmentator.ShapeModel = CreateLetterShapeModel();
             segmentator.BranchAndBoundType = BranchAndBoundType.Combined;
-            segmentator.MaxBfsIterationsInCombinedMode = 20000;
+            segmentator.MaxBfsIterationsInCombinedMode = 3000;
             segmentator.BreadthFirstBranchAndBoundStatus += OnBfsStatusUpdate;
             segmentator.DepthFirstBranchAndBoundStatus += OnDfsStatusUpdate;
-            segmentator.StatusReportRate = 200;
+            segmentator.StatusReportRate = 20;
             segmentator.ShapeUnaryTermWeight = 10;
             segmentator.ShapeEnergyWeight = 10;
             segmentator.BfsFrontSaveFrequency = 5000;
@@ -181,12 +181,12 @@ namespace Segmentator
             const double scale = 0.15;
             //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_1.png", scale); // Simple model 1
             //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_2.png", scale); // Simple model 1
-            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_3.png", scale); // Simple model 2
-            Image2D<Color> image = Image2D.LoadFromFile("../../../Images/letter_1.jpg", scale); // Letter model
+            Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_3.png", scale); // Simple model 2
+            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/letter_1.jpg", scale); // Letter model
             //Rectangle bigLocation = new Rectangle(153, 124, 796, 480); // simple_1.png
             //Rectangle bigLocation = new Rectangle(334, 37, 272, 547); // simple_2.png
-            //Rectangle bigLocation = new Rectangle(249, 22, 391, 495); // simple_3.png
-            Rectangle bigLocation = new Rectangle(68, 70, 203, 359); // letter_1.jpg
+            Rectangle bigLocation = new Rectangle(249, 22, 391, 495); // simple_3.png
+            //Rectangle bigLocation = new Rectangle(68, 70, 203, 359); // letter_1.jpg
             Rectangle location = new Rectangle(
                 (int)(bigLocation.X * scale),
                 (int)(bigLocation.Y * scale),

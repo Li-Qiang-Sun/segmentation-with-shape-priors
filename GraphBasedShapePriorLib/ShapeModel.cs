@@ -21,7 +21,7 @@ namespace Research.GraphBasedShapePrior
         private ShapeModel()
         {
             // TODO: this parameter should probably be made relative to object size somehow
-            this.Cutoff = 0.05;
+            this.Cutoff = 0.1;
         }
 
         public static ShapeModel Create(

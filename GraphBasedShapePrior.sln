@@ -7,11 +7,21 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GraphCuts", "GraphCuts\Grap
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestArea", "TestArea\TestArea.csproj", "{327356D3-F8F3-4580-89F7-557291E7627A}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OptimizedComputations", "OptimizedComputations\OptimizedComputations.vcxproj", "{D3767E2C-7721-4886-B290-5CBC32D8E47C}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Segmentator", "Segmentator\Segmentator.csproj", "{E59A741F-C0D7-4937-A7D6-EC2193A1678E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{D8E8DF84-8B60-48C4-827E-1918FE46C16D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A69B9819-3AB6-4ECA-A1CC-1F6C7E5CF738}"
+	ProjectSection(SolutionItems) = preProject
+		GraphBasedShapePrior.vsmdi = GraphBasedShapePrior.vsmdi
+		Local.testsettings = Local.testsettings
+		TraceAndTestImpact.testsettings = TraceAndTestImpact.testsettings
+	EndProjectSection
+EndProject
 Global
+	GlobalSection(TestCaseManagementSettings) = postSolution
+		CategoryFile = GraphBasedShapePrior.vsmdi
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|Mixed Platforms = Debug|Mixed Platforms
@@ -59,18 +69,6 @@ Global
 		{327356D3-F8F3-4580-89F7-557291E7627A}.Release|Win32.ActiveCfg = Release|x86
 		{327356D3-F8F3-4580-89F7-557291E7627A}.Release|x86.ActiveCfg = Release|x86
 		{327356D3-F8F3-4580-89F7-557291E7627A}.Release|x86.Build.0 = Release|x86
-		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Debug|Any CPU.ActiveCfg = Debug|Win32
-		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
-		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Debug|Mixed Platforms.Build.0 = Debug|Win32
-		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Debug|Win32.ActiveCfg = Debug|Win32
-		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Debug|Win32.Build.0 = Debug|Win32
-		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Debug|x86.ActiveCfg = Debug|Win32
-		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Release|Any CPU.ActiveCfg = Release|Win32
-		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Release|Mixed Platforms.ActiveCfg = Release|Win32
-		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Release|Mixed Platforms.Build.0 = Release|Win32
-		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Release|Win32.ActiveCfg = Release|Win32
-		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Release|Win32.Build.0 = Release|Win32
-		{D3767E2C-7721-4886-B290-5CBC32D8E47C}.Release|x86.ActiveCfg = Release|Win32
 		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Debug|Any CPU.ActiveCfg = Debug|x86
 		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Debug|Mixed Platforms.ActiveCfg = Debug|x86
 		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Debug|Mixed Platforms.Build.0 = Debug|x86
@@ -83,6 +81,18 @@ Global
 		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Release|Win32.ActiveCfg = Release|x86
 		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Release|x86.ActiveCfg = Release|x86
 		{E59A741F-C0D7-4937-A7D6-EC2193A1678E}.Release|x86.Build.0 = Release|x86
+		{D8E8DF84-8B60-48C4-827E-1918FE46C16D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D8E8DF84-8B60-48C4-827E-1918FE46C16D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D8E8DF84-8B60-48C4-827E-1918FE46C16D}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{D8E8DF84-8B60-48C4-827E-1918FE46C16D}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{D8E8DF84-8B60-48C4-827E-1918FE46C16D}.Debug|Win32.ActiveCfg = Debug|Any CPU
+		{D8E8DF84-8B60-48C4-827E-1918FE46C16D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D8E8DF84-8B60-48C4-827E-1918FE46C16D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D8E8DF84-8B60-48C4-827E-1918FE46C16D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D8E8DF84-8B60-48C4-827E-1918FE46C16D}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{D8E8DF84-8B60-48C4-827E-1918FE46C16D}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{D8E8DF84-8B60-48C4-827E-1918FE46C16D}.Release|Win32.ActiveCfg = Release|Any CPU
+		{D8E8DF84-8B60-48C4-827E-1918FE46C16D}.Release|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -17,6 +17,11 @@ namespace Research.GraphBasedShapePrior
             this.Radius = radius;
         }
 
+        public Circle(double x, double y, double radius)
+            : this(new Vector(x, y), radius)
+        {
+        }
+
         public bool Contains(Circle circle)
         {
             return circle.Radius <= this.Radius &&

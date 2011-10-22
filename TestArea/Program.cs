@@ -98,8 +98,8 @@ namespace TestArea
         {
             Image2D<Color> result = new Image2D<Color>(320, 240);
 
-            VertexConstraints constraint1 = new VertexConstraints(new Point(80, 100), new Point(81, 101), 10, 11);
-            VertexConstraints constraint2 = new VertexConstraints(new Point(200, 140), new Point(201, 141), 1, 51);
+            VertexConstraints constraint1 = new VertexConstraints(new Point(40, 40), new Point(41, 41), 10, 11);
+            VertexConstraints constraint2 = new VertexConstraints(new Point(240, 170), new Point(241, 171), 40, 41);
             ShapeConstraintsSet constraintsSet = ShapeConstraintsSet.Create(CreateSimpleShapeModel1(), new []{constraint2, constraint1});
 
             for (int x = 0; x < result.Width; ++x)
@@ -107,12 +107,12 @@ namespace TestArea
                 {
                     Tuple<double, double> potentials = BranchAndBoundSegmentator.CalculateShapeTerm(
                         constraintsSet, new Point(x, y));
-                    double diff = potentials.Item1 - potentials.Item2;
-                    int redColor = diff < 0 ? 0 : (int) Math.Min(diff * 200, 255);
-                    int blueColor = diff > 0 ? 0 : (int) Math.Min(-diff * 200, 255);
-                    result[x, y] = Color.FromArgb(redColor, 0, blueColor);
-                    //int color = (int)(Math.Exp(-potentials.Item1) * 255.0);
-                    //result[x, y] = Color.FromArgb(color, color, color);
+                    //double diff = potentials.Item1 - potentials.Item2;
+                    //int redColor = diff < 0 ? 0 : (int) Math.Min(diff * 200, 255);
+                    //int blueColor = diff > 0 ? 0 : (int) Math.Min(-diff * 200, 255);
+                    //result[x, y] = Color.FromArgb(redColor, 0, blueColor);
+                    int color = (int)(Math.Exp(-potentials.Item2) * 255.0);
+                    result[x, y] = Color.FromArgb(color, color, color);
                 }
             Image2D.SaveToFile(result, "../../potentials.png");
         }

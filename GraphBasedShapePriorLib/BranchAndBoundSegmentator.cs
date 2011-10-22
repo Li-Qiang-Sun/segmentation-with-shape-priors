@@ -400,8 +400,6 @@ namespace Research.GraphBasedShapePrior
             }
         }
 
-        //private static int imageCounter = 0;
-
         private EnergyBound CalculateEnergyBound(
             ShapeConstraintsSet constraintsSet,
             Image2D<Color> shrinkedImage,
