@@ -1,13 +1,10 @@
 ﻿using System;
-using System.Text;
 using System.Collections.Generic;
 using System.Linq;
 using System.Drawing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Research.GraphBasedShapePrior;
-using TidePowerd.DeviceMethods.Vectors;
 
-namespace Tests
+namespace Research.GraphBasedShapePrior.Tests
 {
     [TestClass]
     public class BranchAndBoundTests
@@ -50,16 +47,18 @@ namespace Tests
             vertices.Add(new Circle(0, 0, 10));
             vertices.Add(new Circle(80, 0, 15));
             vertices.Add(new Circle(80, 100, 13));
-            const double objectSize = 100;
+            
+            Size objectSize = new Size(100, 100);
+            double sizeEstimate = SegmentatorBase.ImageSizeToObjectSizeEstimate(objectSize);
 
             // Create shape model and calculate energy in normal way
             Shape shape = new Shape(model, vertices);
-            double energy1 = shape.CalculateEnergy(objectSize);
+            double energy1 = shape.CalculateEnergy(sizeEstimate);
 
             // Calculate energy via generalized distance transforms
             ShapeConstraintsSet constraints = ShapeConstraintsSet.Create(
                 model, VerticesToConstraints(vertices));
-            BranchAndBoundSegmentator segmentator = new BranchAndBoundSegmentator();
+            BranchAndBoundSegmentatorBase segmentator = new BranchAndBoundSegmentatorCpu();
             segmentator.ShapeModel = model;
             double energy2 = segmentator.CalculateMinShapeEnergy(constraints, objectSize);
 
@@ -67,53 +66,38 @@ namespace Tests
         }
 
         [TestMethod]
-        public void TestGpuConvexHull()
-        {
-            Int16Vector2[] convexHull = new Int16Vector2[5];
-            convexHull[0] = new Int16Vector2(0, 0);
-            convexHull[1] = new Int16Vector2(-1, 2);
-            convexHull[2] = new Int16Vector2(2, 3);
-            convexHull[3] = new Int16Vector2(2, 1);
-            convexHull[4] = new Int16Vector2(1, 0);
-            
-            Assert.IsTrue(BranchAndBoundGPU.PointInConvexHull(new Int16Vector2(0, 1), convexHull));
-            Assert.IsTrue(BranchAndBoundGPU.PointInConvexHull(new Int16Vector2(0, 2), convexHull));
-            Assert.IsTrue(BranchAndBoundGPU.PointInConvexHull(new Int16Vector2(1, 1), convexHull));
-            Assert.IsTrue(BranchAndBoundGPU.PointInConvexHull(new Int16Vector2(1, 2), convexHull));
-
-            Assert.IsFalse(BranchAndBoundGPU.PointInConvexHull(new Int16Vector2(-1, 0), convexHull));
-            Assert.IsFalse(BranchAndBoundGPU.PointInConvexHull(new Int16Vector2(-1, 1), convexHull));
-            Assert.IsFalse(BranchAndBoundGPU.PointInConvexHull(new Int16Vector2(2, 0), convexHull));
-            Assert.IsFalse(BranchAndBoundGPU.PointInConvexHull(new Int16Vector2(3, 3), convexHull));
-            Assert.IsFalse(BranchAndBoundGPU.PointInConvexHull(new Int16Vector2(0, 3), convexHull));
-        }
-
-        [TestMethod]
         public void TestGpuShapeTerms()
         {
             ShapeModel model = CreateTestShapeModel();
+
+            const int imageWidth = 320;
+            const int imageHeight = 240;
             
             List<VertexConstraints> vertexConstraints = new List<VertexConstraints>();
             vertexConstraints.Add(new VertexConstraints(
-                new Point(10, 10), new Point(20, 20), 5, 20));
+                new Point(30, 30), new Point(70, 40), 5, 15));
             vertexConstraints.Add(new VertexConstraints(
-                new Point(80, 20), new Point(90, 30), 1, 10));
+                new Point(280, 180), new Point(281, 181), 1, 10));
             vertexConstraints.Add(new VertexConstraints(
-                new Point(70, 100), new Point(85, 115), 1, 20));
+                new Point(30, 160), new Point(50, 200), 1, 20));
             ShapeConstraintsSet constraintSet = ShapeConstraintsSet.Create(model, vertexConstraints);
 
+            // Get CPU results
+            Image2D<Tuple<double, double>> shapeTermsCpu = new Image2D<Tuple<double, double>>(imageWidth, imageHeight);
+            BranchAndBoundSegmentatorCpu segmentatorCpu = new BranchAndBoundSegmentatorCpu();
+            segmentatorCpu.PrepareShapeUnaryPotentials(constraintSet, shapeTermsCpu);
+
             // Get GPU results
-            Image2D<Tuple<double, double>> shapeTerms = new Image2D<Tuple<double, double>>(100, 150);
-            BranchAndBoundGPU.CalculateShapeUnaryTerms(constraintSet, shapeTerms);
+            Image2D<Tuple<double, double>> shapeTermsGpu = new Image2D<Tuple<double, double>>(imageWidth, imageHeight);
+            BranchAndBoundSegmentatorGpu2 segmentatorGpu = new BranchAndBoundSegmentatorGpu2();
+            segmentatorGpu.PrepareShapeUnaryPotentials(constraintSet, shapeTermsGpu);
 
             // Compare with CPU results
-            for (int x = 0; x < shapeTerms.Width; ++x)
-                for (int y = 0; y < shapeTerms.Height; ++y)
+            for (int x = 0; x < imageWidth; ++x)
+                for (int y = 0; y < imageHeight; ++y)
                 {
-                    Tuple<double, double> cpuResults = BranchAndBoundSegmentator.CalculateShapeTerm(
-                        constraintSet, new Point(x, y));
-                    Assert.AreEqual(cpuResults.Item1, shapeTerms[x, y].Item1, 1e-6);
-                    //Assert.AreEqual(cpuResults.Item2, shapeTerms[x, y].Item2, 1e-6);
+                    Assert.AreEqual(shapeTermsCpu[x, y].Item1, shapeTermsGpu[x, y].Item1, 1e-2f);
+                    Assert.AreEqual(shapeTermsCpu[x, y].Item2, shapeTermsGpu[x, y].Item2, 1e-2f);
                 }
         }
     }

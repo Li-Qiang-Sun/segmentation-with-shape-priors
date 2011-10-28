@@ -33,8 +33,19 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'ReleaseGPU|x86'">
+    <OutputPath>bin\x86\ReleaseGPU\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisIgnoreBuiltInRules>true</CodeAnalysisIgnoreBuiltInRules>
+  </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Infer.Runtime, Version=2.4.1217.0, Culture=neutral, PublicKeyToken=e4813102a62778da, processorArchitecture=MSIL" />
+    <Reference Include="Infer.Runtime">
+      <HintPath>..\References\Infer.Runtime.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -78,6 +89,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\GpuBranchAndBoundSegmentatorLib\GpuBranchAndBoundSegmentatorLib.vcxproj">
+      <Project>{7C414CC8-8F93-4A9B-9111-079BBB5DB90A}</Project>
+      <Name>GpuBranchAndBoundSegmentatorLib</Name>
+    </ProjectReference>
     <ProjectReference Include="..\GraphBasedShapePriorLib\GraphBasedShapePriorLib.csproj">
       <Project>{1D706F13-ADB3-46A7-AFD2-E2E1AEAE0911}</Project>
       <Name>GraphBasedShapePriorLib</Name>

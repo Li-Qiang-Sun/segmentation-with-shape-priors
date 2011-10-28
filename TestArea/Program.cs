@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -77,23 +78,6 @@ namespace TestArea
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
         }
 
-        static void MainForShapeEnergyCheck()
-        {
-            ShapeModel model = CreateSimpleShapeModel2();
-
-            VertexConstraints constraint1 = new VertexConstraints(new Point(10, 10), new Point(20, 20), 0, 100);
-            VertexConstraints constraint2 = new VertexConstraints(new Point(70, 20), new Point(80, 30), 0, 100);
-            VertexConstraints constraint3 = new VertexConstraints(new Point(40, 40), new Point(50, 50), 0, 100);
-            ShapeConstraintsSet constraintsSet = ShapeConstraintsSet.Create(
-                model,
-                new[] { constraint1, constraint2, constraint3 });
-
-            BranchAndBoundSegmentator segmentator = new BranchAndBoundSegmentator();
-            segmentator.ShapeModel = model;
-
-            double minShapeEnergy = segmentator.CalculateMinShapeEnergy(constraintsSet, 100);
-        }
-        
         static void MainForUnaryPotentialsCheck()
         {
             Image2D<Color> result = new Image2D<Color>(320, 240);
@@ -102,16 +86,18 @@ namespace TestArea
             VertexConstraints constraint2 = new VertexConstraints(new Point(240, 170), new Point(241, 171), 40, 41);
             ShapeConstraintsSet constraintsSet = ShapeConstraintsSet.Create(CreateSimpleShapeModel1(), new []{constraint2, constraint1});
 
+            BranchAndBoundSegmentatorBase segmentator = new BranchAndBoundSegmentatorCpu();
+            Image2D<Tuple<double, double>> shapeTerms = new Image2D<Tuple<double, double>>(result.Width, result.Height);
+            segmentator.PrepareShapeUnaryPotentials(constraintsSet, shapeTerms);
+
             for (int x = 0; x < result.Width; ++x)
                 for (int y = 0; y < result.Height; ++y)
                 {
-                    Tuple<double, double> potentials = BranchAndBoundSegmentator.CalculateShapeTerm(
-                        constraintsSet, new Point(x, y));
                     //double diff = potentials.Item1 - potentials.Item2;
                     //int redColor = diff < 0 ? 0 : (int) Math.Min(diff * 200, 255);
                     //int blueColor = diff > 0 ? 0 : (int) Math.Min(-diff * 200, 255);
                     //result[x, y] = Color.FromArgb(redColor, 0, blueColor);
-                    int color = (int)(Math.Exp(-potentials.Item2) * 255.0);
+                    int color = (int)(Math.Exp(-shapeTerms[x, y].Item2) * 255.0);
                     result[x, y] = Color.FromArgb(color, color, color);
                 }
             Image2D.SaveToFile(result, "../../potentials.png");
@@ -137,7 +123,7 @@ namespace TestArea
 
         static void MainForSegmentation()
         {
-            BranchAndBoundSegmentator segmentator = new BranchAndBoundSegmentator();
+            BranchAndBoundSegmentatorBase segmentator = new BranchAndBoundSegmentatorCpu();
             segmentator.ShapeModel = CreateSimpleShapeModel1();
 
             DebugConfiguration.VerbosityLevel = VerbosityLevel.Everything;
@@ -177,8 +163,8 @@ namespace TestArea
         static void Main()
         {
             Rand.Restart(666);
-            
-            MainForUnaryPotentialsCheck();
+
+            //MainForUnaryPotentialsCheck();
             //MainForSegmentation();
             //MainForConvexHull();
             //MainForShapeEnergyCheck();

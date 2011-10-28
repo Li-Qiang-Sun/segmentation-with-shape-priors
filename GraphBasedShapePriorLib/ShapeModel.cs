@@ -162,16 +162,28 @@ namespace Research.GraphBasedShapePrior
             return distance;
         }
 
-        public double CalculateObjectPotentialForEdge(Vector point, Circle edgePoint1, Circle edgePoint2)
+        public double CalculateObjectPenaltyForEdge(Vector point, Circle edgePoint1, Circle edgePoint2)
         {
             double distance = CalculateDistanceToEdge(point, edgePoint1, edgePoint2);
-            return DistanceToObjectPotential(distance);
+            return CalculateObjectPenaltyFromDistance(distance);
         }
 
-        public double DistanceToObjectPotential(double distance)
+        public double CalculateBackgroundPenaltyForEdge(Vector point, Circle edgePoint1, Circle edgePoint2)
+        {
+            double distance = CalculateDistanceToEdge(point, edgePoint1, edgePoint2);
+            return CalculateBackgroundPenaltyFromDistance(distance);
+        }
+
+        public double CalculateObjectPenaltyFromDistance(double distance)
         {
             Debug.Assert(distance >= 0);
-            return Math.Exp(-this.Cutoff * MathHelper.Sqr(distance));
+            return this.Cutoff * MathHelper.Sqr(distance);
+        }
+
+        public double CalculateBackgroundPenaltyFromDistance(double distance)
+        {
+            Debug.Assert(distance >= 0);
+            return -MathHelper.LogInf(1 - Math.Exp(-this.Cutoff * MathHelper.Sqr(distance)));
         }
 
         private void BuildEdgeTree()

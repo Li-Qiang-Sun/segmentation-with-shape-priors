@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -31,25 +32,26 @@ namespace Research.GraphBasedShapePrior
             get { return this.Model.Edges; }
         }
 
-        public double GetObjectPotential(Point point)
+        public double GetObjectPenalty(Point point)
         {
-            return GetObjectPotential(new Vector(point.X, point.Y));
+            return GetObjectPenalty(new Vector(point.X, point.Y));
         }
 
-        public double GetObjectPotential(Vector point)
+        public double GetBackgroundPenalty(Point point)
         {
-            double potential = 0;
-            foreach (ShapeEdge edge in this.Edges)
-            {
-                double edgePotential = this.Model.CalculateObjectPotentialForEdge(
-                    point,
-                    this.vertices[edge.Index1],
-                    this.vertices[edge.Index2]);
+            return GetBackgroundPenalty(new Vector(point.X, point.Y));
+        }
 
-                potential = Math.Max(potential, edgePotential);
-            }
+        public double GetObjectPenalty(Vector point)
+        {
+            return this.Edges.Select(
+                edge => this.Model.CalculateObjectPenaltyForEdge(point, this.vertices[edge.Index1], this.vertices[edge.Index2])).Aggregate(Double.PositiveInfinity, Math.Min);
+        }
 
-            return potential;
+        public double GetBackgroundPenalty(Vector point)
+        {
+            return this.Edges.Select(
+                edge => this.Model.CalculateBackgroundPenaltyForEdge(point, this.vertices[edge.Index1], this.vertices[edge.Index2])).Aggregate(Double.PositiveInfinity, Math.Min);
         }
 
         public double CalculateEnergy(double bodyLength)

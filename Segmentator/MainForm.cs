@@ -12,6 +12,8 @@ namespace Segmentator
 {
     public partial class MainForm : Form
     {
+        private BranchAndBoundSegmentatorBase segmentator;
+
         private static ShapeModel CreateSimpleShapeModel1()
         {
             List<ShapeEdge> edges = new List<ShapeEdge>();
@@ -106,18 +108,24 @@ namespace Segmentator
 
         public MainForm()
         {
-            InitializeComponent();
-            RunSegmentation();
+            this.InitializeComponent();
+
+            DebugConfiguration.VerbosityLevel = VerbosityLevel.Everything;
+            this.modelComboBox.SelectedIndex = 0;
         }
 
-        private void RunSegmentation()
+        private void RunSegmentation(bool regularSegmentation)
         {
             Console.SetOut(new ConsoleCapture(this.consoleContents));
+
+            this.justSegmentButton.Enabled = false;
+            this.startGpuButton.Enabled = false;
+            this.startCpuButton.Enabled = false;
 
             BackgroundWorker segmentationWorker = new BackgroundWorker();
             segmentationWorker.DoWork += DoSegmentation;
             segmentationWorker.RunWorkerCompleted += OnSegmentationCompleted;
-            segmentationWorker.RunWorkerAsync();
+            segmentationWorker.RunWorkerAsync(regularSegmentation);
         }
 
         private class ConsoleCapture : TextWriter
@@ -159,42 +167,101 @@ namespace Segmentator
             }
         }
 
-        private void DoSegmentation(object sender, DoWorkEventArgs e)
+        private void LoadModel(out ShapeModel model, out Image2D<Color> image, out Rectangle rectangle)
         {
-            Rand.Restart(666);
+            string modelName = null;
+            this.Invoke(
+                (MethodInvoker) delegate
+                {
+                    modelName = this.modelComboBox.Items[this.modelComboBox.SelectedIndex].ToString();
+                });
+            modelName = modelName.ToLowerInvariant();
+            
+            const double scale = 0.2;
+            Rectangle bigLocation;
 
-            BranchAndBoundSegmentator segmentator = new BranchAndBoundSegmentator();
-            //segmentator.ShapeModel = CreateSimpleShapeModel1();
-            segmentator.ShapeModel = CreateSimpleShapeModel2();
-            //segmentator.ShapeModel = CreateLetterShapeModel();
-            segmentator.BranchAndBoundType = BranchAndBoundType.Combined;
-            segmentator.MaxBfsIterationsInCombinedMode = 3000;
-            segmentator.BreadthFirstBranchAndBoundStatus += OnBfsStatusUpdate;
-            segmentator.DepthFirstBranchAndBoundStatus += OnDfsStatusUpdate;
-            segmentator.StatusReportRate = 20;
-            segmentator.ShapeUnaryTermWeight = 10;
-            segmentator.ShapeEnergyWeight = 10;
-            segmentator.BfsFrontSaveFrequency = 5000;
+            if (modelName == "1 edge")
+            {
+                model = CreateSimpleShapeModel1();
+                image = Image2D.LoadFromFile("./simple_1.png", scale);
+                bigLocation = new Rectangle(153, 124, 796, 480);
+            }
+            else if (modelName == "2 edges")
+            {
+                model = CreateSimpleShapeModel2();
+                image = Image2D.LoadFromFile("./simple_3.png", scale);
+                bigLocation = new Rectangle(249, 22, 391, 495);
+            }
+            else /*if (name == "e letter")*/
+            {
+                model = CreateLetterShapeModel();
+                image = Image2D.LoadFromFile("./letter_1.jpg", scale);
+                bigLocation = new Rectangle(68, 70, 203, 359);
+            }
 
-            DebugConfiguration.VerbosityLevel = VerbosityLevel.Everything;
-
-            const double scale = 0.15;
-            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_1.png", scale); // Simple model 1
-            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_2.png", scale); // Simple model 1
-            Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_3.png", scale); // Simple model 2
-            //Image2D<Color> image = Image2D.LoadFromFile("../../../Images/letter_1.jpg", scale); // Letter model
-            //Rectangle bigLocation = new Rectangle(153, 124, 796, 480); // simple_1.png
-            //Rectangle bigLocation = new Rectangle(334, 37, 272, 547); // simple_2.png
-            Rectangle bigLocation = new Rectangle(249, 22, 391, 495); // simple_3.png
-            //Rectangle bigLocation = new Rectangle(68, 70, 203, 359); // letter_1.jpg
-            Rectangle location = new Rectangle(
+            rectangle = new Rectangle(
                 (int)(bigLocation.X * scale),
                 (int)(bigLocation.Y * scale),
                 (int)(bigLocation.Width * scale),
                 (int)(bigLocation.Height * scale));
+        }
 
-            Image2D<bool> mask = segmentator.SegmentImage(image, location);
+        private void DoSegmentation(object sender, DoWorkEventArgs e)
+        {
+            Rand.Restart(666);
+
+            bool regularSegmentation = (bool) e.Argument;
+
+            // Register handlers
+            segmentator.BreadthFirstBranchAndBoundStatus += OnBfsStatusUpdate;
+            segmentator.DepthFirstBranchAndBoundStatus += OnDfsStatusUpdate;
+            segmentator.BranchAndBoundStarted += OnBranchAndBoundStarted;
+            segmentator.SwitchToDfsBranchAndBound += OnSwitchToDfsBranchAndBound;
+
+            // Setup params
+            segmentator.BranchAndBoundType = BranchAndBoundType.Combined;
+            segmentator.MaxBfsIterationsInCombinedMode = (int)this.bfsIterationsInput.Value;
+            segmentator.StatusReportRate = (int)this.reportRateInput.Value;
+            segmentator.BfsFrontSaveRate = (int)this.frontSaveRateInput.Value;
+            segmentator.ShapeUnaryTermWeight = regularSegmentation ? 0 : (double)this.shapeTermWeightInput.Value;
+            segmentator.ShapeEnergyWeight = (double)this.shapeEnergyWeightInput.Value;
+
+            // Load what has to be segmented
+            ShapeModel model;
+            Image2D<Color> image;
+            Rectangle objectRect;
+            this.LoadModel(out model, out image, out objectRect);
+            
+            // Setup shape model
+            this.segmentator.ShapeModel = model;
+
+            // Show original image in status window);
+            this.currentImage.Image = Image2D.ToRegularImage(image);
+
+            // Run segmentation
+            Image2D<bool> mask = segmentator.SegmentImage(image, objectRect);
+            
+            // Save mask as worker result
             e.Result = mask;
+        }
+
+        private void OnSwitchToDfsBranchAndBound(object sender, EventArgs e)
+        {
+            this.Invoke(
+                (MethodInvoker)delegate
+                {
+                    this.switchToDfsButton.Enabled = false;
+                });
+        }
+
+        private void OnBranchAndBoundStarted(object sender, EventArgs e)
+        {
+            this.Invoke(
+                (MethodInvoker)delegate
+                {
+                    this.switchToDfsButton.Enabled = true;
+                    this.stopButton.Enabled = true;
+                });
         }
 
         void OnBfsStatusUpdate(object sender, BreadthFirstBranchAndBoundStatusEventArgs e)
@@ -205,9 +272,6 @@ namespace Segmentator
                     if (this.currentImage.Image != null)
                         this.currentImage.Image.Dispose();
                     this.currentImage.Image = e.StatusImage;
-                    this.currentEnergyLabel.Text = String.Format("Lower bound: {0:0.000}", e.LowerBound);
-                    this.frontSizeLabel.Text = String.Format("Front size: {0:0}", e.FrontSize);
-                    this.processingSpeedLabel.Text = String.Format("Processing speed: {0:0.0} items/sec", e.FrontItemsPerSecond);
                 }));
         }
 
@@ -219,7 +283,6 @@ namespace Segmentator
                     if (this.currentImage.Image != null)
                         this.currentImage.Image.Dispose();
                     this.currentImage.Image = e.StatusImage;
-                    this.currentEnergyLabel.Text = String.Format("Upper bound: {0:0.000}", e.UpperBound);
                     this.resultImage.Image = Image2D.ToRegularImage(e.UpperBoundSegmentationMask);
                 }));
         }
@@ -227,7 +290,45 @@ namespace Segmentator
         private void OnSegmentationCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
             Image2D<bool> mask = (Image2D<bool>)e.Result;
-            this.resultImage.Image = Image2D.ToRegularImage(mask);
+            if (mask != null)
+                this.resultImage.Image = Image2D.ToRegularImage(mask);
+
+            this.justSegmentButton.Enabled = true;
+            this.startGpuButton.Enabled = true;
+            this.startCpuButton.Enabled = true;
+            this.switchToDfsButton.Enabled = false;
+            this.stopButton.Enabled = false;
+        }
+
+        private void OnStartGpuButtonClick(object sender, EventArgs e)
+        {
+            this.segmentator = new BranchAndBoundSegmentatorGpu2();
+            this.RunSegmentation(false);
+        }
+
+        private void OnStartCpuButtonClick(object sender, EventArgs e)
+        {
+            this.segmentator = new BranchAndBoundSegmentatorCpu();
+            this.RunSegmentation(false);
+        }
+
+        private void OnSwitchToDfsButtonClick(object sender, EventArgs e)
+        {
+            this.switchToDfsButton.Enabled = false;
+            this.segmentator.ForceSwitchToDfsBranchAndBound();
+        }
+
+        private void OnStopButtonClick(object sender, EventArgs e)
+        {
+            this.stopButton.Enabled = false;
+            this.switchToDfsButton.Enabled = false;
+            this.segmentator.ForceStop();
+        }
+
+        private void OnJustSegmentButtonClick(object sender, EventArgs e)
+        {
+            this.segmentator = new BranchAndBoundSegmentatorCpu();
+            this.RunSegmentation(true);
         }
     }
 }

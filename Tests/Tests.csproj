@@ -32,6 +32,17 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'ReleaseGPU|AnyCPU'">
+    <OutputPath>bin\ReleaseGPU\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisIgnoreBuiltInRuleSets>true</CodeAnalysisIgnoreBuiltInRuleSets>
+    <CodeAnalysisIgnoreBuiltInRules>true</CodeAnalysisIgnoreBuiltInRules>
+    <CodeAnalysisFailOnMissingRules>true</CodeAnalysisFailOnMissingRules>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Infer.Runtime">
       <HintPath>..\References\Infer.Runtime.dll</HintPath>
@@ -42,10 +53,6 @@
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
     <Reference Include="System.Drawing" />
-    <Reference Include="TidePowerd.DeviceMethods, Version=2.1.1.0, Culture=neutral, PublicKeyToken=450c6f1107a3324d, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>C:\Program Files (x86)\TidePowerd\GPU.NET\bin\TidePowerd.DeviceMethods.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <CodeAnalysisDependentAssemblyPaths Condition=" '$(VS100COMNTOOLS)' != '' " Include="$(VS100COMNTOOLS)..\IDE\PrivateAssemblies">
@@ -57,12 +64,20 @@
     <Compile Include="BranchAndBoundTests.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\GpuBranchAndBoundSegmentatorLib\GpuBranchAndBoundSegmentatorLib.vcxproj">
+      <Project>{7C414CC8-8F93-4A9B-9111-079BBB5DB90A}</Project>
+      <Name>GpuBranchAndBoundSegmentatorLib</Name>
+    </ProjectReference>
     <ProjectReference Include="..\GraphBasedShapePriorLib\GraphBasedShapePriorLib.csproj">
       <Project>{1D706F13-ADB3-46A7-AFD2-E2E1AEAE0911}</Project>
       <Name>GraphBasedShapePriorLib</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

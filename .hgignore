@@ -7,3 +7,5 @@ GraphBasedShapePrior.5.1.ReSharper.user
 Thumbs.db
 GraphBasedShapePrior.suo
 TestResults
+ReleaseGPU
+GpuBranchAndBoundSegmentatorLib/vc90.pdb

@@ -68,18 +68,32 @@ namespace Research.GraphBasedShapePrior
 
             DebugConfiguration.WriteImportantDebugText("Shrinking image...");
             image = image.Shrink(estimatedObjectLocation);
-            double objectSize = Math.Max(estimatedObjectLocation.Width, estimatedObjectLocation.Height);
 
-            Image2D<bool> mask = this.SegmentImageImpl(image, objectSize, backgroundColorModel, objectColorModel);
+            Image2D<bool> mask;
+            if (this.ShapeUnaryTermWeight > 0)
+            {
+                mask = this.SegmentImageImpl(image, backgroundColorModel, objectColorModel);    
+            }
+            else
+            {
+                ImageSegmentationInfo segmentationInfo = this.SegmentImage(
+                    image, backgroundColorModel, objectColorModel, p => new Tuple<double, double>(0, 0), true);
+                mask = segmentationInfo.SegmentationMask;
+            }
+            
 
             DebugConfiguration.WriteImportantDebugText("Finished");
 
             return mask;
         }
 
+        public static double ImageSizeToObjectSizeEstimate(Size imageSize)
+        {
+            return Math.Max(imageSize.Width, imageSize.Height);
+        }
+
         protected abstract Image2D<bool> SegmentImageImpl(
             Image2D<Color> shrinkedImage,
-            double objectSize,
             Mixture<VectorGaussian> backgroundColorModel,
             Mixture<VectorGaussian> objectColorModel);
 

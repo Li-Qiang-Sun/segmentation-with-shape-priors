@@ -28,7 +28,6 @@ namespace Research.GraphBasedShapePrior
 
         protected override Image2D<bool> SegmentImageImpl(
             Image2D<Color> shrinkedImage,
-            double objectSize,
             Mixture<VectorGaussian> backgroundColorModel,
             Mixture<VectorGaussian> objectColorModel)
         {
@@ -91,10 +90,8 @@ namespace Research.GraphBasedShapePrior
                 double singleShapePriorWeight = shapePriorWeight / shapes.Count;
                 foreach (Shape shape in shapes)
                 {
-                    double objectPotential = shape.GetObjectPotential(point);
-                    double backgroundPotential = 1 - objectPotential;
-                    toSource += -MathHelper.LogInf(backgroundPotential) * singleShapePriorWeight;
-                    toSink += -MathHelper.LogInf(objectPotential) * singleShapePriorWeight;
+                    toSource += shape.GetObjectPenalty(point) * singleShapePriorWeight;
+                    toSink += shape.GetBackgroundPenalty(point) * singleShapePriorWeight;
                 }
             }
 
