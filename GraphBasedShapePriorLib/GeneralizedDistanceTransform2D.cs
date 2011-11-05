@@ -5,60 +5,97 @@ namespace Research.GraphBasedShapePrior
 {
     public class GeneralizedDistanceTransform2D
     {
-        public Point GridMinInclusive { get; private set; }
+        public Vector GridMin { get; private set; }
 
-        public Point GridMaxExclusive { get; private set; }
+        public Vector GridMax { get; private set; }
 
         public double DistanceScaleX { get; private set; }
 
         public double DistanceScaleY { get; private set; }
 
-        public Func<Point, double> PenaltyFunc { get; private set; }
+        public Size GridSize { get; private set; }
+
+
+        public Func<double, double, double> PenaltyFunc { get; private set; }
 
         private double[,] values;
 
         public GeneralizedDistanceTransform2D(
-            Point gridMinInclusive,
-            Point gridMaxExclusive,
+            Vector gridMin,
+            Vector gridMax,
+            Size gridSize,
             double distanceScaleX,
             double distanceScaleY,
-            Func<Point, double> penaltyFunc)
+            Func<double, double, double> penaltyFunc)
         {
-            GridMinInclusive = gridMinInclusive;
-            GridMaxExclusive = gridMaxExclusive;
-            DistanceScaleX = distanceScaleX;
-            DistanceScaleY = distanceScaleY;
-            PenaltyFunc = penaltyFunc;
+            this.GridMin = gridMin;
+            this.GridMax = gridMax;
+            this.GridSize = gridSize;
+            this.DistanceScaleX = distanceScaleX;
+            this.DistanceScaleY = distanceScaleY;
+            this.PenaltyFunc = penaltyFunc;
 
             this.Calculate();
         }
 
-        public double this[int x, int y]
+        public double GetByGridIndices(int gridX, int gridY)
         {
-            get { return this.values[x - this.GridMinInclusive.X, y - this.GridMinInclusive.Y]; }
+            return this.values[gridX, gridY];
+        }
+
+        public double GetByCoords(double coordX, double coordY)
+        {
+            return this.values[CoordToGridIndexX(coordX), CoordToGridIndexY(coordY)];
+        }
+
+        public int CoordToGridIndexX(double coord)
+        {
+            return CoordToGridIndex(coord, this.GridMin.X, this.GridMax.X, this.GridSize.Width);
+        }
+
+        public int CoordToGridIndexY(double coord)
+        {
+            return CoordToGridIndex(coord, this.GridMin.Y, this.GridMax.Y, this.GridSize.Height);
+        }
+
+        private static int CoordToGridIndex(double coord, double gridMin, double gridMax, int gridSize)
+        {
+            if (coord < gridMin || coord > gridMax)
+                throw new ArgumentOutOfRangeException("coord");
+
+            double relativeCoord = (coord - gridMin) / (gridMax - gridMin);
+            int gridIndex = (int)(relativeCoord * gridSize);
+            return gridIndex;
+        }
+
+        private static double GridIndexToCoord(int gridIndex, double gridMin, double gridMax, int gridSize)
+        {
+            return gridMin + (double)gridIndex / gridSize * (gridMax - gridMin);
         }
 
         private void Calculate()
         {
-            GeneralizedDistanceTransform1D[] distanseTransformsForFixedY = new GeneralizedDistanceTransform1D[this.GridMaxExclusive.Y - this.GridMinInclusive.Y];
-            for (int y = this.GridMinInclusive.Y; y < this.GridMaxExclusive.Y; ++y)
+            GeneralizedDistanceTransform1D[] distanseTransformsForFixedGridY = new GeneralizedDistanceTransform1D[this.GridSize.Height];
+            for (int y = 0; y < this.GridSize.Height; ++y)
             {
                 int yCopy = y;   
-                Func<int, double> xPenaltyFunc = x => this.PenaltyFunc(new Point(x, yCopy));
-                distanseTransformsForFixedY[y - this.GridMinInclusive.Y] = new GeneralizedDistanceTransform1D(
-                    this.GridMinInclusive.X, this.GridMaxExclusive.X, this.DistanceScaleX, xPenaltyFunc);
+                Func<double, double> xPenaltyFunc =
+                    x => this.PenaltyFunc(x, GridIndexToCoord(yCopy, this.GridMin.Y, this.GridMax.Y, this.GridSize.Height));
+                distanseTransformsForFixedGridY[y] = new GeneralizedDistanceTransform1D(
+                    this.GridMin.X, this.GridMax.X, this.GridSize.Width, this.DistanceScaleX, xPenaltyFunc);
             }
 
-            this.values = new double[this.GridMaxExclusive.X - this.GridMinInclusive.X, this.GridMaxExclusive.Y - this.GridMinInclusive.Y];
-            for (int x = this.GridMinInclusive.X; x < this.GridMaxExclusive.X; ++x)
+            this.values = new double[this.GridSize.Width, this.GridSize.Height];
+            for (int x = 0; x < this.GridSize.Width; ++x)
             {
                 int xCopy = x;
-                Func<int, double> yPenaltyFunc = y => distanseTransformsForFixedY[y - this.GridMinInclusive.Y][xCopy];
+                Func<double, double> yPenaltyFunc =
+                    y => distanseTransformsForFixedGridY[CoordToGridIndexY(y)].GetByGridIndex(xCopy);
                 GeneralizedDistanceTransform1D distanceTranformForX = new GeneralizedDistanceTransform1D(
-                    this.GridMinInclusive.Y, this.GridMaxExclusive.Y, this.DistanceScaleY, yPenaltyFunc);
+                    this.GridMin.Y, this.GridMax.Y, this.GridSize.Height, this.DistanceScaleY, yPenaltyFunc);
 
-                for (int y = this.GridMinInclusive.Y; y < this.GridMaxExclusive.Y; ++y)
-                    this.values[x - this.GridMinInclusive.X, y - this.GridMinInclusive.Y] = distanceTranformForX[y];
+                for (int y = 0; y < this.GridSize.Height; ++y)
+                    this.values[x, y] = distanceTranformForX.GetByGridIndex(y);
             }
         }
     }

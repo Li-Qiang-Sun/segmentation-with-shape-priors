@@ -12,13 +12,17 @@ namespace Research.GraphBasedShapePrior
 {
     public class BranchAndBoundSegmentatorBase : SegmentatorBase
     {
-        private int statusReportRate;
+        private int statusReportRate = 50;
 
-        private int bfsFrontSaveRate;
+        private int bfsFrontSaveRate = Int32.MaxValue;
 
-        private BranchAndBoundType branchAndBoundType;
+        private BranchAndBoundType branchAndBoundType = BranchAndBoundType.Combined;
 
-        private int maxBfsIterationsInCombinedMode;
+        private int maxBfsIterationsInCombinedMode = 10000;
+
+        private int lengthGridSize = 300;
+
+        private int angleGridSize = 720;
 
         private bool shouldSwitchToDfs;
 
@@ -57,6 +61,28 @@ namespace Research.GraphBasedShapePrior
                 if (value < 1)
                     throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
                 this.bfsFrontSaveRate = value;
+            }
+        }
+
+        public int LengthGridSize
+        {
+            get { return this.lengthGridSize; }
+            set
+            {
+                if (value < 1)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
+                this.lengthGridSize = value;
+            }
+        }
+
+        public int AngleGridSize
+        {
+            get { return this.angleGridSize; }
+            set
+            {
+                if (value < 1)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
+                this.angleGridSize = value;
             }
         }
 
@@ -102,14 +128,6 @@ namespace Research.GraphBasedShapePrior
 
         protected BranchAndBoundSegmentatorBase()
         {
-            this.StatusReportRate = 50;
-            this.BfsFrontSaveRate = Int32.MaxValue;
-            this.MaxBfsIterationsInCombinedMode = 3000;
-            this.BranchAndBoundType = BranchAndBoundType.BreadthFirst;
-            
-            this.isRunning = false;
-            this.shouldSwitchToDfs = false;
-            this.shouldStop = false;
         }
 
         protected override Image2D<bool> SegmentImageImpl(
@@ -552,13 +570,13 @@ namespace Research.GraphBasedShapePrior
                                     select 1.0 / this.ShapeModel.GetEdgeParams(edgePair.Item1, edgePair.Item2).LengthRatio).Max();
                 double maxRatio = Math.Max(maxRatio1, maxRatio2);
                 double maxEdgeLength = Math.Sqrt(imageSize.Width * imageSize.Width + imageSize.Height * imageSize.Height);
-                int lengthGridSize = (int)(Math.Round(maxEdgeLength * maxRatio) + 1);
+                double maxScaledLength = maxEdgeLength * maxRatio;
 
                 List<GeneralizedDistanceTransform2D> childTransforms = new List<GeneralizedDistanceTransform2D>();
                 foreach (int edgeIndex in this.ShapeModel.IterateNeighboringEdgeIndices(0))
-                    childTransforms.Add(CalculateMinEnergiesForAllParentEdges(constraintsSet, 0, edgeIndex, lengthGridSize));
+                    childTransforms.Add(CalculateMinEnergiesForAllParentEdges(constraintsSet, 0, edgeIndex, maxScaledLength));
 
-                int minPossibleLength, maxPossibleLength, minPossibleAngle, maxPossibleAngle;
+                double minPossibleLength, maxPossibleLength, minPossibleAngle, maxPossibleAngle;
                 this.DetermineEdgeLimits(
                     0,
                     constraintsSet,
@@ -569,13 +587,18 @@ namespace Research.GraphBasedShapePrior
                 Debug.Assert(maxPossibleLength >= minPossibleLength && maxPossibleAngle >= minPossibleAngle);
 
                 minEdgeEnergy = Double.PositiveInfinity;
-                for (int length = minPossibleLength; length <= maxPossibleLength; ++length)
+                for (int lengthGridIndex = childTransforms[0].CoordToGridIndexX(minPossibleLength);
+                    lengthGridIndex <= childTransforms[0].CoordToGridIndexX(maxPossibleLength);
+                    ++lengthGridIndex)
                 {
-                    for (int angle = minPossibleAngle; angle <= maxPossibleAngle; ++angle)
+                    for (int angleGridIndex = childTransforms[0].CoordToGridIndexY(minPossibleAngle);
+                        angleGridIndex <= childTransforms[0].CoordToGridIndexY(maxPossibleAngle);
+                        ++angleGridIndex)
                     {
                         double energySum = 0;
+                        
                         foreach (GeneralizedDistanceTransform2D childTransform in childTransforms)
-                            energySum += childTransform[length, angle];
+                            energySum += childTransform.GetByGridIndices(lengthGridIndex, angleGridIndex);
 
                         if (energySum < minEdgeEnergy)
                             minEdgeEnergy = energySum;
@@ -589,22 +612,22 @@ namespace Research.GraphBasedShapePrior
         private void DetermineEdgeLimits(
             int edgeIndex,
             ShapeConstraintsSet constraintsSet,
-            out int minLength,
-            out int maxLength,
-            out int minAngle,
-            out int maxAngle)
+            out double minLength,
+            out double maxLength,
+            out double minAngle,
+            out double maxAngle)
         {
-            minLength = Int32.MaxValue;
-            maxLength = Int32.MinValue;
-            minAngle = 180;
-            maxAngle = -180;
+            minLength = Double.PositiveInfinity;
+            maxLength = Double.NegativeInfinity;
+            minAngle = Math.PI;
+            maxAngle = -Math.PI;
 
             ShapeEdge edge = this.ShapeModel.Edges[edgeIndex];
             foreach (Vector point1 in constraintsSet.GetConstraintsForVertex(edge.Index1).IterateBorder())
             {
                 foreach (Vector point2 in constraintsSet.GetConstraintsForVertex(edge.Index2).IterateBorder())
                 {
-                    int length = (int)Math.Round((point1 - point2).Length);
+                    double length = (point1 - point2).Length;
                     minLength = Math.Min(minLength, length);
                     maxLength = Math.Max(maxLength, length);
 
@@ -618,12 +641,9 @@ namespace Research.GraphBasedShapePrior
                     if (angle > Math.PI)
                         angle -= Math.PI * 2;
                     
-                    // Angle should be in degrees
-                    int degrees = (int)Math.Round(MathHelper.ToDegrees(angle));
-                    
                     // Update min and max angle
-                    minAngle = Math.Min(minAngle, degrees);
-                    maxAngle = Math.Max(maxAngle, degrees);
+                    minAngle = Math.Min(minAngle, angle);
+                    maxAngle = Math.Max(maxAngle, angle);
                 }
             }
         }
@@ -644,7 +664,7 @@ namespace Research.GraphBasedShapePrior
             ShapeConstraintsSet constraintsSet,
             int parentEdgeIndex,
             int currentEdgeIndex,
-            int lengthGridSize)
+            double maxScaledLength)
         {
             List<GeneralizedDistanceTransform2D> childDistanceTransforms = new List<GeneralizedDistanceTransform2D>();
             foreach (int neighborEdgeIndex in this.ShapeModel.IterateNeighboringEdgeIndices(currentEdgeIndex))
@@ -658,7 +678,7 @@ namespace Research.GraphBasedShapePrior
                 childDistanceTransforms.Add(childTransform);
             }
 
-            int minPossibleLength, maxPossibleLength, minPossibleAngle, maxPossibleAngle;
+            double minPossibleLength, maxPossibleLength, minPossibleAngle, maxPossibleAngle;
             this.DetermineEdgeLimits(
                 currentEdgeIndex,
                 constraintsSet,
@@ -667,30 +687,36 @@ namespace Research.GraphBasedShapePrior
                 out minPossibleAngle,
                 out maxPossibleAngle);
 
+            double angleRangeMin = -Math.PI * 2, angleRangeMax = Math.PI * 2;
+            double lengthRangeMin = 0, lengthRangeMax = maxScaledLength;
+
             ShapeEdgePairParams pairParams = this.ShapeModel.GetEdgeParams(parentEdgeIndex, currentEdgeIndex);
-            Func<Point, double> penaltyFunction =
-                (p) =>
+            Func<double, double, double> penaltyFunction =
+                (scaledLength, shiftedAngle) =>
                 {
                     // Disallow invalid configurations
-                    int length = (int)Math.Round(p.X / pairParams.LengthRatio);
-                    int alpha = (int)Math.Round(p.Y + MathHelper.ToDegrees(pairParams.MeanAngle));
-                    if (length < minPossibleLength || length > maxPossibleLength ||
-                        alpha < minPossibleAngle || alpha > maxPossibleAngle)
+                    double length = scaledLength / pairParams.LengthRatio;
+                    double alpha = shiftedAngle + pairParams.MeanAngle;
+                    double lengthEps = 0.5 * (lengthRangeMax - lengthRangeMin) / this.LengthGridSize;
+                    double angleEps = 0.5 * (angleRangeMax - angleRangeMin) / this.AngleGridSize;
+                    if (length < minPossibleLength - lengthEps || length > maxPossibleLength + lengthEps ||
+                        alpha < minPossibleAngle - angleEps || alpha > maxPossibleAngle + angleEps)
                     {
                         return 1e+20; // Return something close to infinity
                     }
 
                     double sum = 0;
                     foreach (GeneralizedDistanceTransform2D childTransform in childDistanceTransforms)
-                        sum += childTransform[length, alpha];
+                        sum += childTransform.GetByCoords(length, alpha);
                     return sum;
                 };
 
             return new GeneralizedDistanceTransform2D(
-                new Point(0, -360),
-                new Point(lengthGridSize, 360),
+                new Vector(lengthRangeMin, angleRangeMin),
+                new Vector(lengthRangeMax, angleRangeMax),
+                new Size(this.LengthGridSize, this.AngleGridSize), 
                 1.0 / MathHelper.Sqr(pairParams.LengthDeviation),
-                1.0 / MathHelper.Sqr(MathHelper.ToDegrees(pairParams.AngleDeviation)),
+                1.0 / MathHelper.Sqr(pairParams.AngleDeviation),
                 penaltyFunction);
         }
 

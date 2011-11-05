@@ -106,15 +106,15 @@ namespace TestArea
         static void MainForDistanceTransform()
         {
             Image2D<Color> mask = Image2D.LoadFromFile("../../Images/mask.png");
-            Func<Point, double> penaltyFunc = p => mask[p.X, p.Y].ToArgb() == Color.Black.ToArgb() ? 0 : 1e+10;
+            Func<double, double, double> penaltyFunc = (x, y) => mask[(int) x, (int) y].ToArgb() == Color.Black.ToArgb() ? 0 : 1e+10;
             GeneralizedDistanceTransform2D transform = new GeneralizedDistanceTransform2D(
-                Point.Empty, new Point(mask.Width, mask.Height), 1, 1, penaltyFunc);
+                new Vector(0, 0), new Vector(mask.Width, mask.Height), mask.Rectangle.Size, 1, 1, penaltyFunc);
 
             Image2D<Color> result = new Image2D<Color>(mask.Width, mask.Height);
             for (int i = 0; i < mask.Width; ++i)
                 for (int j = 0; j < mask.Height; ++j)
                 {
-                    double distance = Math.Sqrt(transform[i, j]);
+                    double distance = Math.Sqrt(transform.GetByGridIndices(i, j));
                     int color = Math.Min((int) Math.Round(distance), 255);
                     result[i, j] = Color.FromArgb(color, color, color);
                 }

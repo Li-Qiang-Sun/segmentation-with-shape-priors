@@ -9,7 +9,7 @@ namespace Research.GraphBasedShapePrior.Tests
     [TestClass]
     public class BranchAndBoundTests
     {
-        private ShapeModel CreateTestShapeModel()
+        private static ShapeModel CreateTestShapeModel()
         {
             List<ShapeEdge> edges = new List<ShapeEdge>();
             edges.Add(new ShapeEdge(0, 1));
@@ -22,33 +22,25 @@ namespace Research.GraphBasedShapePrior.Tests
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
-            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.4, 1.2, 0.1, 10));
+            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.4, 1.1, 0.1, 10));
 
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
         }
 
-        private IEnumerable<VertexConstraints> VerticesToConstraints(IEnumerable<Circle> vertices)
+        private static IEnumerable<VertexConstraints> VerticesToConstraints(IEnumerable<Circle> vertices)
         {
             return from v in vertices
-                   select new VertexConstraints(
-                       new Point((int)v.Center.X, (int)v.Center.Y),
-                       new Point((int)v.Center.X + 1, (int)v.Center.Y + 1),
-                       (int)v.Radius,
-                       (int)v.Radius + 1);
+                select new VertexConstraints(
+                    new Point((int)v.Center.X, (int)v.Center.Y),
+                    new Point((int)v.Center.X + 1, (int)v.Center.Y + 1),
+                    (int)v.Radius,
+                    (int)v.Radius + 1);
         }
-        
-        [TestMethod]
-        public void TestShapeEnergyCalculationApproaches()
+
+        private static void TestShapeEnergyCalculationApproachesImpl(IEnumerable<Circle> vertices, Size objectSize)
         {
             ShapeModel model = CreateTestShapeModel();
             
-            // Create shape vertices (integer length and angles for fair comparison)
-            List<Circle> vertices = new List<Circle>();
-            vertices.Add(new Circle(0, 0, 10));
-            vertices.Add(new Circle(80, 0, 15));
-            vertices.Add(new Circle(80, 100, 13));
-            
-            Size objectSize = new Size(100, 100);
             double sizeEstimate = SegmentatorBase.ImageSizeToObjectSizeEstimate(objectSize);
 
             // Create shape model and calculate energy in normal way
@@ -60,19 +52,62 @@ namespace Research.GraphBasedShapePrior.Tests
                 model, VerticesToConstraints(vertices));
             BranchAndBoundSegmentatorBase segmentator = new BranchAndBoundSegmentatorCpu();
             segmentator.ShapeModel = model;
+            segmentator.AngleGridSize = 4000;
+            segmentator.LengthGridSize = 3200;
             double energy2 = segmentator.CalculateMinShapeEnergy(constraints, objectSize);
 
-            Assert.AreEqual(energy1, energy2, 1e-6);
+            Assert.AreEqual(energy1, energy2, 0.2);
+        }
+
+        private static void TestGpuShapeTermsImpl(IEnumerable<VertexConstraints> vertexConstraints, Size imageSize)
+        {
+            ShapeModel model = CreateTestShapeModel();
+            ShapeConstraintsSet constraintSet = ShapeConstraintsSet.Create(model, vertexConstraints);
+
+            // Get CPU results
+            Image2D<Tuple<double, double>> shapeTermsCpu = new Image2D<Tuple<double, double>>(imageSize.Width, imageSize.Height);
+            BranchAndBoundSegmentatorCpu segmentatorCpu = new BranchAndBoundSegmentatorCpu();
+            segmentatorCpu.PrepareShapeUnaryPotentials(constraintSet, shapeTermsCpu);
+
+            // Get GPU results
+            Image2D<Tuple<double, double>> shapeTermsGpu = new Image2D<Tuple<double, double>>(imageSize.Width, imageSize.Height);
+            BranchAndBoundSegmentatorGpu2 segmentatorGpu = new BranchAndBoundSegmentatorGpu2();
+            segmentatorGpu.PrepareShapeUnaryPotentials(constraintSet, shapeTermsGpu);
+
+            // Compare with CPU results
+            for (int x = 0; x < imageSize.Width; ++x)
+                for (int y = 0; y < imageSize.Height; ++y)
+                {
+                    Assert.AreEqual(shapeTermsCpu[x, y].Item1, shapeTermsGpu[x, y].Item1, 1e-2f);
+                    Assert.AreEqual(shapeTermsCpu[x, y].Item2, shapeTermsGpu[x, y].Item2, 1e-2f);
+                }
+        }
+        
+        [TestMethod]
+        public void TestShapeEnergyCalculationApproaches1()
+        {
+            List<Circle> vertices = new List<Circle>();
+            vertices.Add(new Circle(0, 0, 10));
+            vertices.Add(new Circle(80, 0, 15));
+            vertices.Add(new Circle(80, 100, 13));
+
+            TestShapeEnergyCalculationApproachesImpl(vertices, new Size(100, 100));
         }
 
         [TestMethod]
-        public void TestGpuShapeTerms()
+        public void TestShapeEnergyCalculationApproaches2()
         {
-            ShapeModel model = CreateTestShapeModel();
+            List<Circle> vertices = new List<Circle>();
+            vertices.Add(new Circle(0, 0, 10));
+            vertices.Add(new Circle(40, 0, 15));
+            vertices.Add(new Circle(0, 42, 13));
 
-            const int imageWidth = 320;
-            const int imageHeight = 240;
-            
+            TestShapeEnergyCalculationApproachesImpl(vertices, new Size(100, 100));
+        }
+
+        [TestMethod]
+        public void TestGpuShapeTerms1()
+        {
             List<VertexConstraints> vertexConstraints = new List<VertexConstraints>();
             vertexConstraints.Add(new VertexConstraints(
                 new Point(30, 30), new Point(70, 40), 5, 15));
@@ -80,25 +115,36 @@ namespace Research.GraphBasedShapePrior.Tests
                 new Point(280, 180), new Point(281, 181), 1, 10));
             vertexConstraints.Add(new VertexConstraints(
                 new Point(30, 160), new Point(50, 200), 1, 20));
-            ShapeConstraintsSet constraintSet = ShapeConstraintsSet.Create(model, vertexConstraints);
+            
+            TestGpuShapeTermsImpl(vertexConstraints, new Size(320, 240));
+        }
 
-            // Get CPU results
-            Image2D<Tuple<double, double>> shapeTermsCpu = new Image2D<Tuple<double, double>>(imageWidth, imageHeight);
-            BranchAndBoundSegmentatorCpu segmentatorCpu = new BranchAndBoundSegmentatorCpu();
-            segmentatorCpu.PrepareShapeUnaryPotentials(constraintSet, shapeTermsCpu);
+        [TestMethod]
+        public void TestGpuShapeTerms2()
+        {
+            List<VertexConstraints> vertexConstraints = new List<VertexConstraints>();
+            vertexConstraints.Add(new VertexConstraints(
+                new Point(100, 100), new Point(105, 107), 5, 70));
+            vertexConstraints.Add(new VertexConstraints(
+                new Point(110, 130), new Point(113, 135), 1, 6));
+            vertexConstraints.Add(new VertexConstraints(
+                new Point(310, 230), new Point(320, 240), 3, 20));
 
-            // Get GPU results
-            Image2D<Tuple<double, double>> shapeTermsGpu = new Image2D<Tuple<double, double>>(imageWidth, imageHeight);
-            BranchAndBoundSegmentatorGpu2 segmentatorGpu = new BranchAndBoundSegmentatorGpu2();
-            segmentatorGpu.PrepareShapeUnaryPotentials(constraintSet, shapeTermsGpu);
+            TestGpuShapeTermsImpl(vertexConstraints, new Size(320, 240));
+        }
 
-            // Compare with CPU results
-            for (int x = 0; x < imageWidth; ++x)
-                for (int y = 0; y < imageHeight; ++y)
-                {
-                    Assert.AreEqual(shapeTermsCpu[x, y].Item1, shapeTermsGpu[x, y].Item1, 1e-2f);
-                    Assert.AreEqual(shapeTermsCpu[x, y].Item2, shapeTermsGpu[x, y].Item2, 1e-2f);
-                }
+        [TestMethod]
+        public void TestGpuShapeTerms3()
+        {
+            List<VertexConstraints> vertexConstraints = new List<VertexConstraints>();
+            vertexConstraints.Add(new VertexConstraints(
+                new Point(100, 100), new Point(105, 107), 5, 70));
+            vertexConstraints.Add(new VertexConstraints(
+                new Point(120, 140), new Point(153, 176), 25, 45));
+            vertexConstraints.Add(new VertexConstraints(
+                new Point(10, 10), new Point(130, 12), 1, 57));
+
+            TestGpuShapeTermsImpl(vertexConstraints, new Size(320, 240));
         }
     }
 }
