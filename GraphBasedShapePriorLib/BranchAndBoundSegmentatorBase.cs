@@ -623,6 +623,7 @@ namespace Research.GraphBasedShapePrior
             maxAngle = -Math.PI;
 
             ShapeEdge edge = this.ShapeModel.Edges[edgeIndex];
+
             foreach (Vector point1 in constraintsSet.GetConstraintsForVertex(edge.Index1).IterateBorder())
             {
                 foreach (Vector point2 in constraintsSet.GetConstraintsForVertex(edge.Index2).IterateBorder())
@@ -630,7 +631,13 @@ namespace Research.GraphBasedShapePrior
                     double length = (point1 - point2).Length;
                     minLength = Math.Min(minLength, length);
                     maxLength = Math.Max(maxLength, length);
+                }
+            }
 
+            foreach (Vector point1 in constraintsSet.GetConstraintsForVertex(edge.Index1).Corners)
+            {
+                foreach (Vector point2 in constraintsSet.GetConstraintsForVertex(edge.Index2).Corners)
+                {
                     double angle;
                     if (point1 != point2)
                         angle = Vector.AngleBetween(new Vector(1, 0), point2 - point1);
