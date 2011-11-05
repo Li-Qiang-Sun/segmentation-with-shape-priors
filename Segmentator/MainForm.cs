@@ -219,6 +219,8 @@ namespace Segmentator
             segmentator.SwitchToDfsBranchAndBound += OnSwitchToDfsBranchAndBound;
 
             // Setup params
+            segmentator.AngleGridSize = 200;
+            segmentator.LengthGridSize = 200;
             segmentator.BranchAndBoundType = BranchAndBoundType.Combined;
             segmentator.MaxBfsIterationsInCombinedMode = (int)this.bfsIterationsInput.Value;
             segmentator.StatusReportRate = (int)this.reportRateInput.Value;
