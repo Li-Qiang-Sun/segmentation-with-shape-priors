@@ -617,12 +617,32 @@ namespace Research.GraphBasedShapePrior
             out double minAngle,
             out double maxAngle)
         {
+            ShapeEdge edge = this.ShapeModel.Edges[edgeIndex];
+
+            // Special case: intersecting triangles
+            if (constraintsSet.GetConstraintsForVertex(edge.Index1).CoordRectangle.IntersectsWith(constraintsSet.GetConstraintsForVertex(edge.Index2).CoordRectangle))
+            {
+                minAngle = -Math.PI;
+                maxAngle = Math.PI;
+                minLength = 0;
+                maxLength = 0;
+
+                foreach (Vector point1 in constraintsSet.GetConstraintsForVertex(edge.Index1).Corners)
+                {
+                    foreach (Vector point2 in constraintsSet.GetConstraintsForVertex(edge.Index2).Corners)
+                    {
+                        double length = (point1 - point2).Length;
+                        maxLength = Math.Max(maxLength, length);
+                    }
+                }
+
+                return;
+            }
+
             minLength = Double.PositiveInfinity;
             maxLength = Double.NegativeInfinity;
             minAngle = Math.PI;
             maxAngle = -Math.PI;
-
-            ShapeEdge edge = this.ShapeModel.Edges[edgeIndex];
 
             foreach (Vector point1 in constraintsSet.GetConstraintsForVertex(edge.Index1).IterateBorder())
             {
@@ -644,10 +664,6 @@ namespace Research.GraphBasedShapePrior
                     else
                         angle = 0;
 
-                    // Angle must be in [-180, 180]
-                    if (angle > Math.PI)
-                        angle -= Math.PI * 2;
-                    
                     // Update min and max angle
                     minAngle = Math.Min(minAngle, angle);
                     maxAngle = Math.Max(maxAngle, angle);
@@ -681,7 +697,7 @@ namespace Research.GraphBasedShapePrior
                     continue;
 
                 GeneralizedDistanceTransform2D childTransform = CalculateMinEnergiesForAllParentEdges(
-                    constraintsSet, currentEdgeIndex, neighborEdgeIndex, lengthGridSize);
+                    constraintsSet, currentEdgeIndex, neighborEdgeIndex, maxScaledLength);
                 childDistanceTransforms.Add(childTransform);
             }
 
@@ -698,23 +714,24 @@ namespace Research.GraphBasedShapePrior
             double lengthRangeMin = 0, lengthRangeMax = maxScaledLength;
 
             ShapeEdgePairParams pairParams = this.ShapeModel.GetEdgeParams(parentEdgeIndex, currentEdgeIndex);
-            Func<double, double, double> penaltyFunction =
-                (scaledLength, shiftedAngle) =>
+            Func<double, double, double, double, double> penaltyFunction =
+                (scaledLength, shiftedAngle, scaledLengthRadius, shiftedAngleRadius) =>
                 {
-                    // Disallow invalid configurations
                     double length = scaledLength / pairParams.LengthRatio;
-                    double alpha = shiftedAngle + pairParams.MeanAngle;
-                    double lengthEps = 0.5 * (lengthRangeMax - lengthRangeMin) / this.LengthGridSize;
-                    double angleEps = 0.5 * (angleRangeMax - angleRangeMin) / this.AngleGridSize;
-                    if (length < minPossibleLength - lengthEps || length > maxPossibleLength + lengthEps ||
-                        alpha < minPossibleAngle - angleEps || alpha > maxPossibleAngle + angleEps)
+                    double angle = shiftedAngle + pairParams.MeanAngle;
+                    double lengthRadius = scaledLengthRadius / pairParams.LengthRatio;
+                    double angleRadius = shiftedAngleRadius;
+
+                    // Disallow invalid configurations
+                    if (!MathHelper.RangesIntersect(minPossibleLength, maxPossibleLength, length - lengthRadius, length + lengthRadius) ||
+                        !MathHelper.RangesIntersect(minPossibleAngle, maxPossibleAngle, angle - angleRadius, angle + angleRadius))
                     {
                         return 1e+20; // Return something close to infinity
                     }
 
                     double sum = 0;
                     foreach (GeneralizedDistanceTransform2D childTransform in childDistanceTransforms)
-                        sum += childTransform.GetByCoords(length, alpha);
+                        sum += childTransform.GetByCoords(length, angle);
                     return sum;
                 };
 

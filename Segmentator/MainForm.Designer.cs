@@ -198,7 +198,7 @@
             131072});
             this.shapeEnergyWeightInput.Location = new System.Drawing.Point(508, 318);
             this.shapeEnergyWeightInput.Maximum = new decimal(new int[] {
-            1000,
+            1000000,
             0,
             0,
             0});

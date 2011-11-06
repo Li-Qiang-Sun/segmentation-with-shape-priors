@@ -9,7 +9,7 @@ namespace Research.GraphBasedShapePrior.Tests
     [TestClass]
     public class BranchAndBoundTests
     {
-        private static ShapeModel CreateTestShapeModel()
+        private static ShapeModel CreateTestShapeModel2Edges()
         {
             List<ShapeEdge> edges = new List<ShapeEdge>();
             edges.Add(new ShapeEdge(0, 1));
@@ -27,6 +27,33 @@ namespace Research.GraphBasedShapePrior.Tests
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
         }
 
+        private static ShapeModel CreateTestShapeModel4Edges()
+        {
+            List<ShapeEdge> edges = new List<ShapeEdge>();
+            edges.Add(new ShapeEdge(0, 1));
+            edges.Add(new ShapeEdge(1, 2));
+            edges.Add(new ShapeEdge(2, 3));
+            edges.Add(new ShapeEdge(2, 4));
+            edges.Add(new ShapeEdge(0, 5));
+
+            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
+            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+
+            Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
+                new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
+            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.4, 1.1, 0.1, 10));
+            edgePairParams.Add(new Tuple<int, int>(1, 2), new ShapeEdgePairParams(-Math.PI * 0.5, 0.8, 0.1, 10));
+            edgePairParams.Add(new Tuple<int, int>(1, 3), new ShapeEdgePairParams(Math.PI * 0.5, 0.8, 0.1, 10));
+            edgePairParams.Add(new Tuple<int, int>(0, 4), new ShapeEdgePairParams(-Math.PI * 0.5, 1.2, 0.05, 5));
+
+            return ShapeModel.Create(edges, vertexParams, edgePairParams);
+        }
+
         private static IEnumerable<VertexConstraints> VerticesToConstraints(IEnumerable<Circle> vertices)
         {
             return from v in vertices
@@ -37,10 +64,8 @@ namespace Research.GraphBasedShapePrior.Tests
                     (int)v.Radius + 1);
         }
 
-        private static void TestShapeEnergyCalculationApproachesImpl(IEnumerable<Circle> vertices, Size objectSize)
+        private static void TestShapeEnergyCalculationApproachesImpl(ShapeModel model, IEnumerable<Circle> vertices, Size objectSize)
         {
-            ShapeModel model = CreateTestShapeModel();
-            
             double sizeEstimate = SegmentatorBase.ImageSizeToObjectSizeEstimate(objectSize);
 
             // Create shape model and calculate energy in normal way
@@ -52,16 +77,16 @@ namespace Research.GraphBasedShapePrior.Tests
                 model, VerticesToConstraints(vertices));
             BranchAndBoundSegmentatorBase segmentator = new BranchAndBoundSegmentatorCpu();
             segmentator.ShapeModel = model;
-            segmentator.AngleGridSize = 4000;
-            segmentator.LengthGridSize = 3200;
+            segmentator.AngleGridSize = 3000;
+            segmentator.LengthGridSize = 3000;
             double energy2 = segmentator.CalculateMinShapeEnergy(constraints, objectSize);
 
-            Assert.AreEqual(energy1, energy2, 0.2);
+            Assert.AreEqual(energy1, energy2, 0.5f);
         }
 
         private static void TestGpuShapeTermsImpl(IEnumerable<VertexConstraints> vertexConstraints, Size imageSize)
         {
-            ShapeModel model = CreateTestShapeModel();
+            ShapeModel model = CreateTestShapeModel2Edges();
             ShapeConstraintsSet constraintSet = ShapeConstraintsSet.Create(model, vertexConstraints);
 
             // Get CPU results
@@ -91,7 +116,7 @@ namespace Research.GraphBasedShapePrior.Tests
             vertices.Add(new Circle(80, 0, 15));
             vertices.Add(new Circle(80, 100, 13));
 
-            TestShapeEnergyCalculationApproachesImpl(vertices, new Size(100, 100));
+            TestShapeEnergyCalculationApproachesImpl(CreateTestShapeModel2Edges(), vertices, new Size(100, 100));
         }
 
         [TestMethod]
@@ -102,7 +127,21 @@ namespace Research.GraphBasedShapePrior.Tests
             vertices.Add(new Circle(40, 0, 15));
             vertices.Add(new Circle(0, 42, 13));
 
-            TestShapeEnergyCalculationApproachesImpl(vertices, new Size(100, 100));
+            TestShapeEnergyCalculationApproachesImpl(CreateTestShapeModel2Edges(), vertices, new Size(100, 100));
+        }
+
+        [TestMethod]
+        public void TestShapeEnergyCalculationApproaches3()
+        {
+            List<Circle> vertices = new List<Circle>();
+            vertices.Add(new Circle(0, 0, 10));
+            vertices.Add(new Circle(40, 0, 15));
+            vertices.Add(new Circle(40, 50, 13));
+            vertices.Add(new Circle(80, 70, 7));
+            vertices.Add(new Circle(30, 55, 20));
+            vertices.Add(new Circle(10, -50, 10));
+
+            TestShapeEnergyCalculationApproachesImpl(CreateTestShapeModel4Edges(), vertices, new Size(100, 100));
         }
 
         [TestMethod]

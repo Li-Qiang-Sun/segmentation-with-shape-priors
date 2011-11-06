@@ -147,8 +147,6 @@ namespace Research.GraphBasedShapePrior
             double cos = DotProduct(vector1, vector2);
             double sin = CrossProduct(vector1, vector2);
             double angle = Math.Atan2(sin, cos);
-            if (angle < 0)
-                angle = Math.PI * 2 + angle;
             return angle;
         }
 

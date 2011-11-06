@@ -15,9 +15,11 @@ namespace Research.GraphBasedShapePrior
 
         public double DistanceScale { get; private set; }
 
-        public Func<double, double> PenaltyFunc { get; private set; }
+        public Func<double, double, double> PenaltyFunc { get; private set; }
 
-        public GeneralizedDistanceTransform1D(double gridMin, double gridMax, int gridSize, double distanceScale, Func<double, double> penaltyFunc)
+        private readonly double gridStepSize;
+
+        public GeneralizedDistanceTransform1D(double gridMin, double gridMax, int gridSize, double distanceScale, Func<double, double, double> penaltyFunc)
         {
             if (gridMax <= gridMin + 1e-6)
                 throw new ArgumentException("gridMax should be greater than gridMin");
@@ -27,6 +29,7 @@ namespace Research.GraphBasedShapePrior
             this.DistanceScale = distanceScale;
             this.PenaltyFunc = penaltyFunc;
             this.GridSize = gridSize;
+            this.gridStepSize = (this.GridMax - this.GridMin) / this.GridSize;
 
             this.Calculate();
         }
@@ -38,17 +41,22 @@ namespace Research.GraphBasedShapePrior
 
         public double GetByCoord(double coord)
         {
-            if (coord < this.GridMin || coord > this.GridMax)
-                throw new ArgumentOutOfRangeException("coord");
-
-            double relativeCoord = (coord - this.GridMin) / (this.GridMax - this.GridMin);
-            int gridIndex = (int) (relativeCoord * this.GridSize);
-            return this.GetByGridIndex(gridIndex);
+            return this.GetByGridIndex(this.CoordToGridIndex(coord));
         }
 
         private double GridIndexToCoord(int gridIndex)
         {
-            return this.GridMin + (double) gridIndex / this.GridSize * (this.GridMax - this.GridMin);
+            return this.GridMin + gridIndex * this.gridStepSize;
+        }
+
+        private int CoordToGridIndex(double coord)
+        {
+            if (coord < this.GridMin || coord > this.GridMax)
+                throw new ArgumentOutOfRangeException("coord");
+
+            double relativeCoord = (coord - this.GridMin + 0.5 * this.gridStepSize) / (this.GridMax - this.GridMin);
+            int gridIndex = (int)(relativeCoord * this.GridSize);
+            return gridIndex;
         }
 
         private void Calculate()
@@ -58,9 +66,9 @@ namespace Research.GraphBasedShapePrior
 
             double[] functionValues = new double[this.GridSize];
             for (int i = 0; i < this.GridSize; ++i)
-                functionValues[i] = this.PenaltyFunc(GridIndexToCoord(i));
+                functionValues[i] = this.PenaltyFunc(GridIndexToCoord(i), 0.5 * this.gridStepSize);
 
-            double gridScale = this.GridSize / (this.GridMax - this.GridMin);
+            double gridScale = 1.0 / this.gridStepSize;
 
             int envelopeSize = 1;
             envelope[0] = 0;

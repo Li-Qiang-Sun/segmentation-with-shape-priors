@@ -42,7 +42,7 @@ namespace Segmentator
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
-            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.5, 1, Math.PI * 0.1, 10)); // TODO: we need edge length deviations to be relative
+            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.5, 1, Math.PI * 0.1, 5)); // TODO: we need edge length deviations to be relative
 
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
         }
@@ -65,10 +65,10 @@ namespace Segmentator
             vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams = new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
-            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(-Math.PI * 0.5, 1.3, 0.1, 10)); // TODO: we need edge length deviations to be relative
-            edgePairParams.Add(new Tuple<int, int>(1, 2), new ShapeEdgePairParams(Math.PI * 0.5, 1, 0.1, 10));
-            edgePairParams.Add(new Tuple<int, int>(2, 3), new ShapeEdgePairParams(-Math.PI * 0.5, 1, 0.1, 10));
-            edgePairParams.Add(new Tuple<int, int>(3, 4), new ShapeEdgePairParams(Math.PI * 0.5, 0.77, 0.1, 10));
+            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(-Math.PI * 0.5, 1.3, Math.PI * 0.1, 5)); // TODO: we need edge length deviations to be relative
+            edgePairParams.Add(new Tuple<int, int>(1, 2), new ShapeEdgePairParams(Math.PI * 0.5, 1, Math.PI * 0.1, 5));
+            edgePairParams.Add(new Tuple<int, int>(2, 3), new ShapeEdgePairParams(-Math.PI * 0.5, 1, Math.PI * 0.1, 5));
+            edgePairParams.Add(new Tuple<int, int>(3, 4), new ShapeEdgePairParams(Math.PI * 0.5, 0.77, Math.PI * 0.1, 5));
 
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
         }

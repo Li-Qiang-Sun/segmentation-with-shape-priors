@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using MicrosoftResearch.Infer.Maths;
@@ -103,24 +104,6 @@ namespace TestArea
             Image2D.SaveToFile(result, "../../potentials.png");
         }
 
-        static void MainForDistanceTransform()
-        {
-            Image2D<Color> mask = Image2D.LoadFromFile("../../Images/mask.png");
-            Func<double, double, double> penaltyFunc = (x, y) => mask[(int) x, (int) y].ToArgb() == Color.Black.ToArgb() ? 0 : 1e+10;
-            GeneralizedDistanceTransform2D transform = new GeneralizedDistanceTransform2D(
-                new Vector(0, 0), new Vector(mask.Width, mask.Height), mask.Rectangle.Size, 1, 1, penaltyFunc);
-
-            Image2D<Color> result = new Image2D<Color>(mask.Width, mask.Height);
-            for (int i = 0; i < mask.Width; ++i)
-                for (int j = 0; j < mask.Height; ++j)
-                {
-                    double distance = Math.Sqrt(transform.GetByGridIndices(i, j));
-                    int color = Math.Min((int) Math.Round(distance), 255);
-                    result[i, j] = Color.FromArgb(color, color, color);
-                }
-            Image2D.SaveToFile(result, "../../result.png");
-        }
-
         static void MainForSegmentation()
         {
             BranchAndBoundSegmentatorBase segmentator = new BranchAndBoundSegmentatorCpu();
@@ -160,10 +143,34 @@ namespace TestArea
             Console.WriteLine(p.IsPointInside(new Vector(3, 1)));
         }
 
+        static void DrawLengthAngleDependence()
+        {
+            VertexConstraints constraints1 = new VertexConstraints(new Point(20, 20), new Point(50, 70), 1, 10);
+            VertexConstraints constraints2 = new VertexConstraints(new Point(20, 20), new Point(40, 50), 1, 10);
+
+            Random random = new Random();
+            using (StreamWriter writer = new StreamWriter("./length_angle3.txt"))
+            {
+                for (int i = 0; i < 20000; ++i)
+                {
+                    double randomX1 = constraints1.MinCoordInclusive.X + random.NextDouble() * (constraints1.MaxCoordExclusive.X - constraints1.MinCoordInclusive.X);
+                    double randomY1 = constraints1.MinCoordInclusive.X + random.NextDouble() * (constraints1.MaxCoordExclusive.X - constraints1.MinCoordInclusive.X);
+                    double randomX2 = constraints2.MinCoordInclusive.X + random.NextDouble() * (constraints2.MaxCoordExclusive.X - constraints2.MinCoordInclusive.X);
+                    double randomY2 = constraints2.MinCoordInclusive.X + random.NextDouble() * (constraints2.MaxCoordExclusive.X - constraints2.MinCoordInclusive.X);    
+                    Vector vector1 = new Vector(randomX1, randomY1);
+                    Vector vector2 = new Vector(randomX2, randomY2);
+                    double length = (vector1 - vector2).Length;
+                    double angle = vector1 == vector2 ? 0 : Vector.AngleBetween(vector1 - vector2, new Vector(1, 0));
+                    writer.WriteLine("{0} {1}", length, angle);
+                }
+            }
+        }
+
         static void Main()
         {
             Rand.Restart(666);
 
+            DrawLengthAngleDependence();
             //MainForUnaryPotentialsCheck();
             //MainForSegmentation();
             //MainForConvexHull();
