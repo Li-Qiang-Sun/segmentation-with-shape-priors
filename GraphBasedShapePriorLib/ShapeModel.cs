@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Drawing;
 using System.Linq;
 
 namespace Research.GraphBasedShapePrior
@@ -136,7 +137,10 @@ namespace Research.GraphBasedShapePrior
 
             double lengthDiff = edge1Vector.Length - edge2Vector.Length * pairParams.LengthRatio;
             double lengthTerm = lengthDiff * lengthDiff / (pairParams.LengthDeviation * pairParams.LengthDeviation);
-            double angleDiff = Vector.AngleBetween(edge1Vector, edge2Vector) - pairParams.MeanAngle;
+            double angle = Vector.AngleBetween(edge1Vector, edge2Vector);
+            double angleDiff1 = Math.Abs(angle - pairParams.MeanAngle);
+            double angleDiff2 = Math.Abs(angle - pairParams.MeanAngle + (angle < 0 ? Math.PI * 2 : -Math.PI * 2));
+            double angleDiff = Math.Min(angleDiff1, angleDiff2);
             double angleTerm = angleDiff * angleDiff / (pairParams.AngleDeviation * pairParams.AngleDeviation);
             return lengthTerm + angleTerm;
         }
@@ -184,6 +188,89 @@ namespace Research.GraphBasedShapePrior
         {
             Debug.Assert(distance >= 0);
             return -MathHelper.LogInf(1 - Math.Exp(-this.Cutoff * MathHelper.Sqr(distance)));
+        }
+
+        public Shape BuildMeanShape(Size imageSize)
+        {
+            double objectSize = SegmentatorBase.ImageSizeToObjectSizeEstimate(imageSize);
+            
+            // Build tree, ignore scale           
+            Circle[] vertices = new Circle[this.VertexCount];
+            vertices[this.edges[0].Index1] = new Circle(0, 0, this.shapeVertexParams[this.edges[0].Index1].RadiusToObjectSizeRatio * objectSize);
+            vertices[this.edges[0].Index2] = new Circle(1, 0, this.shapeVertexParams[this.edges[0].Index2].RadiusToObjectSizeRatio * objectSize);
+            foreach (int childEdgeIndex in this.IterateNeighboringEdgeIndices(0))
+            {
+                BuildMeanShapeDfs(vertices, childEdgeIndex, 0, vertices[this.edges[0].Index1].Center, vertices[this.edges[0].Index2].Center, objectSize);
+            }
+            
+            // Determine axis-aligned bounding box for the generated shapes
+            Vector min = new Vector(Double.PositiveInfinity, Double.PositiveInfinity);
+            Vector max = new Vector(Double.NegativeInfinity, Double.NegativeInfinity);
+            for (int i = 0; i < this.VertexCount; ++i)
+            {
+                min.X = Math.Min(min.X, vertices[i].Center.X);
+                min.Y = Math.Min(min.Y, vertices[i].Center.Y);
+                max.X = Math.Max(max.X, vertices[i].Center.X);
+                max.Y = Math.Max(max.Y, vertices[i].Center.Y);
+            }
+            double scale = Math.Min(imageSize.Width / (max.X - min.X), imageSize.Height / (max.Y - min.Y));
+
+            // Scale & shift vertices)
+            for (int i = 0; i < this.VertexCount; ++i)
+            {
+                Vector oldCenter = vertices[i].Center;
+                Vector newCenter = (oldCenter - min) * scale;
+                vertices[i] = new Circle(newCenter, vertices[i].Radius);
+            }
+
+            return new Shape(this, vertices);
+        }
+
+        private void BuildMeanShapeDfs(Circle[] vertices, int currentEdgeIndex, int parentEdgeIndex, Vector parentEdgePoint1, Vector parentEdgePoint2, double objectSize)
+        {
+            ShapeEdgePairParams edgeParams = this.GetEdgeParams(parentEdgeIndex, currentEdgeIndex);
+            ShapeEdge currentEdge = this.edges[currentEdgeIndex];
+            ShapeEdge parentEdge = this.edges[parentEdgeIndex];
+            
+            // Determine edge direction and length
+            Vector parentEdgeVec = parentEdgePoint2 - parentEdgePoint1;
+            double length = parentEdgeVec.Length / edgeParams.LengthRatio;
+            double angle = Vector.AngleBetween(new Vector(1, 0), parentEdgeVec) + edgeParams.MeanAngle;
+            Vector edgeVec = new Vector(Math.Cos(angle), Math.Sin(angle)) * length;
+            
+            // Choose correct start/end points
+            Vector edgePoint1, edgePoint2;
+            if (currentEdge.Index1 == parentEdge.Index1)
+            {
+                edgePoint1 = parentEdgePoint1;
+                edgePoint2 = edgePoint1 + edgeVec;
+            }
+            else if (currentEdge.Index1 == parentEdge.Index2)
+            {
+                edgePoint1 = parentEdgePoint2;
+                edgePoint2 = edgePoint1 + edgeVec;
+            }
+            else if (currentEdge.Index2 == parentEdge.Index1)
+            {
+                edgePoint2 = parentEdgePoint1;
+                edgePoint1 = edgePoint2 - edgeVec;
+            }
+            else
+            {
+                Debug.Assert(currentEdge.Index2 == parentEdge.Index2);
+                edgePoint2 = parentEdgePoint2;
+                edgePoint1 = edgePoint2 - edgeVec;
+            }
+
+            // Setup vertices (some vertex already was placed, but who cares?)
+            vertices[this.edges[currentEdgeIndex].Index1] = new Circle(edgePoint1, this.shapeVertexParams[this.edges[currentEdgeIndex].Index1].RadiusToObjectSizeRatio * objectSize);
+            vertices[this.edges[currentEdgeIndex].Index2] = new Circle(edgePoint2, this.shapeVertexParams[this.edges[currentEdgeIndex].Index2].RadiusToObjectSizeRatio * objectSize);
+
+            foreach (int childEdgeIndex in this.IterateNeighboringEdgeIndices(currentEdgeIndex))
+            {
+                if (childEdgeIndex != parentEdgeIndex)
+                    BuildMeanShapeDfs(vertices, childEdgeIndex, currentEdgeIndex, edgePoint1, edgePoint2, objectSize);
+            }
         }
 
         private void BuildEdgeTree()

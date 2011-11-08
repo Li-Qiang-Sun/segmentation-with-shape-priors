@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Drawing;
 
 namespace Research.GraphBasedShapePrior
@@ -76,7 +77,7 @@ namespace Research.GraphBasedShapePrior
 
         private static int CoordToGridIndex(double coord, double gridMin, double gridMax, double gridStepSize)
         {
-            if (coord < gridMin || coord > gridMax)
+            if (coord < gridMin || coord >= gridMax)
                 throw new ArgumentOutOfRangeException("coord");
 
             int gridIndex = (int)((coord - gridMin + 0.5 * gridStepSize) / gridStepSize);

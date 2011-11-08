@@ -206,7 +206,7 @@
             this.shapeEnergyWeightInput.Size = new System.Drawing.Size(82, 20);
             this.shapeEnergyWeightInput.TabIndex = 15;
             this.shapeEnergyWeightInput.Value = new decimal(new int[] {
-            10,
+            1000,
             0,
             0,
             0});

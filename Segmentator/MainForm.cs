@@ -73,39 +73,6 @@ namespace Segmentator
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
         }
 
-        private static ShapeModel CreateGiraffeShapeModel()
-        {
-            List<ShapeEdge> edges = new List<ShapeEdge>();
-            edges.Add(new ShapeEdge(0, 1)); // Body
-            edges.Add(new ShapeEdge(0, 2)); // Neck
-            edges.Add(new ShapeEdge(2, 3)); // Head
-            edges.Add(new ShapeEdge(0, 4)); // Front leg (top)
-            edges.Add(new ShapeEdge(4, 6)); // Front Leg (bottom)
-            edges.Add(new ShapeEdge(1, 5)); // Back leg (top)
-            edges.Add(new ShapeEdge(5, 7)); // Back leg (bottom)
-
-            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
-            vertexParams.Add(new ShapeVertexParams(0.6, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.5, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.02));
-            vertexParams.Add(new ShapeVertexParams(0.1, 0.01));
-            vertexParams.Add(new ShapeVertexParams(0.1, 0.01));
-            vertexParams.Add(new ShapeVertexParams(0.1, 0.01));
-            vertexParams.Add(new ShapeVertexParams(0.1, 0.01));
-            vertexParams.Add(new ShapeVertexParams(0.1, 0.01));
-
-            Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
-                new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
-            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(-Math.PI * 0.666, 2, 0.1, 0.1));
-            edgePairParams.Add(new Tuple<int, int>(1, 2), new ShapeEdgePairParams(-Math.PI * 0.5, 0.1, 0.1, 0.1));
-            edgePairParams.Add(new Tuple<int, int>(0, 3), new ShapeEdgePairParams(Math.PI * 0.5, 0.5, 0.1, 0.1));
-            edgePairParams.Add(new Tuple<int, int>(3, 4), new ShapeEdgePairParams(0, 1, 0.1, 0.1));
-            edgePairParams.Add(new Tuple<int, int>(0, 5), new ShapeEdgePairParams(Math.PI * 0.5, 0.5, 0.1, 0.1));
-            edgePairParams.Add(new Tuple<int, int>(5, 6), new ShapeEdgePairParams(0, 1, 0.1, 0.1));
-
-            return ShapeModel.Create(edges, vertexParams, edgePairParams);
-        }
-
         public MainForm()
         {
             this.InitializeComponent();

@@ -40,6 +40,20 @@ namespace Research.GraphBasedShapePrior
             return result;
         }
 
+        public static ShapeConstraintsSet CreateFromShape(Shape shape)
+        {
+            List<VertexConstraints> vertexConstraints = new List<VertexConstraints>();
+            foreach (Circle vertex in shape.Vertices)
+            {
+                Point roundedPos = new Point((int) Math.Round(vertex.Center.X), (int) Math.Round(vertex.Center.Y));
+                int roundedRadius = (int) Math.Round(vertex.Radius);
+                vertexConstraints.Add(new VertexConstraints(
+                    roundedPos, new Point(roundedPos.X + 1, roundedPos.Y + 1), roundedRadius, roundedRadius + 1));
+            }
+
+            return Create(shape.Model, vertexConstraints);
+        }
+
         public static ShapeConstraintsSet ConstraintToImage(ShapeModel model, Size imageSize)
         {
             ShapeConstraintsSet result = new ShapeConstraintsSet();

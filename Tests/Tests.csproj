@@ -60,8 +60,10 @@
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ShapeEnergyTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="BranchAndBoundTests.cs" />
+    <Compile Include="ShapeUnaryTermTests.cs" />
+    <Compile Include="TestHelper.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\GpuBranchAndBoundSegmentatorLib\GpuBranchAndBoundSegmentatorLib.vcxproj">

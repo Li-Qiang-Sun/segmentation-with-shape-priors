@@ -222,7 +222,8 @@ namespace Research.GraphBasedShapePrior
             int branchesTruncated = 0;
             int iteration = 1;
             int currentBound = 1;
-            EnergyBound bestUpperBound = null;
+            EnergyBound bestUpperBound = MakeMeanShapeBasedSolutionGuess(shrinkedImage, backgroundColorModel, objectColorModel);
+            DebugConfiguration.WriteImportantDebugText("Upper bound from mean shape is {0}", bestUpperBound.Bound);
             foreach (EnergyBound energyBound in sortedFront)
             {
                 this.DepthFirstBranchAndBoundTraverse(
@@ -230,6 +231,7 @@ namespace Research.GraphBasedShapePrior
                     backgroundColorModel,
                     objectColorModel,
                     energyBound.Constraints,
+                    energyBound,
                     ref bestUpperBound,
                     ref lowerBoundsCalculated,
                     ref upperBoundsCalculated,
@@ -257,7 +259,7 @@ namespace Research.GraphBasedShapePrior
             DateTime startTime = DateTime.Now;
             DebugConfiguration.WriteImportantDebugText("Depth-first branch-and-bound started.");
 
-            EnergyBound bestUpperBound = null;
+            EnergyBound bestUpperBound = this.MakeMeanShapeBasedSolutionGuess(shrinkedImage, backgroundColorModel, objectColorModel);
             int lowerBoundsCalculated = 0;
             int upperBoundsCalculated = 0;
             int branchesTruncated = 0;
@@ -267,6 +269,7 @@ namespace Research.GraphBasedShapePrior
                 backgroundColorModel,
                 objectColorModel,
                 initialConstraints,
+                null,
                 ref bestUpperBound,
                 ref lowerBoundsCalculated,
                 ref upperBoundsCalculated,
@@ -390,6 +393,7 @@ namespace Research.GraphBasedShapePrior
             Mixture<VectorGaussian> backgroundColorModel,
             Mixture<VectorGaussian> objectColorModel,
             ShapeConstraintsSet currentNode,
+            EnergyBound currentNodeLowerBound,
             ref EnergyBound bestUpperBound,
             ref int lowerBoundsCalculated,
             ref int upperBoundsCalculated,
@@ -398,7 +402,7 @@ namespace Research.GraphBasedShapePrior
         {
             Debug.Assert(!currentNode.CheckIfSatisfied());
 
-            if (iteration % this.StatusReportRate == 0 && bestUpperBound != null)
+            if (iteration % this.StatusReportRate == 0)
             {
                 // Write some text
                 DebugConfiguration.WriteDebugText(
@@ -407,6 +411,14 @@ namespace Research.GraphBasedShapePrior
                     bestUpperBound.Bound,
                     bestUpperBound.SegmentationEnergy,
                     bestUpperBound.ShapeEnergy * this.ShapeEnergyWeight);
+                if (currentNodeLowerBound != null) // In case it was the initial node
+                {
+                    DebugConfiguration.WriteDebugText(
+                        "Current lower bound: {0:0.0000} ({1:0.0000} + {2:0.0000})",
+                        currentNodeLowerBound.Bound,
+                        currentNodeLowerBound.SegmentationEnergy,
+                        currentNodeLowerBound.ShapeEnergy * this.ShapeEnergyWeight);
+                }
                 DebugConfiguration.WriteDebugText("Lower bounds calculated: {0}", lowerBoundsCalculated);
                 DebugConfiguration.WriteDebugText("Upper bounds calculated: {0}", upperBoundsCalculated);
                 DebugConfiguration.WriteDebugText("Branches truncated: {0}", branchesTruncated);
@@ -424,7 +436,7 @@ namespace Research.GraphBasedShapePrior
                 EnergyBound upperBound = this.CalculateEnergyBound(
                     children[i].GuessSolution(), shrinkedImage, backgroundColorModel, objectColorModel);
                 upperBoundsCalculated += 1;
-                if (bestUpperBound == null || upperBound.Bound < bestUpperBound.Bound)
+                if (upperBound.Bound < bestUpperBound.Bound)
                 {
                     bestUpperBound = upperBound;
                     DebugConfiguration.WriteImportantDebugText("Upper bound updated at iteration {0} to {1}.", iteration, bestUpperBound.Bound);
@@ -451,12 +463,21 @@ namespace Research.GraphBasedShapePrior
                     backgroundColorModel,
                     objectColorModel,
                     children[i],
+                    lowerBound,
                     ref bestUpperBound,
                     ref lowerBoundsCalculated,
                     ref upperBoundsCalculated,
                     ref branchesTruncated,
                     ref iteration);
             }
+        }
+
+        private EnergyBound MakeMeanShapeBasedSolutionGuess(
+            Image2D<Color> shrinkedImage, Mixture<VectorGaussian> backgroundColorModel, Mixture<VectorGaussian> objectColorModel)
+        {
+            Shape shape = this.ShapeModel.BuildMeanShape(shrinkedImage.Rectangle.Size);
+            ShapeConstraintsSet constraintsSet = ShapeConstraintsSet.CreateFromShape(shape);
+            return this.CalculateEnergyBound(constraintsSet, shrinkedImage, backgroundColorModel, objectColorModel);
         }
 
         private void ReportDepthFirstSearchStatus(Image2D<Color> shrinkedImage, ShapeConstraintsSet currentNode, EnergyBound upperBound)
@@ -587,21 +608,31 @@ namespace Research.GraphBasedShapePrior
                 Debug.Assert(maxPossibleLength >= minPossibleLength && maxPossibleAngle >= minPossibleAngle);
 
                 minEdgeEnergy = Double.PositiveInfinity;
-                for (int lengthGridIndex = childTransforms[0].CoordToGridIndexX(minPossibleLength);
-                    lengthGridIndex <= childTransforms[0].CoordToGridIndexX(maxPossibleLength);
+                GeneralizedDistanceTransform2D transform = childTransforms[0];
+                for (int lengthGridIndex = transform.CoordToGridIndexX(minPossibleLength);
+                    lengthGridIndex <= transform.CoordToGridIndexX(maxPossibleLength);
                     ++lengthGridIndex)
                 {
-                    for (int angleGridIndex = childTransforms[0].CoordToGridIndexY(minPossibleAngle);
-                        angleGridIndex <= childTransforms[0].CoordToGridIndexY(maxPossibleAngle);
+                    for (int angleGridIndex = transform.CoordToGridIndexY(minPossibleAngle);
+                        angleGridIndex <= transform.CoordToGridIndexY(maxPossibleAngle);
                         ++angleGridIndex)
                     {
-                        double energySum = 0;
-                        
+                        double energySum1 = 0;
                         foreach (GeneralizedDistanceTransform2D childTransform in childTransforms)
-                            energySum += childTransform.GetByGridIndices(lengthGridIndex, angleGridIndex);
+                            energySum1 += childTransform.GetByGridIndices(lengthGridIndex, angleGridIndex);
+                        minEdgeEnergy = Math.Min(minEdgeEnergy, energySum1);
 
-                        if (energySum < minEdgeEnergy)
-                            minEdgeEnergy = energySum;
+                        // Also check second angle representation
+                        double angle = transform.GridIndexToCoordY(angleGridIndex);
+                        if (Math.Abs(angle) > 1e-6) // Zero angle has only one representation
+                        {
+                            double angle2 = angle > 0 ? angle - Math.PI * 2 : angle + Math.PI * 2;
+                            int angleGridIndex2 = transform.CoordToGridIndexY(angle2);
+                            double energySum2 = 0;
+                            foreach (GeneralizedDistanceTransform2D childTransform in childTransforms)
+                                energySum2 += childTransform.GetByGridIndices(lengthGridIndex, angleGridIndex2);
+                            minEdgeEnergy = Math.Min(minEdgeEnergy, energySum2);
+                        }
                     }
                 }
             }
@@ -729,10 +760,13 @@ namespace Research.GraphBasedShapePrior
                         return 1e+20; // Return something close to infinity
                     }
 
-                    double sum = 0;
+                    double sum1 = 0, sum2 = 0;
                     foreach (GeneralizedDistanceTransform2D childTransform in childDistanceTransforms)
-                        sum += childTransform.GetByCoords(length, angle);
-                    return sum;
+                    {
+                        sum1 += childTransform.GetByCoords(length, angle);
+                        sum2 += childTransform.GetByCoords(length, angle > 0 ? angle - Math.PI * 2 : angle + Math.PI * 2);
+                    }
+                    return Math.Min(sum1, sum2);
                 };
 
             return new GeneralizedDistanceTransform2D(
