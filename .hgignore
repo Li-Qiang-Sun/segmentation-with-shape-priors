@@ -9,3 +9,5 @@ GraphBasedShapePrior.suo
 TestResults
 ReleaseGPU
 GpuBranchAndBoundSegmentatorLib/vc90.pdb
+GraphBasedShapePrior.sdf
+GraphBasedShapePrior.opensdf
