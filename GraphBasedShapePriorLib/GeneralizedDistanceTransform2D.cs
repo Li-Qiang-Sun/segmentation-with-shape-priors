@@ -39,8 +39,9 @@ namespace Research.GraphBasedShapePrior
             this.DistanceScaleY = distanceScaleY;
             this.PenaltyFunc = penaltyFunc;
 
-            this.gridStepX = (this.GridMax.X - this.GridMin.X) / this.GridSize.Width;
-            this.gridStepY = (this.GridMax.Y - this.GridMin.Y) / this.GridSize.Height;
+            // Our grid covers all the evenly distributed points from min to max in a way that each point is the center of its cell
+            this.gridStepX = (this.GridMax.X - this.GridMin.X) / (this.GridSize.Width - 1);
+            this.gridStepY = (this.GridMax.Y - this.GridMin.Y) / (this.GridSize.Height - 1);
 
             this.Calculate();
         }
@@ -57,36 +58,35 @@ namespace Research.GraphBasedShapePrior
 
         public int CoordToGridIndexX(double coord)
         {
-            return CoordToGridIndex(coord, this.GridMin.X, this.GridMax.X, this.gridStepX);
+            return CoordToGridIndex(coord, this.GridMin.X, this.gridStepX, this.GridSize.Width);
         }
 
         public int CoordToGridIndexY(double coord)
         {
-            return CoordToGridIndex(coord, this.GridMin.Y, this.GridMax.Y, this.gridStepY);
+            return CoordToGridIndex(coord, this.GridMin.Y, this.gridStepY, this.GridSize.Height);
         }
 
         public double GridIndexToCoordX(int gridIndex)
         {
-            return GridIndexToCoord(gridIndex, this.GridMin.X, this.GridMax.X, this.GridSize.Width);
+            return GridIndexToCoord(gridIndex, this.GridMin.X, this.gridStepX);
         }
 
         public double GridIndexToCoordY(int gridIndex)
         {
-            return GridIndexToCoord(gridIndex, this.GridMin.Y, this.GridMax.Y, this.GridSize.Height);
+            return GridIndexToCoord(gridIndex, this.GridMin.Y, this.gridStepY);
         }
 
-        private static int CoordToGridIndex(double coord, double gridMin, double gridMax, double gridStepSize)
+        private static int CoordToGridIndex(double coord, double gridMin, double gridStepSize, int gridSize)
         {
-            if (coord < gridMin || coord >= gridMax)
+            int gridIndex = (int)((coord - gridMin) / gridStepSize + 0.5);
+            if (gridIndex < 0 || gridIndex >= gridSize)
                 throw new ArgumentOutOfRangeException("coord");
-
-            int gridIndex = (int)((coord - gridMin + 0.5 * gridStepSize) / gridStepSize);
             return gridIndex;
         }
 
-        private static double GridIndexToCoord(int gridIndex, double gridMin, double gridMax, int gridSize)
+        private static double GridIndexToCoord(int gridIndex, double gridMin, double gridStepSize)
         {
-            return gridMin + (double)gridIndex / gridSize * (gridMax - gridMin);
+            return gridMin + gridIndex * gridStepSize;
         }        
 
         private void Calculate()

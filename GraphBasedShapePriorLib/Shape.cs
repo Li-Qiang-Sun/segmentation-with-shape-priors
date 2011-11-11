@@ -56,21 +56,25 @@ namespace Research.GraphBasedShapePrior
 
         public double CalculateEnergy(double bodyLength)
         {
-            double result = 0;
+            double totalEnergy = 0;
 
             for (int i = 0; i < this.Model.VertexCount; ++i)
-                result += this.Model.CalculateVertexEnergyTerm(i, bodyLength, this.vertices[i].Radius);
+            {
+                double vertexEnergy = this.Model.CalculateVertexEnergyTerm(i, bodyLength, this.vertices[i].Radius);
+                totalEnergy += vertexEnergy;
+            }
 
             foreach (Tuple<int, int> edgePair in this.Model.ConstrainedEdgePairs)
             {
-                result += this.Model.CalculateEdgePairEnergyTerm(
+                double edgePairEnergy = this.Model.CalculateEdgePairEnergyTerm(
                     edgePair.Item1,
                     edgePair.Item2,
                     this.vertices[this.Model.Edges[edgePair.Item1].Index2].Center - this.vertices[this.Model.Edges[edgePair.Item1].Index1].Center,
                     this.vertices[this.Model.Edges[edgePair.Item2].Index2].Center - this.vertices[this.Model.Edges[edgePair.Item2].Index1].Center);
+                totalEnergy += edgePairEnergy;
             }
 
-            return result;
+            return totalEnergy;
         }
     }
 }

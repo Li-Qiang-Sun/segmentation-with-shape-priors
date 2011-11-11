@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -29,7 +28,8 @@ namespace Research.GraphBasedShapePrior
             this.DistanceScale = distanceScale;
             this.PenaltyFunc = penaltyFunc;
             this.GridSize = gridSize;
-            this.gridStepSize = (this.GridMax - this.GridMin) / this.GridSize;
+            // Our grid covers all the evenly distributed points from min to max in a way that each point is the center of its cell
+            this.gridStepSize = (this.GridMax - this.GridMin) / (this.GridSize - 1);
 
             this.Calculate();
         }
@@ -51,11 +51,9 @@ namespace Research.GraphBasedShapePrior
 
         private int CoordToGridIndex(double coord)
         {
-            if (coord < this.GridMin || coord > this.GridMax)
+            int gridIndex = (int)((coord - this.GridMin) / this.gridStepSize + 0.5);
+            if (gridIndex < 0 || gridIndex >= this.GridSize)
                 throw new ArgumentOutOfRangeException("coord");
-
-            double relativeCoord = (coord - this.GridMin + 0.5 * this.gridStepSize) / (this.GridMax - this.GridMin);
-            int gridIndex = (int)(relativeCoord * this.GridSize);
             return gridIndex;
         }
 

@@ -209,7 +209,7 @@ namespace Research.GraphBasedShapePrior
 
             // Sort front by depth
             List<EnergyBound> sortedFront = new List<EnergyBound>(front);
-            sortedFront.Sort((item1, item2) => item1.Constraints.GetViolationSum() - item2.Constraints.GetViolationSum());
+            sortedFront.Sort((item1, item2) => Math.Sign(item1.Constraints.GetViolationSum() - item2.Constraints.GetViolationSum()));
 
             startTime = DateTime.Now;
             DebugConfiguration.WriteImportantDebugText("Switching to depth-first branch-and-bound.");
@@ -231,7 +231,7 @@ namespace Research.GraphBasedShapePrior
                     backgroundColorModel,
                     objectColorModel,
                     energyBound.Constraints,
-                    energyBound,
+                    null,
                     ref bestUpperBound,
                     ref lowerBoundsCalculated,
                     ref upperBoundsCalculated,
@@ -253,7 +253,7 @@ namespace Research.GraphBasedShapePrior
             Mixture<VectorGaussian> backgroundColorModel,
             Mixture<VectorGaussian> objectColorModel)
         {
-            ShapeConstraintsSet initialConstraints = ShapeConstraintsSet.ConstraintToImage(
+            VertexConstraintSet initialConstraints = VertexConstraintSet.ConstraintToImage(
                 this.ShapeModel, shrinkedImage.Rectangle.Size);
 
             DateTime startTime = DateTime.Now;
@@ -286,7 +286,7 @@ namespace Research.GraphBasedShapePrior
             Mixture<VectorGaussian> objectColorModel,
             int maxIterations)
         {
-            ShapeConstraintsSet initialConstraints = ShapeConstraintsSet.ConstraintToImage(
+            VertexConstraintSet initialConstraints = VertexConstraintSet.ConstraintToImage(
                 this.ShapeModel, shrinkedImage.Rectangle.Size);
             SortedSet<EnergyBound> front = new SortedSet<EnergyBound>();
             front.Add(this.CalculateEnergyBound(
@@ -301,8 +301,8 @@ namespace Research.GraphBasedShapePrior
                 EnergyBound parentLowerBound = front.Min;
                 front.Remove(parentLowerBound);
 
-                List<ShapeConstraintsSet> expandedConstraints = parentLowerBound.Constraints.SplitMostViolated();
-                foreach (ShapeConstraintsSet constraintsSet in expandedConstraints)
+                List<VertexConstraintSet> expandedConstraints = parentLowerBound.Constraints.SplitMostViolated();
+                foreach (VertexConstraintSet constraintsSet in expandedConstraints)
                 {
                     EnergyBound lowerBound = this.CalculateEnergyBound(
                         constraintsSet, shrinkedImage, backgroundColorModel, objectColorModel);
@@ -327,9 +327,9 @@ namespace Research.GraphBasedShapePrior
                     //        //CalculateShapeTerm(parentLowerBound.Constraints, new Point(0, 67));
                     //    }
 
-                    // Lower bound should not decrease
-                    Debug.Assert(lowerBound.SegmentationEnergy >= parentLowerBound.SegmentationEnergy - 1e-6);
-                    Debug.Assert(lowerBound.ShapeEnergy >= parentLowerBound.ShapeEnergy - 1e-6);
+                    // Lower bound should not decrease (check always, it's important!)
+                    Trace.Assert(lowerBound.SegmentationEnergy >= parentLowerBound.SegmentationEnergy - 1e-6);
+                    Trace.Assert(lowerBound.ShapeEnergy >= parentLowerBound.ShapeEnergy - 1e-6);
 
                     ++processedConstraintSets;
                 }
@@ -357,19 +357,19 @@ namespace Research.GraphBasedShapePrior
                     DebugConfiguration.WriteDebugText("Processing speed is {0:0.000} items per sec", processingSpeed);
 
                     // Compute constraint violations
-                    int maxRadiusConstraintViolation = 0, maxCoordConstraintViolation = 0;
+                    double maxRadiusConstraintViolation = 0, maxCoordConstraintViolation = 0;
                     for (int vertex = 0; vertex < this.ShapeModel.VertexCount; ++vertex)
                     {
-                        VertexConstraints vertexConstraints = currentMin.Constraints.GetConstraintsForVertex(vertex);
+                        VertexConstraint vertexConstraints = currentMin.Constraints.GetConstraintsForVertex(vertex);
                         maxRadiusConstraintViolation = Math.Max(
-                            maxRadiusConstraintViolation, vertexConstraints.MaxRadiusExclusive - vertexConstraints.MinRadiusInclusive - 1);
+                            maxRadiusConstraintViolation, vertexConstraints.MaxRadius - vertexConstraints.MinRadius);
                         maxCoordConstraintViolation = Math.Max(
-                            maxCoordConstraintViolation, vertexConstraints.MaxCoordExclusive.X - vertexConstraints.MinCoordInclusive.X - 1);
+                            maxCoordConstraintViolation, vertexConstraints.MaxCoord.X - vertexConstraints.MinCoord.X);
                         maxCoordConstraintViolation = Math.Max(
-                            maxCoordConstraintViolation, vertexConstraints.MaxCoordExclusive.Y - vertexConstraints.MinCoordInclusive.Y - 1);
+                            maxCoordConstraintViolation, vertexConstraints.MaxCoord.Y - vertexConstraints.MinCoord.Y);
                     }
 
-                    DebugConfiguration.WriteDebugText("Current constraint violations: {0} (radius), {1} (coord)", maxRadiusConstraintViolation, maxCoordConstraintViolation);
+                    DebugConfiguration.WriteDebugText("Current constraint violations: {0:0.0} (radius), {1:0.0} (coord)", maxRadiusConstraintViolation, maxCoordConstraintViolation);
                     DebugConfiguration.WriteDebugText();
 
                     // Report status
@@ -392,7 +392,7 @@ namespace Research.GraphBasedShapePrior
             Image2D<Color> shrinkedImage,
             Mixture<VectorGaussian> backgroundColorModel,
             Mixture<VectorGaussian> objectColorModel,
-            ShapeConstraintsSet currentNode,
+            VertexConstraintSet currentNode,
             EnergyBound currentNodeLowerBound,
             ref EnergyBound bestUpperBound,
             ref int lowerBoundsCalculated,
@@ -428,7 +428,7 @@ namespace Research.GraphBasedShapePrior
                 this.ReportDepthFirstSearchStatus(shrinkedImage, currentNode, bestUpperBound);
             }
 
-            List<ShapeConstraintsSet> children = currentNode.SplitMostViolated();
+            List<VertexConstraintSet> children = currentNode.SplitMostViolated();
 
             // Traverse only subtrees with good lower bounds
             for (int i = 0; i < children.Count; ++i)
@@ -475,12 +475,12 @@ namespace Research.GraphBasedShapePrior
         private EnergyBound MakeMeanShapeBasedSolutionGuess(
             Image2D<Color> shrinkedImage, Mixture<VectorGaussian> backgroundColorModel, Mixture<VectorGaussian> objectColorModel)
         {
-            Shape shape = this.ShapeModel.BuildMeanShape(shrinkedImage.Rectangle.Size);
-            ShapeConstraintsSet constraintsSet = ShapeConstraintsSet.CreateFromShape(shape);
+            Shape shape = this.ShapeModel.FitMeanShape(shrinkedImage.Rectangle.Size);
+            VertexConstraintSet constraintsSet = VertexConstraintSet.CreateFromShape(shape);
             return this.CalculateEnergyBound(constraintsSet, shrinkedImage, backgroundColorModel, objectColorModel);
         }
 
-        private void ReportDepthFirstSearchStatus(Image2D<Color> shrinkedImage, ShapeConstraintsSet currentNode, EnergyBound upperBound)
+        private void ReportDepthFirstSearchStatus(Image2D<Color> shrinkedImage, VertexConstraintSet currentNode, EnergyBound upperBound)
         {
             // Draw current constraints on top of an image
             Image statusImage = Image2D.ToRegularImage(shrinkedImage);
@@ -531,7 +531,7 @@ namespace Research.GraphBasedShapePrior
         }
 
         private EnergyBound CalculateEnergyBound(
-            ShapeConstraintsSet constraintsSet,
+            VertexConstraintSet constraintsSet,
             Image2D<Color> shrinkedImage,
             Mixture<VectorGaussian> backgroundColorModel,
             Mixture<VectorGaussian> objectColorModel)
@@ -545,7 +545,7 @@ namespace Research.GraphBasedShapePrior
         }
 
         private ImageSegmentationInfo SegmentImageWithConstraints(
-            ShapeConstraintsSet constraintsSet,
+            VertexConstraintSet constraintsSet,
             Image2D<Color> shrinkedImage,
             Mixture<VectorGaussian> backgroundColorModel,
             Mixture<VectorGaussian> objectColorModel)
@@ -563,26 +563,26 @@ namespace Research.GraphBasedShapePrior
 
         // TODO: make this shit protected
         // TODO: make this shit abstract after fix of some strage compiler bug
-        public virtual void PrepareShapeUnaryPotentials(ShapeConstraintsSet constraintsSet, Image2D<Tuple<double, double>> result)
+        public virtual void PrepareShapeUnaryPotentials(VertexConstraintSet constraintsSet, Image2D<Tuple<double, double>> result)
         {
         }
 
         // TODO: make this shit private
-        public double CalculateMinShapeEnergy(ShapeConstraintsSet constraintsSet, Size imageSize)
+        public double CalculateMinShapeEnergy(VertexConstraintSet constraintsSet, Size imageSize)
         {
             double objectSize = ImageSizeToObjectSizeEstimate(imageSize);
             
             // Here we use the fact that energy can be separated into vertex energy that depends on radii
             // and edge energy that depends on edge vertex positions
 
-            double minVertexEnergy = 0;
+            double minVertexEnergySum = 0;
             for (int vertexIndex = 0; vertexIndex < this.ShapeModel.VertexCount; ++vertexIndex)
-                minVertexEnergy += this.ShapeModel.CalculateVertexEnergyTerm(
+                minVertexEnergySum += this.ShapeModel.CalculateVertexEnergyTerm(
                     vertexIndex,
                     objectSize,
                     this.GetBestVertexRadius(vertexIndex, constraintsSet, objectSize));
 
-            double minEdgeEnergy = 0;
+            double minEdgeEnergySum = 0;
             if (this.ShapeModel.PairwiseEdgeConstraintCount > 0)
             {
                 double maxRatio1 = (from edgePair in this.ShapeModel.ConstrainedEdgePairs
@@ -597,125 +597,88 @@ namespace Research.GraphBasedShapePrior
                 foreach (int edgeIndex in this.ShapeModel.IterateNeighboringEdgeIndices(0))
                     childTransforms.Add(CalculateMinEnergiesForAllParentEdges(constraintsSet, 0, edgeIndex, maxScaledLength));
 
-                double minPossibleLength, maxPossibleLength, minPossibleAngle, maxPossibleAngle;
-                this.DetermineEdgeLimits(
-                    0,
-                    constraintsSet,
-                    out minPossibleLength,
-                    out maxPossibleLength,
-                    out minPossibleAngle,
-                    out maxPossibleAngle);
-                Debug.Assert(maxPossibleLength >= minPossibleLength && maxPossibleAngle >= minPossibleAngle);
+                Range lengthRange, angleRange;
+                constraintsSet.DetermineEdgeLimits(0, out lengthRange, out angleRange);
 
-                minEdgeEnergy = Double.PositiveInfinity;
+                minEdgeEnergySum = Double.PositiveInfinity;
                 GeneralizedDistanceTransform2D transform = childTransforms[0];
-                for (int lengthGridIndex = transform.CoordToGridIndexX(minPossibleLength);
-                    lengthGridIndex <= transform.CoordToGridIndexX(maxPossibleLength);
+                for (int lengthGridIndex = transform.CoordToGridIndexX(lengthRange.Left);
+                    lengthGridIndex <= transform.CoordToGridIndexX(lengthRange.Right);
                     ++lengthGridIndex)
                 {
-                    for (int angleGridIndex = transform.CoordToGridIndexY(minPossibleAngle);
-                        angleGridIndex <= transform.CoordToGridIndexY(maxPossibleAngle);
-                        ++angleGridIndex)
-                    {
-                        double energySum1 = 0;
-                        foreach (GeneralizedDistanceTransform2D childTransform in childTransforms)
-                            energySum1 += childTransform.GetByGridIndices(lengthGridIndex, angleGridIndex);
-                        minEdgeEnergy = Math.Min(minEdgeEnergy, energySum1);
+                    double length = transform.GridIndexToCoordX(lengthGridIndex);
 
-                        // Also check second angle representation
-                        double angle = transform.GridIndexToCoordY(angleGridIndex);
-                        if (Math.Abs(angle) > 1e-6) // Zero angle has only one representation
+                    if (angleRange.Outside)
+                    {
+                        for (int angleGridIndex = transform.CoordToGridIndexY(angleRange.Right);
+                            angleGridIndex <= transform.CoordToGridIndexY(Math.PI);
+                            ++angleGridIndex)
                         {
-                            double angle2 = angle > 0 ? angle - Math.PI * 2 : angle + Math.PI * 2;
-                            int angleGridIndex2 = transform.CoordToGridIndexY(angle2);
-                            double energySum2 = 0;
-                            foreach (GeneralizedDistanceTransform2D childTransform in childTransforms)
-                                energySum2 += childTransform.GetByGridIndices(lengthGridIndex, angleGridIndex2);
-                            minEdgeEnergy = Math.Min(minEdgeEnergy, energySum2);
+                            double angle = transform.GridIndexToCoordY(angleGridIndex);
+                            minEdgeEnergySum = Math.Min(minEdgeEnergySum, CalculdateMinEdgeEnergy(length, angle, childTransforms));
+                        }
+
+                        for (int angleGridIndex = transform.CoordToGridIndexY(-Math.PI);
+                            angleGridIndex <= transform.CoordToGridIndexY(angleRange.Left);
+                            ++angleGridIndex)
+                        {
+                            double angle = transform.GridIndexToCoordY(angleGridIndex);
+                            minEdgeEnergySum = Math.Min(minEdgeEnergySum, CalculdateMinEdgeEnergy(length, angle, childTransforms));
+                        }
+                    }
+                    else
+                    {
+                        for (int angleGridIndex = transform.CoordToGridIndexY(angleRange.Left);
+                            angleGridIndex <= transform.CoordToGridIndexY(angleRange.Right);
+                            ++angleGridIndex)
+                        {
+                            double angle = transform.GridIndexToCoordY(angleGridIndex);
+                            minEdgeEnergySum = Math.Min(minEdgeEnergySum, CalculdateMinEdgeEnergy(length, angle, childTransforms));
                         }
                     }
                 }
             }
 
-            return minVertexEnergy + minEdgeEnergy;
+            return minVertexEnergySum + minEdgeEnergySum;
         }
 
-        private void DetermineEdgeLimits(
-            int edgeIndex,
-            ShapeConstraintsSet constraintsSet,
-            out double minLength,
-            out double maxLength,
-            out double minAngle,
-            out double maxAngle)
+        private double CalculdateMinEdgeEnergy(double length, double angle, IEnumerable<GeneralizedDistanceTransform2D> transforms)
         {
-            ShapeEdge edge = this.ShapeModel.Edges[edgeIndex];
-
-            // Special case: intersecting triangles
-            if (constraintsSet.GetConstraintsForVertex(edge.Index1).CoordRectangle.IntersectsWith(constraintsSet.GetConstraintsForVertex(edge.Index2).CoordRectangle))
+            double energySum = 0;
+            foreach (GeneralizedDistanceTransform2D childTransform in transforms)
             {
-                minAngle = -Math.PI;
-                maxAngle = Math.PI;
-                minLength = 0;
-                maxLength = 0;
+                double energy = childTransform.GetByCoords(length, angle);
 
-                foreach (Vector point1 in constraintsSet.GetConstraintsForVertex(edge.Index1).Corners)
+                // Check other possible angle representations
+                bool angleIsZero = childTransform.CoordToGridIndexY(angle) == childTransform.CoordToGridIndexY(0);
+                if (angleIsZero)
                 {
-                    foreach (Vector point2 in constraintsSet.GetConstraintsForVertex(edge.Index2).Corners)
-                    {
-                        double length = (point1 - point2).Length;
-                        maxLength = Math.Max(maxLength, length);
-                    }
+                    // Zero has two representations
+                    energy = Math.Min(childTransform.GetByCoords(length, -Math.PI * 2), energy);
+                    energy = Math.Min(childTransform.GetByCoords(length, Math.PI * 2), energy);
+                }
+                else
+                {
+                    // Other angles have single representation
+                    double otherAngle = angle > 0 ? angle - Math.PI * 2 : angle + Math.PI * 2;
+                    energy = Math.Min(childTransform.GetByCoords(length, otherAngle), energy);
                 }
 
-                return;
+                energySum += energy;
             }
 
-            minLength = Double.PositiveInfinity;
-            maxLength = Double.NegativeInfinity;
-            minAngle = Math.PI;
-            maxAngle = -Math.PI;
-
-            foreach (Vector point1 in constraintsSet.GetConstraintsForVertex(edge.Index1).IterateBorder())
-            {
-                foreach (Vector point2 in constraintsSet.GetConstraintsForVertex(edge.Index2).IterateBorder())
-                {
-                    double length = (point1 - point2).Length;
-                    minLength = Math.Min(minLength, length);
-                    maxLength = Math.Max(maxLength, length);
-                }
-            }
-
-            foreach (Vector point1 in constraintsSet.GetConstraintsForVertex(edge.Index1).Corners)
-            {
-                foreach (Vector point2 in constraintsSet.GetConstraintsForVertex(edge.Index2).Corners)
-                {
-                    double angle;
-                    if (point1 != point2)
-                        angle = Vector.AngleBetween(new Vector(1, 0), point2 - point1);
-                    else
-                        angle = 0;
-
-                    // Update min and max angle
-                    minAngle = Math.Min(minAngle, angle);
-                    maxAngle = Math.Max(maxAngle, angle);
-                }
-            }
+            return energySum;
         }
 
-        private double GetBestVertexRadius(int vertexIndex, ShapeConstraintsSet constraintsSet, double objectSize)
+        private double GetBestVertexRadius(int vertexIndex, VertexConstraintSet constraintsSet, double objectSize)
         {
-            VertexConstraints constraints = constraintsSet.GetConstraintsForVertex(vertexIndex);
-            int bestRadius =
-                (int)Math.Round(this.ShapeModel.GetVertexParams(vertexIndex).RadiusToObjectSizeRatio * objectSize);
-            if (bestRadius < constraints.MinRadiusInclusive)
-                return constraints.MinRadiusInclusive;
-            if (bestRadius >= constraints.MaxRadiusExclusive)
-                return constraints.MaxRadiusExclusive - 1;
-            return bestRadius;
+            VertexConstraint constraints = constraintsSet.GetConstraintsForVertex(vertexIndex);
+            double bestRadius = this.ShapeModel.GetVertexParams(vertexIndex).RadiusToObjectSizeRatio * objectSize;
+            return MathHelper.Trunc(bestRadius, constraints.MinRadius, constraints.MinRadius);
         }
 
         private GeneralizedDistanceTransform2D CalculateMinEnergiesForAllParentEdges(
-            ShapeConstraintsSet constraintsSet,
+            VertexConstraintSet constraintsSet,
             int parentEdgeIndex,
             int currentEdgeIndex,
             double maxScaledLength)
@@ -732,19 +695,11 @@ namespace Research.GraphBasedShapePrior
                 childDistanceTransforms.Add(childTransform);
             }
 
-            double minPossibleLength, maxPossibleLength, minPossibleAngle, maxPossibleAngle;
-            this.DetermineEdgeLimits(
-                currentEdgeIndex,
-                constraintsSet,
-                out minPossibleLength,
-                out maxPossibleLength,
-                out minPossibleAngle,
-                out maxPossibleAngle);
-
-            double angleRangeMin = -Math.PI * 2, angleRangeMax = Math.PI * 2;
-            double lengthRangeMin = 0, lengthRangeMax = maxScaledLength;
+            Range lengthRange, angleRange;
+            constraintsSet.DetermineEdgeLimits(currentEdgeIndex, out lengthRange, out angleRange);
 
             ShapeEdgePairParams pairParams = this.ShapeModel.GetEdgeParams(parentEdgeIndex, currentEdgeIndex);
+
             Func<double, double, double, double, double> penaltyFunction =
                 (scaledLength, shiftedAngle, scaledLengthRadius, shiftedAngleRadius) =>
                 {
@@ -754,24 +709,19 @@ namespace Research.GraphBasedShapePrior
                     double angleRadius = shiftedAngleRadius;
 
                     // Disallow invalid configurations
-                    if (!MathHelper.RangesIntersect(minPossibleLength, maxPossibleLength, length - lengthRadius, length + lengthRadius) ||
-                        !MathHelper.RangesIntersect(minPossibleAngle, maxPossibleAngle, angle - angleRadius, angle + angleRadius))
+                    Range currentLengthRange = new Range(length - lengthRadius, length + lengthRadius, false);
+                    Range currentAngleRange = new Range(angle - angleRadius, angle + angleRadius, false);
+                    if (!currentLengthRange.IntersectsWith(lengthRange) || !currentAngleRange.IntersectsWith(angleRange))
                     {
                         return 1e+20; // Return something close to infinity
                     }
 
-                    double sum1 = 0, sum2 = 0;
-                    foreach (GeneralizedDistanceTransform2D childTransform in childDistanceTransforms)
-                    {
-                        sum1 += childTransform.GetByCoords(length, angle);
-                        sum2 += childTransform.GetByCoords(length, angle > 0 ? angle - Math.PI * 2 : angle + Math.PI * 2);
-                    }
-                    return Math.Min(sum1, sum2);
+                    return CalculdateMinEdgeEnergy(length, angle, childDistanceTransforms);
                 };
 
             return new GeneralizedDistanceTransform2D(
-                new Vector(lengthRangeMin, angleRangeMin),
-                new Vector(lengthRangeMax, angleRangeMax),
+                new Vector(0, -Math.PI * 2),
+                new Vector(maxScaledLength, Math.PI * 2),
                 new Size(this.LengthGridSize, this.AngleGridSize), 
                 1.0 / MathHelper.Sqr(pairParams.LengthDeviation),
                 1.0 / MathHelper.Sqr(pairParams.AngleDeviation),
@@ -780,7 +730,7 @@ namespace Research.GraphBasedShapePrior
 
         private class EnergyBound : IComparable<EnergyBound>
         {
-            public ShapeConstraintsSet Constraints { get; private set; }
+            public VertexConstraintSet Constraints { get; private set; }
 
             public double Bound { get; private set; }
 
@@ -795,7 +745,7 @@ namespace Research.GraphBasedShapePrior
             private readonly long instanceId;
 
             public EnergyBound(
-                ShapeConstraintsSet constraints,
+                VertexConstraintSet constraints,
                 double shapeEnergy,
                 double segmentationEnergy,
                 double shapeEnergyWeight,

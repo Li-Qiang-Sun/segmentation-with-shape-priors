@@ -72,51 +72,6 @@ namespace TestArea
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
         }
 
-        static void MainForUnaryPotentialsCheck()
-        {
-            Image2D<Color> result = new Image2D<Color>(320, 240);
-
-            VertexConstraints constraint1 = new VertexConstraints(new Point(40, 40), new Point(41, 41), 10, 11);
-            VertexConstraints constraint2 = new VertexConstraints(new Point(240, 170), new Point(241, 171), 40, 41);
-            ShapeConstraintsSet constraintsSet = ShapeConstraintsSet.Create(CreateSimpleShapeModel1(), new []{constraint2, constraint1});
-
-            BranchAndBoundSegmentatorBase segmentator = new BranchAndBoundSegmentatorCpu();
-            Image2D<Tuple<double, double>> shapeTerms = new Image2D<Tuple<double, double>>(result.Width, result.Height);
-            segmentator.PrepareShapeUnaryPotentials(constraintsSet, shapeTerms);
-
-            for (int x = 0; x < result.Width; ++x)
-                for (int y = 0; y < result.Height; ++y)
-                {
-                    //double diff = potentials.Item1 - potentials.Item2;
-                    //int redColor = diff < 0 ? 0 : (int) Math.Min(diff * 200, 255);
-                    //int blueColor = diff > 0 ? 0 : (int) Math.Min(-diff * 200, 255);
-                    //result[x, y] = Color.FromArgb(redColor, 0, blueColor);
-                    int color = (int)(Math.Exp(-shapeTerms[x, y].Item2) * 255.0);
-                    result[x, y] = Color.FromArgb(color, color, color);
-                }
-            Image2D.SaveToFile(result, "../../potentials.png");
-        }
-
-        static void MainForSegmentation()
-        {
-            BranchAndBoundSegmentatorBase segmentator = new BranchAndBoundSegmentatorCpu();
-            segmentator.ShapeModel = CreateSimpleShapeModel1();
-
-            DebugConfiguration.VerbosityLevel = VerbosityLevel.Everything;
-
-            const double scale = 0.15;
-            Image2D<Color> image = Image2D.LoadFromFile("../../../Images/simple_1.png", scale);
-            Rectangle bigLocation = new Rectangle(153, 124, 796, 480);
-            Rectangle location = new Rectangle(
-                (int)(bigLocation.X * scale),
-                (int)(bigLocation.Y * scale),
-                (int)(bigLocation.Width * scale),
-                (int)(bigLocation.Height * scale));
-
-            Image2D<bool> mask = segmentator.SegmentImage(image, location);
-            Image2D.SaveToFile(mask, "../../result.png");
-        }
-
         static void MainForConvexHull()
         {
             List<Vector> points = new List<Vector>();
@@ -138,18 +93,18 @@ namespace TestArea
 
         static void DrawLengthAngleDependence()
         {
-            VertexConstraints constraints1 = new VertexConstraints(new Point(20, 20), new Point(50, 70), 1, 10);
-            VertexConstraints constraints2 = new VertexConstraints(new Point(20, 20), new Point(40, 50), 1, 10);
+            VertexConstraint constraints1 = new VertexConstraint(new Vector(20, 20), new Vector(50, 70), 1, 10);
+            VertexConstraint constraints2 = new VertexConstraint(new Vector(20, 20), new Vector(40, 50), 1, 10);
 
             Random random = new Random();
             using (StreamWriter writer = new StreamWriter("./length_angle3.txt"))
             {
                 for (int i = 0; i < 20000; ++i)
                 {
-                    double randomX1 = constraints1.MinCoordInclusive.X + random.NextDouble() * (constraints1.MaxCoordExclusive.X - constraints1.MinCoordInclusive.X);
-                    double randomY1 = constraints1.MinCoordInclusive.X + random.NextDouble() * (constraints1.MaxCoordExclusive.X - constraints1.MinCoordInclusive.X);
-                    double randomX2 = constraints2.MinCoordInclusive.X + random.NextDouble() * (constraints2.MaxCoordExclusive.X - constraints2.MinCoordInclusive.X);
-                    double randomY2 = constraints2.MinCoordInclusive.X + random.NextDouble() * (constraints2.MaxCoordExclusive.X - constraints2.MinCoordInclusive.X);    
+                    double randomX1 = constraints1.MinCoord.X + random.NextDouble() * (constraints1.MaxCoord.X - constraints1.MinCoord.X);
+                    double randomY1 = constraints1.MinCoord.X + random.NextDouble() * (constraints1.MaxCoord.X - constraints1.MinCoord.X);
+                    double randomX2 = constraints2.MinCoord.X + random.NextDouble() * (constraints2.MaxCoord.X - constraints2.MinCoord.X);
+                    double randomY2 = constraints2.MinCoord.X + random.NextDouble() * (constraints2.MaxCoord.X - constraints2.MinCoord.X);    
                     Vector vector1 = new Vector(randomX1, randomY1);
                     Vector vector2 = new Vector(randomX2, randomY2);
                     double length = (vector1 - vector2).Length;
@@ -162,7 +117,7 @@ namespace TestArea
         private static void GenerateMeanShape()
         {
             ShapeModel shapeModel = CreateLetterShapeModel();
-            Shape shape = shapeModel.BuildMeanShape(new Size(100, 200));
+            Shape shape = shapeModel.FitMeanShape(new Size(100, 200));
         }
 
         static void Main()

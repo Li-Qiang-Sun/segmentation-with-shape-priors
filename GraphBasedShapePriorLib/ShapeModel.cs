@@ -190,7 +190,7 @@ namespace Research.GraphBasedShapePrior
             return -MathHelper.LogInf(1 - Math.Exp(-this.Cutoff * MathHelper.Sqr(distance)));
         }
 
-        public Shape BuildMeanShape(Size imageSize)
+        public Shape FitMeanShape(Size imageSize)
         {
             double objectSize = SegmentatorBase.ImageSizeToObjectSizeEstimate(imageSize);
             
@@ -213,14 +213,16 @@ namespace Research.GraphBasedShapePrior
                 max.X = Math.Max(max.X, vertices[i].Center.X);
                 max.Y = Math.Max(max.Y, vertices[i].Center.Y);
             }
+            
+            // Scale & shift vertices, leaving some place near the borders
             double scale = Math.Min(imageSize.Width / (max.X - min.X), imageSize.Height / (max.Y - min.Y));
-
-            // Scale & shift vertices)
             for (int i = 0; i < this.VertexCount; ++i)
             {
-                Vector oldCenter = vertices[i].Center;
-                Vector newCenter = (oldCenter - min) * scale;
-                vertices[i] = new Circle(newCenter, vertices[i].Radius);
+                Vector pos = vertices[i].Center;
+                pos -= 0.5 * (max + min);
+                pos *= scale * 0.8;
+                pos += new Vector(imageSize.Width * 0.5, imageSize.Height * 0.5);
+                vertices[i] = new Circle(pos, vertices[i].Radius);
             }
 
             return new Shape(this, vertices);

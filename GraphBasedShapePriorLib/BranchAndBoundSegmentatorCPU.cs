@@ -8,14 +8,14 @@ namespace Research.GraphBasedShapePrior
 {
     public class BranchAndBoundSegmentatorCpu : BranchAndBoundSegmentatorBase
     {
-        public override void PrepareShapeUnaryPotentials(ShapeConstraintsSet constraintsSet, Image2D<Tuple<double, double>> result)
+        public override void PrepareShapeUnaryPotentials(VertexConstraintSet constraintsSet, Image2D<Tuple<double, double>> result)
         {
             for (int x = 0; x < result.Width; ++x)
                 for (int y = 0; y < result.Height; ++y)
                     result[x, y] = CalculateShapeTerm(constraintsSet, new Point(x, y));
         }
 
-        private static Tuple<double, double> CalculateShapeTerm(ShapeConstraintsSet constraintsSet, Point point)
+        private static Tuple<double, double> CalculateShapeTerm(VertexConstraintSet constraintsSet, Point point)
         {
             Vector pointAsVec = new Vector(point.X, point.Y);
 
@@ -44,11 +44,11 @@ namespace Research.GraphBasedShapePrior
                     double distance;
 
                     ShapeEdge edge = constraintsSet.ShapeModel.Edges[edgeIndex];
-                    VertexConstraints constraints1 = constraintsSet.GetConstraintsForVertex(edge.Index1);
-                    VertexConstraints constraints2 = constraintsSet.GetConstraintsForVertex(edge.Index2);
+                    VertexConstraint constraints1 = constraintsSet.GetConstraintsForVertex(edge.Index1);
+                    VertexConstraint constraints2 = constraintsSet.GetConstraintsForVertex(edge.Index2);
 
-                    Vector? closestPoint1 = constraints1.GetClosestPoint(point);
-                    Vector? closestPoint2 = constraints2.GetClosestPoint(point);
+                    Vector? closestPoint1 = constraints1.GetClosestPoint(pointAsVec);
+                    Vector? closestPoint2 = constraints2.GetClosestPoint(pointAsVec);
                     for (int corner1 = 0; corner1 < 4; ++corner1)
                     {
 
@@ -59,8 +59,8 @@ namespace Research.GraphBasedShapePrior
                                 edge.Index1, edge.Index2, corner1, corner2, true);
                             distance = constraintsSet.ShapeModel.CalculateDistanceToEdge(
                                 pointAsVec,
-                                new Circle(constraints1.Corners[corner1], constraints1.MaxRadiusExclusive - 1),
-                                new Circle(constraints2.Corners[corner2], constraints2.MaxRadiusExclusive - 1),
+                                new Circle(constraints1.Corners[corner1], constraints1.MaxRadius),
+                                new Circle(constraints2.Corners[corner2], constraints2.MaxRadius),
                                 pulleyPoints);
                             minDistanceToEdge = Math.Min(minDistanceToEdge, distance);
 
@@ -69,8 +69,8 @@ namespace Research.GraphBasedShapePrior
                             {
                                 distance = constraintsSet.ShapeModel.CalculateDistanceToEdge(
                                     pointAsVec,
-                                    new Circle(closestPoint1.Value, constraints1.MaxRadiusExclusive - 1),
-                                    new Circle(constraints2.Corners[corner2], constraints2.MaxRadiusExclusive - 1));
+                                    new Circle(closestPoint1.Value, constraints1.MaxRadius),
+                                    new Circle(constraints2.Corners[corner2], constraints2.MaxRadius));
                                 minDistanceToEdge = Math.Min(minDistanceToEdge, distance);
                             }
                         }
@@ -80,8 +80,8 @@ namespace Research.GraphBasedShapePrior
                         {
                             distance = constraintsSet.ShapeModel.CalculateDistanceToEdge(
                                 pointAsVec,
-                                new Circle(constraints1.Corners[corner1], constraints1.MaxRadiusExclusive - 1),
-                                new Circle(closestPoint2.Value, constraints2.MaxRadiusExclusive - 1));
+                                new Circle(constraints1.Corners[corner1], constraints1.MaxRadius),
+                                new Circle(closestPoint2.Value, constraints2.MaxRadius));
                             minDistanceToEdge = Math.Min(minDistanceToEdge, distance);
                         }
                     }
@@ -91,8 +91,8 @@ namespace Research.GraphBasedShapePrior
                     {
                         distance = constraintsSet.ShapeModel.CalculateDistanceToEdge(
                             pointAsVec,
-                            new Circle(closestPoint1.Value, constraints1.MaxRadiusExclusive - 1),
-                            new Circle(closestPoint2.Value, constraints2.MaxRadiusExclusive - 1));
+                            new Circle(closestPoint1.Value, constraints1.MaxRadius),
+                            new Circle(closestPoint2.Value, constraints2.MaxRadius));
                         minDistanceToEdge = Math.Min(minDistanceToEdge, distance);
                     }
                 }
@@ -105,8 +105,8 @@ namespace Research.GraphBasedShapePrior
             for (int edgeIndex = 0; edgeIndex < constraintsSet.ShapeModel.Edges.Count; ++edgeIndex)
             {
                 ShapeEdge edge = constraintsSet.ShapeModel.Edges[edgeIndex];
-                VertexConstraints constraints1 = constraintsSet.GetConstraintsForVertex(edge.Index1);
-                VertexConstraints constraints2 = constraintsSet.GetConstraintsForVertex(edge.Index2);
+                VertexConstraint constraints1 = constraintsSet.GetConstraintsForVertex(edge.Index1);
+                VertexConstraint constraints2 = constraintsSet.GetConstraintsForVertex(edge.Index2);
 
                 // Solution will connect 2 corners (need to prove this fact)
                 double maxDistanceToCurrentEdge = 0;
@@ -118,8 +118,8 @@ namespace Research.GraphBasedShapePrior
                             edge.Index1, edge.Index2, corner1, corner2, false);
                         double distance = constraintsSet.ShapeModel.CalculateDistanceToEdge(
                             pointAsVec,
-                            new Circle(constraints1.Corners[corner1], constraints1.MinRadiusInclusive),
-                            new Circle(constraints2.Corners[corner2], constraints2.MinRadiusInclusive),
+                            new Circle(constraints1.Corners[corner1], constraints1.MinRadius),
+                            new Circle(constraints2.Corners[corner2], constraints2.MinRadius),
                             pulleyPoints);
 
                         maxDistanceToCurrentEdge = Math.Max(maxDistanceToCurrentEdge, distance);

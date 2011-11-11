@@ -96,6 +96,7 @@
     <Compile Include="ImageSegmentationInfo.cs" />
     <Compile Include="MathHelper.cs" />
     <Compile Include="Polygon.cs" />
+    <Compile Include="Range.cs" />
     <Compile Include="SegmentatorBase.cs" />
     <Compile Include="DebugConfiguration.cs" />
     <Compile Include="Image2D.cs" />
@@ -106,8 +107,8 @@
     <Compile Include="IterativeSegmentator.cs" />
     <Compile Include="Shape.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="VertexConstraints.cs" />
-    <Compile Include="ShapeConstraintsSet.cs" />
+    <Compile Include="VertexConstraint.cs" />
+    <Compile Include="VertexConstraintSet.cs" />
     <Compile Include="ShapeEdge.cs" />
     <Compile Include="ShapeEdgePairParams.cs" />
     <Compile Include="ShapeModel.cs" />

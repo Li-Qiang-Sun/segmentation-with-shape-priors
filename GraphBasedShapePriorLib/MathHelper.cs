@@ -34,11 +34,6 @@ namespace Research.GraphBasedShapePrior
             return Math.Log(x);
         }
 
-        public static bool RangesIntersect(double start1, double end1, double start2, double end2)
-        {
-            return start1 >= start2 && start1 <= end2 || start2 >= start1 && start2 <= end1;
-        }
-
         public static Polygon SolvePulleyProblem(Circle circle1, Circle circle2)
         {
             if (circle1.Radius < circle2.Radius)
