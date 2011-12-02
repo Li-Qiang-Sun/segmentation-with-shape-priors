@@ -54,7 +54,7 @@ namespace Research.GraphBasedShapePrior.Tests
             constraintSet.DetermineEdgeLimits(0, out lengthRange, out angleRange);
 
             GeneralizedDistanceTransform2D transform = new GeneralizedDistanceTransform2D(
-                new Vector(0, -Math.PI * 2), new Vector(35, Math.PI * 2), new Size(2000, 2000), 1, 1, delegate { return 0; });
+                new Vector(0, -Math.PI * 2), new Vector(35, Math.PI * 2), new Size(2000, 2000));
             AllowedLengthAngleChecker allowedLengthAngleChecker = new AllowedLengthAngleChecker(constraint1, constraint2, transform);
 
             Random random = new Random(666);

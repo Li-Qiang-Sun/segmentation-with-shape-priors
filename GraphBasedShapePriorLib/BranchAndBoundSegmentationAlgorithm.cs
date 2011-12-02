@@ -753,6 +753,7 @@ namespace Research.GraphBasedShapePrior
 
                 GeneralizedDistanceTransform2D childTransform = CalculateMinEnergiesForAllParentEdges(
                     constraintsSet, currentEdgeIndex, neighborEdgeIndex, maxScaledLength);
+                Debug.Assert(childTransform.IsComputed);
                 childDistanceTransforms.Add(childTransform);
             }
 
@@ -760,6 +761,11 @@ namespace Research.GraphBasedShapePrior
             constraintsSet.DetermineEdgeLimits(currentEdgeIndex, out lengthRange, out angleRange);
 
             ShapeEdgePairParams pairParams = this.ShapeModel.GetEdgeParams(parentEdgeIndex, currentEdgeIndex);
+            
+            GeneralizedDistanceTransform2D transform = new GeneralizedDistanceTransform2D(
+                new Vector(0, -Math.PI * 2),
+                new Vector(maxScaledLength, Math.PI * 2),
+                new Size(this.LengthGridSize, this.AngleGridSize));
 
             Func<double, double, double, double, double> penaltyFunction =
                 (scaledLength, shiftedAngle, scaledLengthRadius, shiftedAngleRadius) =>
@@ -782,13 +788,12 @@ namespace Research.GraphBasedShapePrior
                     return CalculdateMinEdgeEnergy(length, angle, childDistanceTransforms);
                 };
 
-            return new GeneralizedDistanceTransform2D(
-                new Vector(0, -Math.PI * 2),
-                new Vector(maxScaledLength, Math.PI * 2),
-                new Size(this.LengthGridSize, this.AngleGridSize),
+            transform.Compute(
                 1.0 / MathHelper.Sqr(pairParams.LengthDeviation),
                 1.0 / MathHelper.Sqr(pairParams.AngleDeviation),
                 penaltyFunction);
+
+            return transform;
         }
 
         private class EnergyBound : IComparable<EnergyBound>
