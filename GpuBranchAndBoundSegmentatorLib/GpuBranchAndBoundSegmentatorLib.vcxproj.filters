@@ -21,10 +21,10 @@
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="BranchAndBoundSegmentatorGpu.h">
+    <ClInclude Include="Kernels.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Kernels.h">
+    <ClInclude Include="GpuBranchAndBoundShapeTermsCalculator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -35,7 +35,7 @@
     <ClCompile Include="Stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="BranchAndBoundSegmentatorGpu.cpp">
+    <ClCompile Include="GpuBranchAndBoundShapeTermsCalculator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

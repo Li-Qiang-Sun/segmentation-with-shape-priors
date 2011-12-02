@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
-using System.Threading;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -28,7 +27,7 @@ namespace Research.GraphBasedShapePrior
             this.ShapeModel = other.ShapeModel;
         }
 
-        public static VertexConstraintSet Create(ShapeModel model, IEnumerable<VertexConstraint> vertexConstraints)
+        public static VertexConstraintSet CreateFromConstraints(ShapeModel model, IEnumerable<VertexConstraint> vertexConstraints)
         {
             VertexConstraintSet result = new VertexConstraintSet();
             result.ShapeModel = model;
@@ -44,23 +43,17 @@ namespace Research.GraphBasedShapePrior
         {
             IEnumerable<VertexConstraint> vertexConstraints =
                 shape.Vertices.Select(vertex => new VertexConstraint(vertex.Center, vertex.Radius));
-            return Create(shape.Model, vertexConstraints);
+            return CreateFromConstraints(shape.Model, vertexConstraints);
         }
 
-        public static VertexConstraintSet ConstraintToImage(ShapeModel model, Size imageSize)
+        public static VertexConstraintSet CreateFromBounds(ShapeModel model, Vector coordMin, Vector coordMax, double radiusMin, double radiusMax)
         {
             VertexConstraintSet result = new VertexConstraintSet();
             result.ShapeModel = model;
             result.vertexConstraints = new List<VertexConstraint>();
 
-            // TODO: move this to configuration
-            double minRadius = 2; // We don't want singular radii
-            double maxRadius = Math.Min(imageSize.Width, imageSize.Height) / 6.0; // Max circle will constitute to 1/3 of image
             for (int i = 0; i < model.VertexCount; ++i)
-            {
-                result.vertexConstraints.Add(
-                    new VertexConstraint(new Vector(0, 0), new Vector(imageSize.Width, imageSize.Height), minRadius, maxRadius));
-            }
+                result.vertexConstraints.Add(new VertexConstraint(coordMin, coordMax, radiusMin, radiusMax));
 
             return result;
         }
@@ -330,7 +323,7 @@ namespace Research.GraphBasedShapePrior
             List<VertexConstraint> collapsedConstraints = new List<VertexConstraint>(this.ShapeModel.VertexCount);
             for (int i = 0; i < this.vertexConstraints.Count; ++i)
                 collapsedConstraints.Add(this.vertexConstraints[i].Collapse());
-            return Create(this.ShapeModel, collapsedConstraints);
+            return CreateFromConstraints(this.ShapeModel, collapsedConstraints);
         }
     }
 }

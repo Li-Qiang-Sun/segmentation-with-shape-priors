@@ -83,8 +83,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BranchAndBoundSegmentatorBase.cs" />
-    <Compile Include="BranchAndBoundSegmentatorCPU.cs" />
+    <Compile Include="AllowedLengthAngleChecker.cs" />
+    <Compile Include="BranchAndBoundSegmentationAlgorithm.cs" />
+    <Compile Include="BreadthFirstBranchAndBoundStatusEventArgs.cs" />
+    <Compile Include="CpuBranchAndBoundShapeTermsCalculator.cs" />
     <Compile Include="BranchAndBoundStatusEventArgs.cs" />
     <Compile Include="BranchAndBoundType.cs" />
     <Compile Include="Circle.cs" />
@@ -93,18 +95,22 @@
     <Compile Include="GeneralizedDistanceTransform1D.cs" />
     <Compile Include="GeneralizedDistanceTransform2D.cs" />
     <Compile Include="Helper.cs" />
-    <Compile Include="ImageSegmentationInfo.cs" />
+    <Compile Include="IBranchAndBoundShapeTermsCalculator.cs" />
+    <Compile Include="ImageSegmentator.cs" />
+    <Compile Include="LengthAngleSpaceSeparatorSet.cs" />
+    <Compile Include="LengthAngleSpaceSeparator.cs" />
     <Compile Include="MathHelper.cs" />
+    <Compile Include="ObjectBackgroundTerm.cs" />
     <Compile Include="Polygon.cs" />
     <Compile Include="Range.cs" />
-    <Compile Include="SegmentatorBase.cs" />
+    <Compile Include="SegmentationAlgorithmBase.cs" />
     <Compile Include="DebugConfiguration.cs" />
     <Compile Include="Image2D.cs" />
     <Compile Include="IShapeFittingStrategy.cs" />
     <Compile Include="MixtureUtils.cs" />
     <Compile Include="SAShapeFittingStrategy.cs" />
     <Compile Include="SegmentationIterationFinishedEventArgs.cs" />
-    <Compile Include="IterativeSegmentator.cs" />
+    <Compile Include="IterativeSegmentationAlgorithm.cs" />
     <Compile Include="Shape.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="VertexConstraint.cs" />

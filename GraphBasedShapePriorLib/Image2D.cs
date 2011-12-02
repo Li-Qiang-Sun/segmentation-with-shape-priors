@@ -23,6 +23,13 @@ namespace Research.GraphBasedShapePrior
             return ToRegularImage(image, x => ZeroOneToRedBlue((MathHelper.Trunc(x, min, max) - min) / diff));
         }
 
+        public static Image ToRegularImage(Image2D<ObjectBackgroundTerm> image, double min, double max)
+        {
+            Debug.Assert(max >= min);
+            double diff = max - min;
+            return ToRegularImage(image, x => ZeroOneToRedBlue((MathHelper.Trunc(x.ObjectTerm - x.BackgroundTerm, min, max) - min) / diff));
+        }
+
         private static Image ToRegularImage<T>(Image2D<T> image, Func<T, Color> converter)
         {
             Bitmap result = new Bitmap(image.Width, image.Height);
@@ -60,6 +67,11 @@ namespace Research.GraphBasedShapePrior
         }
 
         public static void SaveToFile(Image2D<double> image, double min, double max, string fileName)
+        {
+            ToRegularImage(image, min, max).Save(fileName);
+        }
+
+        public static void SaveToFile(Image2D<ObjectBackgroundTerm> image, double min, double max, string fileName)
         {
             ToRegularImage(image, min, max).Save(fileName);
         }
@@ -137,6 +149,15 @@ namespace Research.GraphBasedShapePrior
             }
 
             return count;
+        }
+
+        public Image2D<T> Clone()
+        {
+            Image2D<T> result = new Image2D<T>(this.Width, this.Height);
+            for (int i = 0; i < this.Width; ++i)
+                for (int j = 0; j < this.Height; ++j)
+                    result[i, j] = this.data[i, j];
+            return result;
         }
     }
 }

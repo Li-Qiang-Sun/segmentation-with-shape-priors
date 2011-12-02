@@ -29,9 +29,17 @@ namespace Research.GraphBasedShapePrior
         {
             Debug.Assert(x >= 0);
             const double threshold = 1e-15;
-            if (x < threshold)
-                return Math.Log(threshold);
-            return Math.Log(x);
+            return Math.Log(x < threshold ? threshold : x);
+        }
+
+        public static double NormalizeAngle(double angle)
+        {
+            // TODO: get rid of loops, make it more effective
+            while (angle > Math.PI)
+                angle -= Math.PI * 2;
+            while (angle < -Math.PI)
+                angle += Math.PI * 2;
+            return angle;
         }
 
         public static Polygon SolvePulleyProblem(Circle circle1, Circle circle2)

@@ -6,22 +6,53 @@ using MicrosoftResearch.Infer.Distributions;
 
 namespace Research.GraphBasedShapePrior
 {
-    public class IterativeSegmentator : SegmentatorBase
+    public class IterativeSegmentationAlgorithm : SegmentationAlgorithmBase
     {
-        public IShapeFittingStrategy ShapeFittingStrategy { get; set; }
-
-        public int MaxIterationCount { get; set; }
-
-        public int WeightChangingIterationCount { get; set; }
-
-        public double MinChangeRate { get; set; }
-
-        public IterativeSegmentator()
+        private int maxIterationCount;
+        private int weightChangingIterationCount;
+        private double minChangeRate;
+        
+        public IterativeSegmentationAlgorithm()
         {
             this.ShapeFittingStrategy = new SAShapeFittingStrategy();
             this.MaxIterationCount = 20;
             this.WeightChangingIterationCount = 10;
             this.MinChangeRate = 0.0002;
+        }
+
+        public IShapeFittingStrategy ShapeFittingStrategy { get; set; }
+
+        public int MaxIterationCount
+        {
+            get { return maxIterationCount; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException("value", "Property value should not be negative.");
+                maxIterationCount = value;
+            }
+        }
+
+        public int WeightChangingIterationCount
+        {
+            get { return weightChangingIterationCount; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException("value", "Property value should not be negative.");
+                weightChangingIterationCount = value;
+            }
+        }
+
+        public double MinChangeRate
+        {
+            get { return minChangeRate; }
+            set
+            {
+                if (value < 0 || value > 1)
+                    throw new ArgumentOutOfRangeException("value", "Property value should be in [0, 1] range.");
+                minChangeRate = value;
+            }
         }
 
         public event EventHandler<SegmentationIterationFinishedEventArgs> IterationFinished;
@@ -31,18 +62,12 @@ namespace Research.GraphBasedShapePrior
             Mixture<VectorGaussian> backgroundColorModel,
             Mixture<VectorGaussian> objectColorModel)
         {
-            Debug.Assert(this.ShapeFittingStrategy != null);
-            Debug.Assert(this.MaxIterationCount >= 0);
-            Debug.Assert(this.WeightChangingIterationCount >= 0);
-            Debug.Assert(this.WeightChangingIterationCount <= this.MaxIterationCount);
-            Debug.Assert(this.MinChangeRate >= 0 && this.MinChangeRate <= 1);
+            if (this.ShapeFittingStrategy == null)
+                throw new InvalidOperationException("Shape fitting strategy must be specified before running segmentation");
             
             DebugConfiguration.WriteImportantDebugText("Performing initial segmentation...");
-            Image2D<bool> currentMask = SegmentImage(
-                shrinkedImage,
-                backgroundColorModel,
-                objectColorModel, point => new Tuple<double, double>(0, 0),
-                false).SegmentationMask;
+            this.ImageSegmentator.SegmentImageWithShapeTerms(point => ObjectBackgroundTerm.Zero);
+            Image2D<bool> currentMask = this.ImageSegmentator.GetLastSegmentationMask();
 
             for (int iteration = 1; iteration <= this.MaxIterationCount; ++iteration)
             {
@@ -50,12 +75,9 @@ namespace Research.GraphBasedShapePrior
 
                 List<Shape> shapes = this.ShapeFittingStrategy.FitShapes(this.ShapeModel, currentMask);
                 double shapePriorWeight = (double) iteration / this.WeightChangingIterationCount;
-                Image2D<bool> newMask = SegmentImage(
-                    shrinkedImage,
-                    backgroundColorModel,
-                    objectColorModel,
-                    point => this.CalculateShapeTerms(shapes, shapePriorWeight, point),
-                    false).SegmentationMask;
+                this.ImageSegmentator.SegmentImageWithShapeTerms(
+                    point => this.CalculateShapeTerms(shapes, shapePriorWeight, point));
+                Image2D<bool> newMask = this.ImageSegmentator.GetLastSegmentationMask();
 
                 int differentValues = Image2D<bool>.DifferentValueCount(currentMask, newMask);
                 double changeRate = (double)differentValues / (shrinkedImage.Width * shrinkedImage.Height);
@@ -77,12 +99,10 @@ namespace Research.GraphBasedShapePrior
             return currentMask;
         }
 
-        private Tuple<double, double> CalculateShapeTerms(
-            List<Shape> shapes,
-            double shapePriorWeight,
-            Point point)
+        private ObjectBackgroundTerm CalculateShapeTerms(
+            List<Shape> shapes, double shapePriorWeight, Point point)
         {
-            double toSource = 0, toSink = 0;
+            double objectTerm = 0, backgroundTerm = 0;
 
             // Shape prior
             if (shapes.Count > 0)
@@ -90,12 +110,12 @@ namespace Research.GraphBasedShapePrior
                 double singleShapePriorWeight = shapePriorWeight / shapes.Count;
                 foreach (Shape shape in shapes)
                 {
-                    toSource += shape.GetObjectPenalty(point) * singleShapePriorWeight;
-                    toSink += shape.GetBackgroundPenalty(point) * singleShapePriorWeight;
+                    objectTerm += shape.GetObjectPenalty(point) * singleShapePriorWeight;
+                    backgroundTerm += shape.GetBackgroundPenalty(point) * singleShapePriorWeight;
                 }
             }
 
-            return new Tuple<double, double>(toSource, toSink);
+            return new ObjectBackgroundTerm(objectTerm, backgroundTerm);
         }
     }
 }

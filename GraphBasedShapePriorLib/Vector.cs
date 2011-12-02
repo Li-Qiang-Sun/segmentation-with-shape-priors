@@ -5,16 +5,22 @@ namespace Research.GraphBasedShapePrior
 {
     public struct Vector
     {
-        public double X { get; set; }
+        public static readonly Vector Zero = new Vector(0, 0);
 
-        public double Y { get; set; }
+        public static readonly Vector UnitX = new Vector(1, 0);
 
+        public static readonly Vector UnitY = new Vector(0, 1);
+        
         public Vector(double x, double y)
             : this()
         {
             this.X = x;
             this.Y = y;
         }
+
+        public double X { get; set; }
+
+        public double Y { get; set; }
 
         public double Length
         {
@@ -113,8 +119,6 @@ namespace Research.GraphBasedShapePrior
 
         public void DistanceToSegmentSquared(Vector segmentStart, Vector segmentEnd, out double distanceSqr, out double alpha)
         {
-            Debug.Assert(segmentStart != segmentEnd);
-
             Vector v = segmentEnd - segmentStart;
             Vector p = this - segmentStart;
 
@@ -132,10 +136,9 @@ namespace Research.GraphBasedShapePrior
             return this * (1.0 / this.Length);
         }
 
-        public double DistanceToCircleOut(Circle circle)
+        public double DistanceToCircleArea(Circle circle)
         {
-            double distToCenter = (this - circle.Center).Length;
-            return Math.Max(distToCenter - circle.Radius, 0);
+            return Math.Max((this - circle.Center).Length - circle.Radius, 0);
         }
 
         public static double AngleBetween(Vector vector1, Vector vector2)

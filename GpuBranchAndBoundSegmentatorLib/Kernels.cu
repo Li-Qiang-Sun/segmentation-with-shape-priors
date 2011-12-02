@@ -3,7 +3,7 @@
 
 __device__ float DistanceToObjectPenalty(float distance, float cutoff)
 {
-    return distance * distance * cutoff;
+    return -log_inf(exp(-cutoff * distance * distance));
 }
 
 __device__ float DistanceToBackgroundPenalty(float distance, float cutoff)
@@ -69,7 +69,7 @@ __global__ void CalcMinObjectPenaltyKernel(
 		for (int corner1 = 0; corner1 < 4; ++corner1)
             for (int corner2 = 0; corner2 < 4; ++corner2)
             {
-                float distanceToEdge = DistanceToPulley(
+                float distanceToEdge = DistanceToPulleyArea(
                     point,
                     VertexCorners1[corner1],
                     maxRadii.x,
@@ -83,7 +83,7 @@ __global__ void CalcMinObjectPenaltyKernel(
 
         for (int corner = 0; corner < 4; ++corner)
         {
-            float distanceToEdge1 = DistanceToPulley(
+            float distanceToEdge1 = DistanceToPulleyArea(
                 point,
                 closestPoint1,
                 maxRadii.x,
@@ -91,7 +91,7 @@ __global__ void CalcMinObjectPenaltyKernel(
                 maxRadii.y);
             distance = min(distance, distanceToEdge1);
 
-            float distanceToEdge2 = DistanceToPulley(
+            float distanceToEdge2 = DistanceToPulleyArea(
                 point,
                 VertexCorners1[corner], 
                 maxRadii.x,
@@ -100,7 +100,7 @@ __global__ void CalcMinObjectPenaltyKernel(
             distance = min(distance, distanceToEdge2);
         }
 
-        float distanceBetweenClosestPoints = DistanceToPulley(
+        float distanceBetweenClosestPoints = DistanceToPulleyArea(
                 point,
                 closestPoint1,
                 maxRadii.x,
@@ -132,7 +132,7 @@ __global__ void CalcMaxBackgroundPenaltyKernel(
 	for (int corner1 = 0; corner1 < 4; ++corner1)
         for (int corner2 = 0; corner2 < 4; ++corner2)
         {
-            float distanceToEdge = DistanceToPulley(
+            float distanceToEdge = DistanceToPulleyArea(
                 point,
                 VertexCorners1[corner1],
                 minRadii.x,

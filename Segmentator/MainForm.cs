@@ -12,7 +12,15 @@ namespace Segmentator
 {
     public partial class MainForm : Form
     {
-        private BranchAndBoundSegmentatorBase segmentator;
+        private BranchAndBoundSegmentationAlgorithm segmentator;
+
+        private readonly BackgroundWorker segmentationWorker = new BackgroundWorker();
+        
+        private readonly SegmentationProperties segmentationProperties = new SegmentationProperties();
+
+        private bool stopReporting;
+
+        private bool switchedToDfs;
 
         private static ShapeModel CreateSimpleShapeModel1()
         {
@@ -57,18 +65,18 @@ namespace Segmentator
             edges.Add(new ShapeEdge(4, 5));
 
             List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
+            vertexParams.Add(new ShapeVertexParams(0.05, 0.05));
+            vertexParams.Add(new ShapeVertexParams(0.05, 0.05));
+            vertexParams.Add(new ShapeVertexParams(0.05, 0.05));
+            vertexParams.Add(new ShapeVertexParams(0.05, 0.05));
+            vertexParams.Add(new ShapeVertexParams(0.05, 0.05));
+            vertexParams.Add(new ShapeVertexParams(0.05, 0.05));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams = new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
-            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(-Math.PI * 0.5, 1.3, Math.PI * 0.02, 2)); // TODO: we need edge length deviations to be relative
-            edgePairParams.Add(new Tuple<int, int>(1, 2), new ShapeEdgePairParams(Math.PI * 0.5, 1, Math.PI * 0.02, 2));
-            edgePairParams.Add(new Tuple<int, int>(2, 3), new ShapeEdgePairParams(-Math.PI * 0.5, 1, Math.PI * 0.02, 2));
-            edgePairParams.Add(new Tuple<int, int>(3, 4), new ShapeEdgePairParams(Math.PI * 0.5, 0.77, Math.PI * 0.02, 2));
+            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(-Math.PI * 0.5, 1.3, Math.PI * 0.01, 1)); // TODO: we need edge length deviations to be relative
+            edgePairParams.Add(new Tuple<int, int>(1, 2), new ShapeEdgePairParams(Math.PI * 0.5, 1, Math.PI * 0.01, 1));
+            edgePairParams.Add(new Tuple<int, int>(2, 3), new ShapeEdgePairParams(-Math.PI * 0.5, 1, Math.PI * 0.01, 1));
+            edgePairParams.Add(new Tuple<int, int>(3, 4), new ShapeEdgePairParams(Math.PI * 0.5, 0.77, Math.PI * 0.01, 1));
 
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
         }
@@ -77,22 +85,25 @@ namespace Segmentator
         {
             this.InitializeComponent();
 
+            this.segmentationPropertiesGrid.SelectedObject = this.segmentationProperties;
             DebugConfiguration.VerbosityLevel = VerbosityLevel.Everything;
-            this.modelComboBox.SelectedIndex = 0;
+            Console.SetOut(new ConsoleCapture(this.consoleContents));
+
+            this.segmentationWorker.DoWork += DoSegmentation;
+            this.segmentationWorker.RunWorkerCompleted += OnSegmentationCompleted;
         }
 
         private void RunSegmentation(bool regularSegmentation)
         {
-            Console.SetOut(new ConsoleCapture(this.consoleContents));
-
+            File.Delete("./lower_bound.txt");
+            
             this.justSegmentButton.Enabled = false;
             this.startGpuButton.Enabled = false;
             this.startCpuButton.Enabled = false;
+            this.segmentationPropertiesGrid.Enabled = false;
+            this.pauseContinueButton.Enabled = true;
 
-            BackgroundWorker segmentationWorker = new BackgroundWorker();
-            segmentationWorker.DoWork += DoSegmentation;
-            segmentationWorker.RunWorkerCompleted += OnSegmentationCompleted;
-            segmentationWorker.RunWorkerAsync(regularSegmentation);
+            this.segmentationWorker.RunWorkerAsync(regularSegmentation);
         }
 
         private class ConsoleCapture : TextWriter
@@ -136,30 +147,22 @@ namespace Segmentator
 
         private void LoadModel(out ShapeModel model, out Image2D<Color> image, out Rectangle rectangle)
         {
-            string modelName = null;
-            this.Invoke(
-                (MethodInvoker) delegate
-                {
-                    modelName = this.modelComboBox.Items[this.modelComboBox.SelectedIndex].ToString();
-                });
-            modelName = modelName.ToLowerInvariant();
-            
             const double scale = 0.2;
             Rectangle bigLocation;
 
-            if (modelName == "1 edge")
+            if (this.segmentationProperties.Model == Model.OneEdge)
             {
                 model = CreateSimpleShapeModel1();
                 image = Image2D.LoadFromFile("./simple_1.png", scale);
                 bigLocation = new Rectangle(153, 124, 796, 480);
             }
-            else if (modelName == "2 edges")
+            else if (this.segmentationProperties.Model == Model.TwoEdges)
             {
                 model = CreateSimpleShapeModel2();
                 image = Image2D.LoadFromFile("./simple_3.png", scale);
                 bigLocation = new Rectangle(249, 22, 391, 495);
             }
-            else /*if (name == "e letter")*/
+            else /*if (this.segmentationProperties.Model == Model.Letter)*/
             {
                 model = CreateLetterShapeModel();
                 image = Image2D.LoadFromFile("./letter_1.jpg", scale);
@@ -189,11 +192,16 @@ namespace Segmentator
             segmentator.AngleGridSize = 201;
             segmentator.LengthGridSize = 201;
             segmentator.BranchAndBoundType = BranchAndBoundType.Combined;
-            segmentator.MaxBfsIterationsInCombinedMode = (int)this.bfsIterationsInput.Value;
-            segmentator.StatusReportRate = (int)this.reportRateInput.Value;
-            segmentator.BfsFrontSaveRate = (int)this.frontSaveRateInput.Value;
-            segmentator.ShapeUnaryTermWeight = regularSegmentation ? 0 : (double)this.shapeTermWeightInput.Value;
-            segmentator.ShapeEnergyWeight = (double)this.shapeEnergyWeightInput.Value;
+            segmentator.MaxBfsIterationsInCombinedMode = this.segmentationProperties.BfsIterations;
+            segmentator.StatusReportRate = this.segmentationProperties.ReportRate;
+            segmentator.BfsFrontSaveRate = this.segmentationProperties.FrontSaveRate;
+            segmentator.UnaryTermWeight = this.segmentationProperties.UnaryTermWeight;
+            segmentator.ShapeUnaryTermWeight = regularSegmentation ? 0 : this.segmentationProperties.ShapeTermWeight;
+            segmentator.ShapeEnergyWeight = this.segmentationProperties.ShapeEnergyWeight;
+            segmentator.BrightnessBinaryTermCutoff = this.segmentationProperties.BrightnessBinaryTermCutoff;
+            segmentator.ConstantBinaryTermWeight = this.segmentationProperties.ConstantBinaryTermWeight;
+            segmentator.MinVertexRadius = this.segmentationProperties.MinVertexRadius;
+            segmentator.MaxVertexRadius = this.segmentationProperties.MaxVertexRadius;
 
             // Load what has to be segmented
             ShapeModel model;
@@ -203,6 +211,7 @@ namespace Segmentator
             
             // Setup shape model
             this.segmentator.ShapeModel = model;
+            this.segmentator.ShapeModel.Cutoff = this.segmentationProperties.ShapeDistanceCutoff;
 
             // Show original image in status window);
             this.currentImage.Image = Image2D.ToRegularImage(image);
@@ -235,24 +244,39 @@ namespace Segmentator
 
         void OnBfsStatusUpdate(object sender, BreadthFirstBranchAndBoundStatusEventArgs e)
         {
-            this.Invoke(new MethodInvoker(
-                delegate
-                {
-                    if (this.currentImage.Image != null)
-                        this.currentImage.Image.Dispose();
-                    this.currentImage.Image = e.StatusImage;
-                }));
+            File.AppendAllText("./lower_bound.txt", e.LowerBound + Environment.NewLine);
+            
+            this.UpdateBranchAndBoundStatusImages(e);
         }
 
         void OnDfsStatusUpdate(object sender, DepthFirstBranchAndBoundStatusEventArgs e)
         {
+            this.UpdateBranchAndBoundStatusImages(e);
+        }
+
+        private void UpdateBranchAndBoundStatusImages(BranchAndBoundStatusEventArgs e)
+        {
+            if (this.stopReporting)
+                return;
+
             this.Invoke(new MethodInvoker(
                 delegate
                 {
                     if (this.currentImage.Image != null)
                         this.currentImage.Image.Dispose();
                     this.currentImage.Image = e.StatusImage;
-                    this.resultImage.Image = Image2D.ToRegularImage(e.UpperBoundSegmentationMask);
+
+                    if (this.segmentationMaskImage.Image != null)
+                        this.segmentationMaskImage.Image.Dispose();
+                    this.segmentationMaskImage.Image = e.SegmentationMask;
+
+                    if (this.unaryTermsImage.Image != null)
+                        this.unaryTermsImage.Image.Dispose();
+                    this.unaryTermsImage.Image = e.UnaryTermsImage;
+
+                    if (this.shapeTermsImage.Image != null)
+                        this.shapeTermsImage.Image.Dispose();
+                    this.shapeTermsImage.Image = e.ShapeTermsImage;
                 }));
         }
 
@@ -260,44 +284,73 @@ namespace Segmentator
         {
             Image2D<bool> mask = (Image2D<bool>)e.Result;
             if (mask != null)
-                this.resultImage.Image = Image2D.ToRegularImage(mask);
+                this.segmentationMaskImage.Image = Image2D.ToRegularImage(mask);
 
             this.justSegmentButton.Enabled = true;
             this.startGpuButton.Enabled = true;
             this.startCpuButton.Enabled = true;
             this.switchToDfsButton.Enabled = false;
             this.stopButton.Enabled = false;
+            this.pauseContinueButton.Enabled = false;
+            this.segmentationPropertiesGrid.Enabled = true;
         }
 
         private void OnStartGpuButtonClick(object sender, EventArgs e)
         {
-            this.segmentator = new BranchAndBoundSegmentatorGpu2();
+            this.segmentator = new BranchAndBoundSegmentationAlgorithm();
+            this.segmentator.ShapeTermCalculator = new GpuBranchAndBoundShapeTermsCalculator();
             this.RunSegmentation(false);
         }
 
         private void OnStartCpuButtonClick(object sender, EventArgs e)
         {
-            this.segmentator = new BranchAndBoundSegmentatorCpu();
+            this.segmentator = new BranchAndBoundSegmentationAlgorithm();
             this.RunSegmentation(false);
         }
 
         private void OnSwitchToDfsButtonClick(object sender, EventArgs e)
         {
             this.switchToDfsButton.Enabled = false;
+            this.switchedToDfs = true;
             this.segmentator.ForceSwitchToDfsBranchAndBound();
         }
 
         private void OnStopButtonClick(object sender, EventArgs e)
         {
             this.stopButton.Enabled = false;
+            this.pauseContinueButton.Enabled = false;
             this.switchToDfsButton.Enabled = false;
             this.segmentator.ForceStop();
         }
 
         private void OnJustSegmentButtonClick(object sender, EventArgs e)
         {
-            this.segmentator = new BranchAndBoundSegmentatorCpu();
+            this.segmentator = new BranchAndBoundSegmentationAlgorithm();
             this.RunSegmentation(true);
+        }
+
+        private void OnFormClosing(object sender, FormClosingEventArgs e)
+        {
+            this.stopReporting = true;
+        }
+
+        private void OnPauseContinueButtonClick(object sender, EventArgs e)
+        {
+            if (this.segmentator.IsPaused)
+            {
+                this.pauseContinueButton.Text = "Pause";
+                this.stopButton.Enabled = true;
+                if (!this.switchedToDfs)
+                    this.switchToDfsButton.Enabled = true;
+                this.segmentator.Continue();
+            }
+            else
+            {
+                this.pauseContinueButton.Text = "Continue";
+                this.stopButton.Enabled = false;
+                this.switchToDfsButton.Enabled = false;
+                this.segmentator.Pause();
+            }
         }
     }
 }

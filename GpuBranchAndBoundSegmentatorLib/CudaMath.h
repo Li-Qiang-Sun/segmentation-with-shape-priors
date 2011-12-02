@@ -12,12 +12,10 @@ __device__ float length_sqr(float2 vec)
 	return dot(vec, vec);
 }
 
-__device__ float log_inf(float value)
+__device__ float log_inf(float x)
 {
-    const float threshold = 1e-15f;
-    if (value < threshold)
-        return log(threshold);
-    return log(value);
+	const float threshold = 1e-15;
+	return log(x < threshold ? threshold : x);
 }
 
 template<class T>
@@ -42,17 +40,18 @@ __device__ bool PointInConvexHull(float2 point, float2 *convexHullPoints, int co
     return inside;
 }
 
-__device__ float DistToCircleOuter(float2 point, float2 center, float radius)
+__device__ float DistanceToCircleArea(
+	float2 point, float2 circleCenter, float circleRadius)
 {
-    return max(length(point - center) - radius, 0.f);
+    return max(length(point - circleCenter) - circleRadius, 0.f);
 }
 
 __device__ bool CircleInCircle(
 	float2 centerOuter, float radiusOuter, float2 centerInner, float radiusInner)
 {
-    float distanceSqr = length_sqr(centerInner - centerOuter);
-    float radiusDiff = radiusOuter - 2 * radiusInner;
-    return radiusOuter >= radiusInner && distanceSqr <= radiusDiff * radiusDiff;
+    float distanceSqr = length_sqr(centerOuter - centerInner);
+	float radiusDiff = radiusOuter - radiusInner;
+	return radiusDiff >= 0 && distanceSqr <= radiusDiff * radiusDiff;
 }
 
 __device__ float DistanceToSegment(
@@ -71,7 +70,7 @@ __device__ float DistanceToSegment(
     return length(segmentStart + v * alpha - point);
 }
 
-__device__ float DistanceToPulley(
+__device__ float DistanceToPulleyArea(
     float2 point,
     float2 pulleyPoint1,
     float pulleyRadius1,
@@ -85,21 +84,22 @@ __device__ float DistanceToPulley(
         device_swap(pulleyRadius1, pulleyRadius2);
     }
 
-    // Dist to large circle
-    float distance = DistToCircleOuter(point, pulleyPoint1, pulleyRadius1);
-    
-    // Singular pulley
-    if (CircleInCircle(pulleyPoint1, pulleyRadius1, pulleyPoint2, pulleyRadius2))
+    // Check distance to first circle
+    float distance = DistanceToCircleArea(point, pulleyPoint1, pulleyRadius1);
+
+	// Check for singular pulley
+	if (CircleInCircle(pulleyPoint1, pulleyRadius1, pulleyPoint2, pulleyRadius2))
 		return distance;
 
-    // Dist to small circle
-    distance = min(distance, DistToCircleOuter(point, pulleyPoint2, pulleyRadius2));
-    
-    // Inside one of the circles
-    if (distance == 0)
-        return 0;
+	// Check distance to second circle
+    distance = min(distance, DistanceToCircleArea(point, pulleyPoint2, pulleyRadius2));
 
-    float edgeLength = length(pulleyPoint1 - pulleyPoint2);
+	// Point is inside one of the circles
+	if (distance == 0)
+		return 0;
+    
+    // All that stuff needed to solve pulley problem
+	float edgeLength = length(pulleyPoint1 - pulleyPoint2);
     float cosAngle = (pulleyRadius1 - pulleyRadius2) / edgeLength;
     float angle = acos(cosAngle);
     float lineAngle = atan2(pulleyPoint2.y - pulleyPoint1.y, pulleyPoint2.x - pulleyPoint1.x);
@@ -122,12 +122,14 @@ __device__ float DistanceToPulley(
     pulleyPoints[3] = make_float2(	// Line 2 point 2
         pulleyPoint2.x + pulleyRadius2 * cosPlusMinus,
         pulleyPoint2.y + pulleyRadius2 * sinPlusMinus);
-    
-    // Check if point is inside pulley
-    if (PointInConvexHull(point, pulleyPoints, 4))
+
+	// Point is inside pulley
+	if (PointInConvexHull(point, pulleyPoints, 4))
 		return 0;
 
+	// Check distance to pulley lines
     distance = min(distance, DistanceToSegment(point, pulleyPoints[0], pulleyPoints[3]));
     distance = min(distance, DistanceToSegment(point, pulleyPoints[1], pulleyPoints[2]));
+
     return distance;
 }

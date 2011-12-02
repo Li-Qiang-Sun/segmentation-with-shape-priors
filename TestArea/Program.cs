@@ -24,7 +24,7 @@ namespace TestArea
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
-            
+
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
         }
 
@@ -91,27 +91,190 @@ namespace TestArea
             Console.WriteLine(p.IsPointInside(new Vector(3, 1)));
         }
 
-        static void DrawLengthAngleDependence()
+        static void MainForLengthAngleDependenceExperiment()
         {
-            VertexConstraint constraints1 = new VertexConstraint(new Vector(20, 20), new Vector(50, 70), 1, 10);
-            VertexConstraint constraints2 = new VertexConstraint(new Vector(20, 20), new Vector(40, 50), 1, 10);
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(0, -5), new Vector(5, 5), 1, 1),
+                new VertexConstraint(new Vector(10, -10), new Vector(15, 10), 1, 1),
+                "experiment1.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(10, -10), new Vector(15, 10), 1, 1),
+                new VertexConstraint(new Vector(0, -5), new Vector(5, 5), 1, 1),
+                "experiment1_revert.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(-10, 8), new Vector(10, 10), 1, 1),
+                new VertexConstraint(new Vector(5, 0), new Vector(6, 7), 1, 1),
+                "experiment2.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(5, 0), new Vector(6, 7), 1, 1),
+                new VertexConstraint(new Vector(-10, 8), new Vector(10, 10), 1, 1),
+                "experiment2_revert.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                new VertexConstraint(new Vector(15, 15), new Vector(20, 20), 1, 1),
+                "experiment3.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(15, 15), new Vector(20, 20), 1, 1),
+                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                "experiment3_revert.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                new VertexConstraint(new Vector(-6, 11), new Vector(-1, 16), 1, 1),
+                "experiment4.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(-6, 11), new Vector(-1, 16), 1, 1),
+                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                "experiment4_revert.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                new VertexConstraint(new Vector(9, 9), new Vector(19, 19), 1, 1),
+                "experiment5.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(9, 9), new Vector(19, 19), 1, 1),
+                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                "experiment5_revert.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                new VertexConstraint(new Vector(13, 0), new Vector(23, 10), 1, 1),
+                "experiment6.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(13, 0), new Vector(23, 10), 1, 1),
+                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                "experiment6_revert.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                new VertexConstraint(new Vector(0, 15), new Vector(10, 45), 1, 1),
+                "experiment7.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(0, 15), new Vector(10, 45), 1, 1),
+                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                "experiment7_revert.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                new VertexConstraint(new Vector(5, 5), new Vector(8, 8), 1, 1),
+                "experiment8.png");
+            LengthAngleDependenceExperiment(
+                new VertexConstraint(new Vector(5, 5), new Vector(8, 8), 1, 1),
+                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                "experiment8_revert.png");
+        }
+
+        static void LengthAngleDependenceExperiment(
+            VertexConstraint constraint1, VertexConstraint constraint2, string fileName)
+        {
+            const int GeneratedPointCount = 100000;
 
             Random random = new Random();
-            using (StreamWriter writer = new StreamWriter("./length_angle3.txt"))
+            List<Vector> lengthAnglePoints = new List<Vector>();
+            double maxLength = 0;
+            for (int i = 0; i < GeneratedPointCount; ++i)
             {
-                for (int i = 0; i < 20000; ++i)
-                {
-                    double randomX1 = constraints1.MinCoord.X + random.NextDouble() * (constraints1.MaxCoord.X - constraints1.MinCoord.X);
-                    double randomY1 = constraints1.MinCoord.X + random.NextDouble() * (constraints1.MaxCoord.X - constraints1.MinCoord.X);
-                    double randomX2 = constraints2.MinCoord.X + random.NextDouble() * (constraints2.MaxCoord.X - constraints2.MinCoord.X);
-                    double randomY2 = constraints2.MinCoord.X + random.NextDouble() * (constraints2.MaxCoord.X - constraints2.MinCoord.X);    
-                    Vector vector1 = new Vector(randomX1, randomY1);
-                    Vector vector2 = new Vector(randomX2, randomY2);
-                    double length = (vector1 - vector2).Length;
-                    double angle = vector1 == vector2 ? 0 : Vector.AngleBetween(vector1 - vector2, new Vector(1, 0));
-                    writer.WriteLine("{0} {1}", length, angle);
-                }
+                double randomX1 = constraint1.MinCoord.X + random.NextDouble() * (constraint1.MaxCoord.X - constraint1.MinCoord.X);
+                double randomY1 = constraint1.MinCoord.Y + random.NextDouble() * (constraint1.MaxCoord.Y - constraint1.MinCoord.Y);
+                double randomX2 = constraint2.MinCoord.X + random.NextDouble() * (constraint2.MaxCoord.X - constraint2.MinCoord.X);
+                double randomY2 = constraint2.MinCoord.Y + random.NextDouble() * (constraint2.MaxCoord.Y - constraint2.MinCoord.Y);
+                Vector vector1 = new Vector(randomX1, randomY1);
+                Vector vector2 = new Vector(randomX2, randomY2);
+                if (vector1 == vector2)
+                    continue;
+
+                Vector diff = vector2 - vector1;
+                double length = diff.Length;
+                double angle = Vector.AngleBetween(Vector.UnitX, diff);
+                lengthAnglePoints.Add(new Vector(length, angle));
+
+                maxLength = Math.Max(maxLength, length);
             }
+
+            VertexConstraintSet constraintSet = VertexConstraintSet.CreateFromConstraints(
+                CreateSimpleShapeModel1(), new[] { constraint1, constraint2 });
+            Range lengthRange, angleRange;
+            constraintSet.DetermineEdgeLimits(0, out lengthRange, out angleRange);
+
+            const int lengthImageSize = 360;
+            const int angleImageSize = 360;
+            double lengthScale = (lengthImageSize - 20) / maxLength;
+
+            Image2D<bool> myAwesomeMask = new Image2D<bool>(lengthImageSize, angleImageSize);
+            LengthAngleSpaceSeparatorSet myAwesomeSeparator = new LengthAngleSpaceSeparatorSet(constraint1, constraint2);
+            for (int i = 0; i < lengthImageSize; ++i)
+                for (int j = 0; j < angleImageSize; ++j)
+                {
+                    double length = i / lengthScale;
+                    double angle = MathHelper.ToRadians(j - 180.0);
+                    if (myAwesomeSeparator.IsInside(length, angle))
+                        myAwesomeMask[i, j] = true;
+                }
+
+            using (Bitmap image = new Bitmap(lengthImageSize, angleImageSize))
+            using (Graphics graphics = Graphics.FromImage(image))
+            {
+                graphics.Clear(Color.White);
+
+                // Draw generated points);
+                for (int i = 0; i < lengthAnglePoints.Count; ++i)
+                    DrawLengthAngle(lengthAnglePoints[i].X, lengthAnglePoints[i].Y, lengthScale, 1, graphics, Pens.Black);
+
+                // Draw estimated ranges
+                if (angleRange.Outside)
+                {
+                    graphics.DrawRectangle(
+                        Pens.Red,
+                        (float)(lengthRange.Left * lengthScale),
+                        0,
+                        (float)((lengthRange.Right - lengthRange.Left) * lengthScale),
+                        (float)(MathHelper.ToDegrees(angleRange.Left) + 180));
+                    graphics.DrawRectangle(
+                        Pens.Red,
+                        (float)(lengthRange.Left * lengthScale),
+                        (float)(MathHelper.ToDegrees(angleRange.Right) + 180),
+                        (float)((lengthRange.Right - lengthRange.Left) * lengthScale),
+                        (float)(180 - MathHelper.ToDegrees(angleRange.Right)));
+                }
+                else
+                {
+                    graphics.DrawRectangle(
+                        Pens.Red,
+                        (float)(lengthRange.Left * lengthScale),
+                        (float)(MathHelper.ToDegrees(angleRange.Left) + 180),
+                        (float)((lengthRange.Right - lengthRange.Left) * lengthScale),
+                        (float)(MathHelper.ToDegrees(angleRange.Right) - MathHelper.ToDegrees(angleRange.Left)));
+                }
+
+                // Draw constraint corners
+                for (int i = 0; i < 4; ++i)
+                {
+                    for (int j = 0; j < 4; ++j)
+                    {
+                        Vector diff = constraint2.Corners[j] - constraint1.Corners[i];
+                        DrawLengthAngle(diff.Length, Vector.AngleBetween(Vector.UnitX, diff), lengthScale, 5, graphics, Pens.Blue);
+                    }
+                }
+
+                // Draw my awesome separation lines
+                for (int i = 0; i < lengthImageSize - 1; ++i)
+                    for (int j = 0; j < lengthImageSize - 1; ++j)
+                    {
+                        bool border = false;
+                        border |= myAwesomeMask[i, j] != myAwesomeMask[i + 1, j];
+                        border |= myAwesomeMask[i, j] != myAwesomeMask[i, j + 1];
+                        border |= myAwesomeMask[i, j] != myAwesomeMask[i + 1, j + 1];
+                        if (border)
+                            image.SetPixel(i, j, Color.Orange);
+                    }
+
+                    graphics.DrawString(
+                        String.Format("Max length is {0:0.0}", maxLength), SystemFonts.DefaultFont, Brushes.Green, 5, 5);
+
+                image.Save(fileName);
+            }
+        }
+
+        private static void DrawLengthAngle(double length, double angle, double lengthScale, double radius, Graphics graphics, Pen pen)
+        {
+            float x = (float)(length * lengthScale);
+            float y = (float)MathHelper.ToDegrees(angle) + 180;
+            graphics.DrawEllipse(pen, x - (float)radius, y - (float)radius, (float)radius * 2, (float)radius * 2);
         }
 
         private static void GenerateMeanShape()
@@ -124,7 +287,8 @@ namespace TestArea
         {
             Rand.Restart(666);
 
-            GenerateMeanShape();
+            MainForLengthAngleDependenceExperiment();
+            //GenerateMeanShape();
             //DrawLengthAngleDependence();
             //MainForUnaryPotentialsCheck();
             //MainForSegmentation();

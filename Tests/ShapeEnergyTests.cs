@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Drawing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -12,16 +11,16 @@ namespace Research.GraphBasedShapePrior.Tests
         private static double TestShapeEnergyCalculationApproachesImpl(
             ShapeModel model, IEnumerable<Circle> vertices, Size objectSize, int lengthGridSize, int angleGridSize, double eps)
         {
-            double sizeEstimate = SegmentatorBase.ImageSizeToObjectSizeEstimate(objectSize);
+            double sizeEstimate = SegmentationAlgorithmBase.ImageSizeToObjectSizeEstimate(objectSize);
 
             // Create shape model and calculate energy in normal way
             Shape shape = new Shape(model, vertices);
             double energy1 = shape.CalculateEnergy(sizeEstimate);
 
             // Calculate energy via generalized distance transforms
-            VertexConstraintSet constraints = VertexConstraintSet.Create(
+            VertexConstraintSet constraints = VertexConstraintSet.CreateFromConstraints(
                 model, TestHelper.VerticesToConstraints(vertices));
-            BranchAndBoundSegmentatorBase segmentator = new BranchAndBoundSegmentatorCpu();
+            BranchAndBoundSegmentationAlgorithm segmentator = new BranchAndBoundSegmentationAlgorithm();
             segmentator.ShapeModel = model;
             segmentator.LengthGridSize = lengthGridSize;
             segmentator.AngleGridSize = angleGridSize;
@@ -51,12 +50,17 @@ namespace Research.GraphBasedShapePrior.Tests
         private static void TestEdgeLimitsCommonImpl(
             VertexConstraint constraint1, VertexConstraint constraint2, out Range lengthRange, out Range angleRange)
         {
-            VertexConstraintSet constraintSet = VertexConstraintSet.Create(TestHelper.CreateTestShapeModelWith1Edge(), new[] { constraint1, constraint2 });
+            VertexConstraintSet constraintSet = VertexConstraintSet.CreateFromConstraints(TestHelper.CreateTestShapeModelWith1Edge(), new[] { constraint1, constraint2 });
             constraintSet.DetermineEdgeLimits(0, out lengthRange, out angleRange);
 
+            GeneralizedDistanceTransform2D transform = new GeneralizedDistanceTransform2D(
+                new Vector(0, -Math.PI * 2), new Vector(35, Math.PI * 2), new Size(2000, 2000), 1, 1, delegate { return 0; });
+            AllowedLengthAngleChecker allowedLengthAngleChecker = new AllowedLengthAngleChecker(constraint1, constraint2, transform);
+
             Random random = new Random(666);
-            const int checkCount = 1000;
-            for (int i = 0; i < checkCount; ++i)
+            
+            const int insideCheckCount = 1000;
+            for (int i = 0; i < insideCheckCount; ++i)
             {
                 Vector edgePoint1 =
                     constraint1.MinCoord +
@@ -68,10 +72,42 @@ namespace Research.GraphBasedShapePrior.Tests
                     new Vector(
                         random.NextDouble() * (constraint2.MaxCoord.X - constraint2.MinCoord.X),
                         random.NextDouble() * (constraint2.MaxCoord.Y - constraint2.MinCoord.Y));
-                double length = edgePoint1.DistanceToPoint(edgePoint2);
-                double angle = Vector.AngleBetween(new Vector(1, 0), edgePoint2 - edgePoint1);
+
+                Vector vec = edgePoint2 - edgePoint1;
+                double length = vec.Length;
+                double angle = Vector.AngleBetween(Vector.UnitX, vec);
+
                 Assert.IsTrue(lengthRange.Contains(length));
                 Assert.IsTrue(angleRange.Contains(angle));
+                Assert.IsTrue(allowedLengthAngleChecker.IsAllowed(transform.CoordToGridIndexX(length), transform.CoordToGridIndexY(angle)));
+            }
+
+            const int outsideCheckCount = 1000;
+            for (int i = 0; i < outsideCheckCount; ++i)
+            {
+                Vector edgePoint1 =
+                    constraint1.MinCoord +
+                    new Vector(
+                        (random.NextDouble() * 2 - 0.5) * (constraint1.MaxCoord.X - constraint1.MinCoord.X),
+                        (random.NextDouble() * 2 - 0.5) * (constraint1.MaxCoord.Y - constraint1.MinCoord.Y));
+                Vector edgePoint2 =
+                    constraint2.MinCoord +
+                    new Vector(
+                        (random.NextDouble() * 2 - 0.5) * (constraint2.MaxCoord.X - constraint2.MinCoord.X),
+                        (random.NextDouble() * 2 - 0.5) * (constraint2.MaxCoord.Y - constraint2.MinCoord.Y));
+
+                Vector vec = edgePoint2 - edgePoint1;
+                double length = vec.Length;
+                double angle = Vector.AngleBetween(Vector.UnitX, vec);
+
+                // We've generated too large edge
+                if (length > transform.GridMax.X)
+                    continue;
+
+                bool definitelyOutside = !lengthRange.Contains(length) || !angleRange.Contains(angle);
+                bool outside = !allowedLengthAngleChecker.IsAllowed(
+                    transform.CoordToGridIndexX(length), transform.CoordToGridIndexY(angle));
+                Assert.IsTrue(!definitelyOutside || outside);
             }
         }
 
@@ -172,7 +208,7 @@ namespace Research.GraphBasedShapePrior.Tests
             vertices.Add(new Circle(Math.Cos(startAngle) * edgeLength, Math.Sin(startAngle) * edgeLength, 10));
             vertices.Add(new Circle());
 
-            double objectSizeEstimate = SegmentatorBase.ImageSizeToObjectSizeEstimate(objectSize);
+            double objectSizeEstimate = SegmentationAlgorithmBase.ImageSizeToObjectSizeEstimate(objectSize);
 
             const int iterationCount = 10;
             const double angleStep = 2 * Math.PI / iterationCount;
@@ -245,6 +281,85 @@ namespace Research.GraphBasedShapePrior.Tests
 
             Assert.IsFalse(lengthRange.Contains(0));
             Assert.IsFalse(lengthRange.Contains(1));
+        }
+
+        [TestMethod]
+        public void TestEdgeLimits4()
+        {
+            const double eps = 0.01;
+            VertexConstraint constraint1 = new VertexConstraint(new Vector(0, 0), new Vector(1 - eps, 1 - eps), 2, 4);
+            VertexConstraint constraint2 = new VertexConstraint(new Vector(1 + eps, 1 + eps), new Vector(2, 2), 3, 6);
+
+            Range lengthRange, angleRange;
+            TestEdgeLimitsCommonImpl(constraint1, constraint2, out lengthRange, out angleRange);
+
+            Assert.IsFalse(angleRange.Outside);
+            Assert.IsTrue(angleRange.Contains(0.01));
+            Assert.IsFalse(angleRange.Contains(-Math.PI * 0.501));
+            Assert.IsFalse(angleRange.Contains(-Math.PI));
+            Assert.IsFalse(angleRange.Contains(Math.PI * 0.501));
+            Assert.IsFalse(angleRange.Contains(Math.PI));
+
+            Assert.IsFalse(lengthRange.Contains(3));
+            Assert.IsTrue(lengthRange.Contains(0.05));
+            Assert.IsTrue(lengthRange.Contains(2.8));
+        }
+
+        [TestMethod]
+        public void TestEdgeLimits5()
+        {
+            VertexConstraint constraint1 = new VertexConstraint(new Vector(-10, 8), new Vector(10, 10), 1, 1);
+            VertexConstraint constraint2 = new VertexConstraint(new Vector(5, 0), new Vector(6, 7), 1, 1);
+
+            Range lengthRange, angleRange;
+            TestEdgeLimitsCommonImpl(constraint1, constraint2, out lengthRange, out angleRange);
+        }
+
+        [TestMethod]
+        public void TestEdgeLimits6()
+        {
+            VertexConstraint constraint1 = new VertexConstraint(new Vector(0, 0), new Vector(5, 5), 1, 1);
+            VertexConstraint constraint2 = new VertexConstraint(new Vector(4, 4), new Vector(10, 9), 1, 1);
+
+            Range lengthRange, angleRange;
+            TestEdgeLimitsCommonImpl(constraint1, constraint2, out lengthRange, out angleRange);
+        }
+
+        [TestMethod]
+        public void TestEdgeLimits7()
+        {
+            VertexConstraint constraint1 = new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1);
+            VertexConstraint constraint2 = new VertexConstraint(new Vector(5, 5), new Vector(8, 8), 1, 1);
+
+            Range lengthRange, angleRange;
+            TestEdgeLimitsCommonImpl(constraint1, constraint2, out lengthRange, out angleRange);
+        }
+
+        [TestMethod]
+        public void TestSplitsNonIntersection()
+        {
+            VertexConstraint constraint = new VertexConstraint(new Vector(0, 0), new Vector(1, 1), 0, 1);
+            
+            List<VertexConstraint> coordSplit = constraint.SplitByCoords();
+            Assert.IsTrue(coordSplit.Count == 4);
+            for (int i = 0; i < coordSplit.Count; ++i)
+            {
+                for (int j = i + 1; j < coordSplit.Count; ++j)
+                {
+                    Range xRange1 = new Range(coordSplit[i].MinCoord.X, coordSplit[i].MaxCoord.X, false);
+                    Range yRange1 = new Range(coordSplit[i].MinCoord.Y, coordSplit[i].MaxCoord.Y, false);
+                    Range xRange2 = new Range(coordSplit[j].MinCoord.X, coordSplit[j].MaxCoord.X, false);
+                    Range yRange2 = new Range(coordSplit[j].MinCoord.Y, coordSplit[j].MaxCoord.Y, false);
+                    
+                    Assert.IsFalse(xRange1.IntersectsWith(xRange2) && yRange1.IntersectsWith(yRange2));
+                }
+            }
+
+            List<VertexConstraint> radiusSplit = constraint.SplitByRadius();
+            Assert.IsTrue(radiusSplit.Count == 2);
+            Range rRange1 = new Range(radiusSplit[0].MinRadius, radiusSplit[0].MaxRadius, false);
+            Range rRange2 = new Range(radiusSplit[1].MinRadius, radiusSplit[1].MaxRadius, false);
+            Assert.IsFalse(rRange1.IntersectsWith(rRange2));
         }
     }
 }

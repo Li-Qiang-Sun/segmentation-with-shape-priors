@@ -89,17 +89,18 @@ namespace Research.GraphBasedShapePrior
         public bool CoordSatisfied
         {
             // TODO: make this customizable
-            get { return this.CoordViolation <= 1 + 1e-8; }
+            get { return this.CoordViolation < 1 + 1e-8; }
         }
 
         public List<VertexConstraint> SplitByRadius()
         {
-            Debug.Assert(!this.RadiusSatisfied);
+            // We'll use it to split into non-intersecting sets
+            const double eps = 1e-4;
 
             return new List<VertexConstraint>
             {
-                new VertexConstraint(MinCoord, MaxCoord, MinRadius, this.MiddleRadius),
-                new VertexConstraint(MinCoord, MaxCoord, this.MiddleRadius, MaxRadius)
+                new VertexConstraint(MinCoord, MaxCoord, MinRadius, this.MiddleRadius - eps),
+                new VertexConstraint(MinCoord, MaxCoord, this.MiddleRadius + eps, MaxRadius)
             };
         }
 
@@ -110,15 +111,18 @@ namespace Research.GraphBasedShapePrior
 
         public List<VertexConstraint> SplitByCoords()
         {
+            // We'll use it to split into non-intersecting sets
+            const double eps = 1e-4;
+
             Vector middle = this.MiddleCoord;
             List<VertexConstraint> result = new List<VertexConstraint>();
             if (middle.X != MinCoord.X && middle.Y != MinCoord.Y)
-                result.Add(new VertexConstraint(MinCoord, middle, MinRadius, MaxRadius));
+                result.Add(new VertexConstraint(MinCoord, new Vector(middle.X - eps, middle.Y - eps), MinRadius, MaxRadius));
             if (middle.Y != MinCoord.Y)
-                result.Add(new VertexConstraint(new Vector(middle.X, MinCoord.Y), new Vector(MaxCoord.X, middle.Y), MinRadius, MaxRadius));
+                result.Add(new VertexConstraint(new Vector(middle.X + eps, MinCoord.Y), new Vector(MaxCoord.X, middle.Y - eps), MinRadius, MaxRadius));
             if (middle.X != MinCoord.X)
-                result.Add(new VertexConstraint(new Vector(MinCoord.X, middle.Y), new Vector(middle.X, MaxCoord.Y), MinRadius, MaxRadius));
-            result.Add(new VertexConstraint(middle, MaxCoord, MinRadius, MaxRadius));
+                result.Add(new VertexConstraint(new Vector(MinCoord.X, middle.Y + eps), new Vector(middle.X - eps, MaxCoord.Y), MinRadius, MaxRadius));
+            result.Add(new VertexConstraint(new Vector(middle.X + eps, middle.Y + eps), MaxCoord, MinRadius, MaxRadius));
 
             // We should split at least something
             Debug.Assert(result.Count >= 2);

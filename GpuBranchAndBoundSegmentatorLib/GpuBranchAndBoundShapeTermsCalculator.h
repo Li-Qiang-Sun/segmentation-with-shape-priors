@@ -18,11 +18,11 @@ namespace Research
 {
 	namespace GraphBasedShapePrior
 	{
-		public ref class BranchAndBoundSegmentatorGpu2 : public BranchAndBoundSegmentatorBase
+		public ref class GpuBranchAndBoundShapeTermsCalculator : public IBranchAndBoundShapeTermsCalculator
 		{
 		public:
 
-			virtual void PrepareShapeUnaryPotentials(VertexConstraintSet ^constraintSet, Image2D<Tuple<double, double>^> ^result) override
+			virtual void CalculateShapeTerms(VertexConstraintSet ^constraintSet, Image2D<ObjectBackgroundTerm> ^result)
 			{
 				int edgeCount = constraintSet->ShapeModel->Edges->Count;
 				
@@ -71,7 +71,7 @@ namespace Research
 					for (int y = 0; y < result->Height; ++y)
 					{
 						int index = y * result->Width + x;
-						result[x, y] = gcnew Tuple<double, double>(backgroundPenalties[index], objectPenalties[index]);
+						result[x, y] = ObjectBackgroundTerm(objectPenalties[index], backgroundPenalties[index]);
 					}
 				}
 

@@ -50,5 +50,10 @@ namespace Research.GraphBasedShapePrior
                 return other.Left <= this.Left || other.Right >= this.Right;
             return this.Left <= other.Left || this.Right >= other.Right;
         }
+
+        public Range Invert()
+        {
+            return new Range(this.Left, this.Right, !this.Outside);
+        }
     }
 }

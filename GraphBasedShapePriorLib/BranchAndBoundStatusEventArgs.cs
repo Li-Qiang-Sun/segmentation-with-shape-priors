@@ -4,24 +4,23 @@ using System.Drawing;
 
 namespace Research.GraphBasedShapePrior
 {
-    public class BreadthFirstBranchAndBoundStatusEventArgs : EventArgs
+    public class BranchAndBoundStatusEventArgs : EventArgs
     {
-        public double LowerBound { get; private set; }
-        
-        public int FrontSize { get; private set; }
-
-        public double FrontItemsPerSecond { get; private set; }
-
         public Image StatusImage { get; private set; }
 
-        public BreadthFirstBranchAndBoundStatusEventArgs(double lowerBound, int frontSize, double frontItemsPerSecond, Image statusImage)
+        public Image SegmentationMask { get; private set; }
+
+        public Image UnaryTermsImage { get; private set; }
+
+        public Image ShapeTermsImage { get; private set; }
+
+        public BranchAndBoundStatusEventArgs(
+            Image statusImage, Image segmentationMask, Image unaryTermsImage, Image shapeTermsImage)
         {
-            Debug.Assert(statusImage != null);
-            
-            this.LowerBound = lowerBound;
-            this.FrontSize = frontSize;
-            this.FrontItemsPerSecond = frontItemsPerSecond;
             this.StatusImage = statusImage;
+            this.SegmentationMask = segmentationMask;
+            this.UnaryTermsImage = unaryTermsImage;
+            this.ShapeTermsImage = shapeTermsImage;
         }
     }
 }

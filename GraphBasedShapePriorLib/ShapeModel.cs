@@ -9,8 +9,8 @@ namespace Research.GraphBasedShapePrior
 {
     public class ShapeModel
     {
-        public double Cutoff { get; private set; }
-
+        private double cutoff = 0.1;
+        
         private List<ShapeVertexParams> shapeVertexParams;
 
         private Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams;
@@ -21,8 +21,17 @@ namespace Research.GraphBasedShapePrior
 
         private ShapeModel()
         {
-            // TODO: this parameter should probably be made relative to object size somehow
-            this.Cutoff = 0.1;
+        }
+
+        public double Cutoff
+        {
+            get { return cutoff; }
+            set
+            {
+                if (value <= 0)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
+                cutoff = value;
+            }
         }
 
         public static ShapeModel Create(
@@ -147,22 +156,35 @@ namespace Research.GraphBasedShapePrior
 
         public double CalculateDistanceToEdge(Vector point, Circle edgePoint1, Circle edgePoint2, Polygon preCalculatedPulleyPoints = null)
         {
-            double distance = point.DistanceToCircleOut(edgePoint1);
-            distance = Math.Min(distance, point.DistanceToCircleOut(edgePoint2));
-
-            if (edgePoint1.Contains(edgePoint2) || edgePoint2.Contains(edgePoint1))
+            // First circle is the largest one
+            if (edgePoint1.Radius < edgePoint2.Radius)
+                Helper.Swap(ref edgePoint1, ref edgePoint2);
+            
+            // Distance to first circle
+            double distance = point.DistanceToCircleArea(edgePoint1);
+            
+            // Singular pulley
+            if (edgePoint1.Contains(edgePoint2))
                 return distance;
+
+            // Distance to second circle
+            distance = Math.Min(distance, point.DistanceToCircleArea(edgePoint2));
+            
+            // Inside one of the circles
+            if (distance == 0)
+                return 0;
 
             if (preCalculatedPulleyPoints == null)
                 preCalculatedPulleyPoints = MathHelper.SolvePulleyProblem(edgePoint1, edgePoint2);
             Debug.Assert(preCalculatedPulleyPoints.Vertices.Count == 4);
 
+            // Inside the pulley
             if (preCalculatedPulleyPoints.IsPointInside(point))
                 return 0;
 
             distance = Math.Min(distance, point.DistanceToSegment(preCalculatedPulleyPoints.Vertices[0], preCalculatedPulleyPoints.Vertices[1]));
             distance = Math.Min(distance, point.DistanceToSegment(preCalculatedPulleyPoints.Vertices[2], preCalculatedPulleyPoints.Vertices[3]));
-            
+
             return distance;
         }
 
@@ -180,19 +202,17 @@ namespace Research.GraphBasedShapePrior
 
         public double CalculateObjectPenaltyFromDistance(double distance)
         {
-            Debug.Assert(distance >= 0);
-            return this.Cutoff * MathHelper.Sqr(distance);
+            return -MathHelper.LogInf(Math.Exp(-this.Cutoff * distance * distance));
         }
 
         public double CalculateBackgroundPenaltyFromDistance(double distance)
         {
-            Debug.Assert(distance >= 0);
-            return -MathHelper.LogInf(1 - Math.Exp(-this.Cutoff * MathHelper.Sqr(distance)));
+            return -MathHelper.LogInf(1 - Math.Exp(-this.Cutoff * distance * distance));
         }
 
         public Shape FitMeanShape(Size imageSize)
         {
-            double objectSize = SegmentatorBase.ImageSizeToObjectSizeEstimate(imageSize);
+            double objectSize = SegmentationAlgorithmBase.ImageSizeToObjectSizeEstimate(imageSize);
             
             // Build tree, ignore scale           
             Circle[] vertices = new Circle[this.VertexCount];

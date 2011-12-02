@@ -1,21 +1,18 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
 
 namespace Research.GraphBasedShapePrior
 {
-    public class BranchAndBoundSegmentatorCpu : BranchAndBoundSegmentatorBase
+    public class CpuBranchAndBoundShapeTermsCalculator : IBranchAndBoundShapeTermsCalculator
     {
-        public override void PrepareShapeUnaryPotentials(VertexConstraintSet constraintsSet, Image2D<Tuple<double, double>> result)
+        public void CalculateShapeTerms(VertexConstraintSet constraintsSet, Image2D<ObjectBackgroundTerm> result)
         {
             for (int x = 0; x < result.Width; ++x)
                 for (int y = 0; y < result.Height; ++y)
                     result[x, y] = CalculateShapeTerm(constraintsSet, new Point(x, y));
         }
 
-        private static Tuple<double, double> CalculateShapeTerm(VertexConstraintSet constraintsSet, Point point)
+        private static ObjectBackgroundTerm CalculateShapeTerm(VertexConstraintSet constraintsSet, Point point)
         {
             Vector pointAsVec = new Vector(point.X, point.Y);
 
@@ -98,7 +95,7 @@ namespace Research.GraphBasedShapePrior
                 }
             }
 
-            double toSink = constraintsSet.ShapeModel.CalculateObjectPenaltyFromDistance(minDistanceToEdge);
+            double objectTerm = constraintsSet.ShapeModel.CalculateObjectPenaltyFromDistance(minDistanceToEdge);
 
             // Calculate weight to source (min price for background label at (x, y))
             double maxDistanceToEdge = Double.PositiveInfinity;
@@ -129,9 +126,9 @@ namespace Research.GraphBasedShapePrior
                 maxDistanceToEdge = Math.Min(maxDistanceToEdge, maxDistanceToCurrentEdge);
             }
 
-            double toSource = constraintsSet.ShapeModel.CalculateBackgroundPenaltyFromDistance(maxDistanceToEdge);
+            double backgroundTerm = constraintsSet.ShapeModel.CalculateBackgroundPenaltyFromDistance(maxDistanceToEdge);
 
-            return new Tuple<double, double>(toSource, toSink);
+            return new ObjectBackgroundTerm(objectTerm, backgroundTerm);
         }
     }
 }
