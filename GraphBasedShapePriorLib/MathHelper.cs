@@ -34,12 +34,23 @@ namespace Research.GraphBasedShapePrior
 
         public static double NormalizeAngle(double angle)
         {
-            // TODO: get rid of loops, make it more effective
-            while (angle > Math.PI)
+            //return Math.IEEERemainder(angle, Math.PI * 2);
+            while (angle >= Math.PI)
                 angle -= Math.PI * 2;
-            while (angle < -Math.PI)
+            while (angle <= -Math.PI)
                 angle += Math.PI * 2;
             return angle;
+        }
+
+        public static Tuple<double, double> LineIntersection(Vector point1, Vector dir1, Vector point2, Vector dir2)
+        {
+            double denominator = Vector.CrossProduct(dir1, dir2);
+            if (Math.Abs(denominator) < 1e-6)
+                return null;
+
+            double t1 = Vector.CrossProduct(dir2, point1 - point2) / denominator;
+            double t2 = Vector.CrossProduct(dir1, point1 - point2) / denominator;
+            return new Tuple<double, double>(t1, t2);
         }
 
         public static Polygon SolvePulleyProblem(Circle circle1, Circle circle2)
@@ -59,7 +70,7 @@ namespace Research.GraphBasedShapePrior
             double sinPlusPlus = Math.Sin(lineAngle + angle);
             double cosPlusMinus = Math.Cos(lineAngle - angle);
             double sinPlusMinus = Math.Sin(lineAngle - angle);
-            
+
             Vector line1Point1 = new Vector(
                 circle1.Center.X + circle1.Radius * cosPlusPlus,
                 circle1.Center.Y + circle1.Radius * sinPlusPlus);

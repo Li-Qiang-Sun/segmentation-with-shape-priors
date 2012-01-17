@@ -74,5 +74,35 @@ namespace Research.GraphBasedShapePrior.Tests
             Assert.IsTrue(range1.IntersectsWith(range2));
             Assert.IsTrue(range2.IntersectsWith(range1));
         }
+
+        [TestMethod]
+        public void TestLineIntersection()
+        {
+            Assert.AreEqual(null, MathHelper.LineIntersection(new Vector(0, 0), new Vector(1, 1), new Vector(2, 2), new Vector(-2, -2)));
+
+            Tuple<double, double> intersection1 =
+                MathHelper.LineIntersection(new Vector(0, 0), new Vector(1, 0), new Vector(1, -1), new Vector(0, 1));
+            Assert.IsNotNull(intersection1);
+            Assert.AreEqual(intersection1.Item1, 1, 1e-6);
+            Assert.AreEqual(intersection1.Item2, 1, 1e-6);
+
+            Tuple<double, double> intersection2 =
+                MathHelper.LineIntersection(new Vector(0, 0), new Vector(1, 1).GetNormalized(), new Vector(2, 0), new Vector(-3, 3));
+            Assert.IsNotNull(intersection2);
+            Assert.AreEqual(intersection2.Item1, Math.Sqrt(2), 1e-6);
+            Assert.AreEqual(intersection2.Item2, 1.0 / 3.0, 1e-6);
+        }
+
+        [TestMethod]
+        public void TestAngleNormalization()
+        {
+            Assert.AreEqual(Math.PI * 0.3, MathHelper.NormalizeAngle(Math.PI * 0.3), 1e-6);
+            Assert.AreEqual(Math.PI * 0.3, MathHelper.NormalizeAngle(Math.PI * 2.3), 1e-6);
+            Assert.AreEqual(-Math.PI * 0.8, MathHelper.NormalizeAngle(Math.PI * 1.2), 1e-6);
+            Assert.AreEqual(-Math.PI * 0.5, MathHelper.NormalizeAngle(-Math.PI * 0.5), 1e-6);
+            Assert.AreEqual(-Math.PI * 0.5, MathHelper.NormalizeAngle(-Math.PI * 2.5), 1e-6);
+            Assert.AreEqual(Math.PI * 0.3, MathHelper.NormalizeAngle(-Math.PI * 3.7), 1e-6);
+            Assert.AreEqual(Math.PI * 0.3, MathHelper.NormalizeAngle(-Math.PI * 7.7), 1e-6);
+        }
     }
 }
