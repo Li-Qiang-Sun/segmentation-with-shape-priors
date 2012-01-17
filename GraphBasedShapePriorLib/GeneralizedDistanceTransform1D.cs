@@ -63,19 +63,18 @@ namespace Research.GraphBasedShapePrior
             for (int i = 0; i < this.GridSize; ++i)
                 functionValues[i] = penaltyFunc(GridIndexToCoord(i), 0.5 * this.gridStepSize);
 
-            double gridScale = 1.0 / this.gridStepSize;
-
             int envelopeSize = 1;
             envelope[0] = 0;
             parabolaRange[0] = Double.NegativeInfinity;
             parabolaRange[1] = Double.PositiveInfinity;
+            double intersectionCoeff = 1.0 / (distanceScale * this.gridStepSize * this.gridStepSize);
             for (int i = 1; i < this.GridSize; ++i)
             {
                 bool inserted = false;
                 while (!inserted)
                 {
                     int lastEnvCoord = envelope[envelopeSize - 1];
-                    double intersectionPoint = (functionValues[i] - functionValues[lastEnvCoord]) / (distanceScale * gridScale) + i * i - lastEnvCoord * lastEnvCoord;
+                    double intersectionPoint = (functionValues[i] - functionValues[lastEnvCoord]) * intersectionCoeff + i * i - lastEnvCoord * lastEnvCoord;
                     intersectionPoint /= 2 * (i - lastEnvCoord);
 
                     if (intersectionPoint >= parabolaRange[envelopeSize - 1])
@@ -88,8 +87,7 @@ namespace Research.GraphBasedShapePrior
                     }
                     else
                         envelopeSize -= 1;    
-                }
-                
+                }      
             }
 
             int currentParabola = 0;
@@ -99,7 +97,7 @@ namespace Research.GraphBasedShapePrior
                 while (parabolaRange[currentParabola + 1] < i)
                     currentParabola += 1;
 
-                double diff = (i - envelope[currentParabola]) / gridScale;
+                double diff = (i - envelope[currentParabola]) * this.gridStepSize;
                 this.values[i] = functionValues[envelope[currentParabola]] + diff * diff * distanceScale;
             }
 
