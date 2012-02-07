@@ -708,21 +708,21 @@ namespace Research.GraphBasedShapePrior
             double energySum = 0;
             foreach (GeneralizedDistanceTransform2D childTransform in transforms)
             {
-                double energy = childTransform.GetByCoords(length, angle);
+                double energy = childTransform.GetValueByCoords(length, angle);
 
                 // Check other possible angle representations
                 bool angleIsZero = childTransform.CoordToGridIndexY(angle) == childTransform.CoordToGridIndexY(0);
                 if (angleIsZero)
                 {
                     // Zero has two representations
-                    energy = Math.Min(childTransform.GetByCoords(length, -Math.PI * 2), energy);
-                    energy = Math.Min(childTransform.GetByCoords(length, Math.PI * 2), energy);
+                    energy = Math.Min(childTransform.GetValueByCoords(length, -Math.PI * 2), energy);
+                    energy = Math.Min(childTransform.GetValueByCoords(length, Math.PI * 2), energy);
                 }
                 else
                 {
                     // Other angles have single representation
                     double otherAngle = angle > 0 ? angle - Math.PI * 2 : angle + Math.PI * 2;
-                    energy = Math.Min(childTransform.GetByCoords(length, otherAngle), energy);
+                    energy = Math.Min(childTransform.GetValueByCoords(length, otherAngle), energy);
                 }
 
                 energySum += energy;

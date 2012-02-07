@@ -129,9 +129,13 @@ namespace Research.GraphBasedShapePrior
             return result;
         }
 
-        public bool Contains(Point point)
+        public bool Contains(Vector vector)
         {
-            return this.CoordRectangle.Contains(point);
+            return
+                vector.X >= this.MinCoord.X &&
+                vector.Y >= this.MinCoord.Y &&
+                vector.X <= this.MaxCoord.X &&
+                vector.Y <= this.MaxCoord.Y;
         }
 
         public ReadOnlyCollection<Vector> Corners

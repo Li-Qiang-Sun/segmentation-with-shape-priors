@@ -24,6 +24,8 @@ namespace Research.GraphBasedShapePrior
                 throw new ArgumentOutOfRangeException("allowedAngle", "Allowed angle should be in [-pi, pi] range.");
             if (allowedLength < 0)
                 throw new ArgumentOutOfRangeException("allowedLength", "Allowed length should be positive.");
+            if ((segmentStart - segmentEnd).LengthSquared < 1e-6)
+                throw new ArgumentException("Given segment must have non-zero length!");
             
             double distanceToSegmentSqr, alpha;
             point.DistanceToSegmentSquared(segmentStart, segmentEnd, out distanceToSegmentSqr, out alpha);

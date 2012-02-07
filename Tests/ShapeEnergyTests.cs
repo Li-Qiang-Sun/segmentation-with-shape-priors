@@ -55,7 +55,7 @@ namespace Research.GraphBasedShapePrior.Tests
 
             GeneralizedDistanceTransform2D transform = new GeneralizedDistanceTransform2D(
                 new Vector(0, -Math.PI * 2), new Vector(35, Math.PI * 2), new Size(2000, 2000));
-            AllowedLengthAngleChecker allowedLengthAngleChecker = new AllowedLengthAngleChecker(constraint1, constraint2, transform);
+            AllowedLengthAngleChecker allowedLengthAngleChecker = new AllowedLengthAngleChecker(constraint1, constraint2, transform, 1, 0);
 
             Random random = new Random(666);
             
@@ -79,7 +79,7 @@ namespace Research.GraphBasedShapePrior.Tests
 
                 Assert.IsTrue(lengthRange.Contains(length));
                 Assert.IsTrue(angleRange.Contains(angle));
-                Assert.IsTrue(allowedLengthAngleChecker.IsAllowed(transform.CoordToGridIndexX(length), transform.CoordToGridIndexY(angle)));
+                Assert.IsTrue(allowedLengthAngleChecker.IsAllowed(length, angle));
             }
 
             const int outsideCheckCount = 1000;
@@ -105,8 +105,7 @@ namespace Research.GraphBasedShapePrior.Tests
                     continue;
 
                 bool definitelyOutside = !lengthRange.Contains(length) || !angleRange.Contains(angle);
-                bool outside = !allowedLengthAngleChecker.IsAllowed(
-                    transform.CoordToGridIndexX(length), transform.CoordToGridIndexY(angle));
+                bool outside = !allowedLengthAngleChecker.IsAllowed(length, angle);
                 Assert.IsTrue(!definitelyOutside || outside);
             }
         }

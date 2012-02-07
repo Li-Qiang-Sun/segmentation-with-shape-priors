@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Research.GraphBasedShapePrior
@@ -9,13 +10,35 @@ namespace Research.GraphBasedShapePrior
 
         public LengthAngleSpaceSeparatorSet(VertexConstraint constraint1, VertexConstraint constraint2)
         {
+            if (constraint1.CoordViolation < 1e-6 || constraint2.CoordViolation < 1e-6)
+                throw new ArgumentException("Coord constraints should not be singular.");
+            
             this.AddSeparatorsForPair(constraint1, constraint2, false);
             this.AddSeparatorsForPair(constraint2, constraint1, true);
         }
 
         public bool IsInside(double length, double angle)
         {
-            return length >= 0 && separatorLists.Any(list => list.All(separator => separator.IsInside(length, angle)));
+            if (length < 0)
+                return false;
+
+            for (int i = 0; i < this.separatorLists.Count; ++i)
+            {
+                bool all = true;
+                for (int j = 0; j < separatorLists[i].Count; ++j)
+                {
+                    if (!separatorLists[i][j].IsInside(length, angle))
+                    {
+                        all = false;
+                        break;
+                    }
+                }
+
+                if (all)
+                    return true;
+            }
+
+            return false;
         }
 
         private void AddSeparatorsForPair(VertexConstraint constraint1, VertexConstraint constraint2, bool swapDirection)

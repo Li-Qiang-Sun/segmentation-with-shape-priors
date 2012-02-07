@@ -16,6 +16,8 @@ namespace Research.GraphBasedShapePrior
         
         private double[,] values;
 
+        private Tuple<int, int>[,] bestIndices;
+
         private readonly double gridStepX;
 
         private readonly double gridStepY;
@@ -34,20 +36,30 @@ namespace Research.GraphBasedShapePrior
             this.gridStepY = (this.GridMax.Y - this.GridMin.Y) / (this.GridSize.Height - 1);
         }
 
-        public double GetByGridIndices(int gridX, int gridY)
+        public double GetValueByGridIndices(int gridX, int gridY)
         {
             if (!this.IsComputed)
                 throw new InvalidOperationException("You should calculate transform first.");
-            
+
             return this.values[gridX, gridY];
         }
 
-        public double GetByCoords(double coordX, double coordY)
+        public double GetValueByCoords(double coordX, double coordY)
+        {
+            return this.GetValueByGridIndices(CoordToGridIndexX(coordX), CoordToGridIndexY(coordY));
+        }
+
+        public Tuple<int, int> GetBestIndicesByGridIndices(int gridX, int gridY)
         {
             if (!this.IsComputed)
                 throw new InvalidOperationException("You should calculate transform first.");
-            
-            return this.values[CoordToGridIndexX(coordX), CoordToGridIndexY(coordY)];
+
+            return this.bestIndices[gridX, gridY];
+        }
+
+        public Tuple<int, int> GetBestIndicesByCoords(double coordX, double coordY)
+        {
+            return this.GetBestIndicesByGridIndices(this.CoordToGridIndexX(coordX), this.CoordToGridIndexY(coordY));
         }
 
         public int CoordToGridIndexX(double coord)
@@ -100,17 +112,23 @@ namespace Research.GraphBasedShapePrior
             }
 
             this.values = new double[this.GridSize.Width, this.GridSize.Height];
+            this.bestIndices = new Tuple<int, int>[this.GridSize.Width, this.GridSize.Height];
             for (int x = 0; x < this.GridSize.Width; ++x)
             {
                 int xCopy = x;
                 Func<double, double, double> yPenaltyFunc =
-                    (y, yRadius) => distanseTransformsForFixedGridY[CoordToGridIndexY(y)].GetByGridIndex(xCopy);
+                    (y, yRadius) => distanseTransformsForFixedGridY[CoordToGridIndexY(y)].GetValueByGridIndex(xCopy);
                 GeneralizedDistanceTransform1D distanceTranformForX = new GeneralizedDistanceTransform1D(
                     this.GridMin.Y, this.GridMax.Y, this.GridSize.Height);
                 distanceTranformForX.Compute(distanceScaleY, yPenaltyFunc);
 
                 for (int y = 0; y < this.GridSize.Height; ++y)
-                    this.values[x, y] = distanceTranformForX.GetByGridIndex(y);
+                {
+                    this.values[x, y] = distanceTranformForX.GetValueByGridIndex(y);
+                    int bestY = distanceTranformForX.GetBestIndexByGridIndex(y);
+                    int bestX = distanseTransformsForFixedGridY[bestY].GetBestIndexByGridIndex(x);
+                    this.bestIndices[x, y] = new Tuple<int, int>(bestX, bestY);
+                }
             }
 
             this.IsComputed = true;

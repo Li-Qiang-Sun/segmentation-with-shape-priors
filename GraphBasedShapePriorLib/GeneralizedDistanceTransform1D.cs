@@ -6,6 +6,8 @@ namespace Research.GraphBasedShapePrior
     {
         private double[] values;
 
+        private int[] bestIndices;
+
         public double GridMin { get; private set; }
 
         public double GridMax { get; private set; }
@@ -28,14 +30,30 @@ namespace Research.GraphBasedShapePrior
             this.gridStepSize = (this.GridMax - this.GridMin) / (this.GridSize - 1);
         }
 
-        public double GetByGridIndex(int gridIndex)
+        public double GetValueByGridIndex(int gridIndex)
         {
+            if (!this.IsComputed)
+                throw new InvalidOperationException("You should calculate transform first.");
+
             return this.values[gridIndex];
         }
 
-        public double GetByCoord(double coord)
+        public double GetValueByCoord(double coord)
         {
-            return this.GetByGridIndex(this.CoordToGridIndex(coord));
+            return this.GetValueByGridIndex(this.CoordToGridIndex(coord));
+        }
+
+        public int GetBestIndexByGridIndex(int gridIndex)
+        {
+            if (!this.IsComputed)
+                throw new InvalidOperationException("You should calculate transform first.");
+            
+            return this.bestIndices[gridIndex];
+        }
+
+        public double GetBestIndexByCoord(double coord)
+        {
+            return this.GetBestIndexByGridIndex(this.CoordToGridIndex(coord));
         }
 
         private double GridIndexToCoord(int gridIndex)
@@ -92,6 +110,7 @@ namespace Research.GraphBasedShapePrior
 
             int currentParabola = 0;
             this.values = new double[this.GridSize];
+            this.bestIndices = new int[this.GridSize];
             for (int i = 0; i < this.GridSize; ++i)
             {
                 while (parabolaRange[currentParabola + 1] < i)
@@ -99,6 +118,7 @@ namespace Research.GraphBasedShapePrior
 
                 double diff = (i - envelope[currentParabola]) * this.gridStepSize;
                 this.values[i] = functionValues[envelope[currentParabola]] + diff * diff * distanceScale;
+                this.bestIndices[i] = envelope[currentParabola];
             }
 
             this.IsComputed = true;
