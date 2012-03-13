@@ -1,7 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
+using AForge.Genetic;
+using AForge.Math.Random;
 
 namespace Research.GraphBasedShapePrior.Tools.SegmentPenaltyPrototype
 {
@@ -9,7 +13,6 @@ namespace Research.GraphBasedShapePrior.Tools.SegmentPenaltyPrototype
     {
         private const float PointRadius = 3;
         private const float CoordScale = 300;
-        private const float SolutionStep = 0.01f;
 
         private readonly ProblemProperties properties = new ProblemProperties();
 
@@ -20,25 +23,25 @@ namespace Research.GraphBasedShapePrior.Tools.SegmentPenaltyPrototype
             this.problemPropertiesGrid.SelectedObject = properties;
         }
 
-        private Vector MapCoords(Vector original)
+        private static Vector MapCoords(Vector original)
         {
             return original * CoordScale;
         }
 
-        private void DrawRectange(Graphics graphics, Pen pen, Vector min, Vector max)
+        private static void DrawRectange(Graphics graphics, Pen pen, Vector min, Vector max)
         {
             min = MapCoords(min);
             max = MapCoords(max);
             graphics.DrawRectangle(pen, (float)min.X, (float)min.Y, (float)(max.X - min.X), (float)(max.Y - min.Y));
         }
 
-        private void DrawPoint(Graphics graphics, Brush brush, Vector point)
+        private static void DrawPoint(Graphics graphics, Brush brush, Vector point)
         {
             point = MapCoords(point);
             graphics.FillEllipse(brush, (float)point.X - PointRadius, (float)point.Y - PointRadius, PointRadius * 2, PointRadius * 2);
         }
 
-        private void DrawSegment(Graphics graphics, Pen pen, Vector point1, Vector point2)
+        private static void DrawSegment(Graphics graphics, Pen pen, Vector point1, Vector point2)
         {
             point1 = MapCoords(point1);
             point2 = MapCoords(point2);
@@ -46,7 +49,7 @@ namespace Research.GraphBasedShapePrior.Tools.SegmentPenaltyPrototype
         }
 
 
-        private void DrawText(Graphics graphics, Brush brush, Vector point, string text)
+        private static void DrawText(Graphics graphics, Brush brush, Vector point, string text)
         {
             point = MapCoords(point);
             graphics.DrawString(text, SystemFonts.DefaultFont, brush, (float) point.X, (float) point.Y);
@@ -69,15 +72,9 @@ namespace Research.GraphBasedShapePrior.Tools.SegmentPenaltyPrototype
             this.solutionPictureBox.Image = new Bitmap(1024, 1024);
 
             // Solve with brute force
-            Vector solutionPoint1, solutionPoint2, distanceFromPoint;
-            double distanceSqr, penalty;
-            SolveProblemWithBruteForce(out solutionPoint1, out solutionPoint2, out distanceFromPoint, out distanceSqr, out penalty);
-            Debug.Assert(Math.Abs((properties.Point - distanceFromPoint).LengthSquared - distanceSqr) < 1e-6);
-
-            // Solve with GDT
-            Vector gdtSolutionPoint1, gdtSolutionPoint2, gdtBestPoint;
-            double gdtObjective;
-            SolveProblemWithDistanceTransform(out gdtSolutionPoint1, out gdtSolutionPoint2, out gdtBestPoint, out gdtObjective);
+            Vector segmentPoint1, segmentPoint2, point;
+            double objective;
+            SolveProblemWithStochasticSearch(out segmentPoint1, out segmentPoint2, out point, out objective);
 
             using (Graphics graphics = Graphics.FromImage(this.solutionPictureBox.Image))
             {
@@ -90,19 +87,11 @@ namespace Research.GraphBasedShapePrior.Tools.SegmentPenaltyPrototype
 
                 // Solution
                 Pen solutionPen = new Pen(Color.Blue, 4);
-                DrawSegment(graphics, solutionPen, solutionPoint1, solutionPoint2);
-                Pen gdtSolutionPen = new Pen(Color.Red, 2);
-                DrawSegment(graphics, gdtSolutionPen, gdtSolutionPoint1, gdtSolutionPoint2);
-                DrawPoint(graphics, Brushes.Yellow, gdtBestPoint);
-
-                // Point itself
-                DrawPoint(graphics, Brushes.Black, properties.Point);
-
-                // Distance to solution
-                DrawSegment(graphics, Pens.Pink, distanceFromPoint, properties.Point);
+                DrawSegment(graphics, solutionPen, segmentPoint1, segmentPoint2);
+                DrawPoint(graphics, Brushes.Red, point);
 
                 // Print some values
-                DrawText(graphics, Brushes.Red, properties.Point, String.Format("D={0:0.000} P={1:0.000} T={2:0.000} GT={3:0.000}", distanceSqr, penalty, distanceSqr + penalty, gdtObjective));
+                DrawText(graphics, Brushes.Red, point, String.Format("{0:0.000}", objective));
             }
         }
 
@@ -114,52 +103,91 @@ namespace Research.GraphBasedShapePrior.Tools.SegmentPenaltyPrototype
                 throw new ApplicationException("Invalid bounding box corners for box 2");
         }
 
-        void SolveProblemWithDistanceTransform(out Vector point1, out Vector point2, out Vector bestPoint, out double objective)
+        private static IEnumerable<Vector> EnumerateCorners(Vector boxMin, Vector boxMax)
         {
-            DistanceTransformBasedSolver solver = new DistanceTransformBasedSolver(new Size(400, 400), new Vector(2, 2));
-            solver.Solve(
-                new VertexConstraint(this.properties.Box1Min, this.properties.Box1Max, 1, 100),
-                this.properties.Lambda1,
-                new VertexConstraint(this.properties.Box2Min, this.properties.Box2Max, 1, 100),
-                this.properties.Lambda2);
-
-            objective = solver.GetObjective(this.properties.Point);
-            solver.GetBestEdge(this.properties.Point, out point1, out point2);
-            bestPoint = solver.GetBestPoint(this.properties.Point);
+            yield return boxMin;
+            yield return new Vector(boxMax.X, boxMin.Y);
+            yield return boxMax;
+            yield return new Vector(boxMin.X, boxMax.Y);
         }
 
-        void SolveProblemWithBruteForce(out Vector point1, out Vector point2, out Vector distanceFromPoint, out double distanceSqr, out double penalty)
+        class OptimizationObjective : IFitnessFunction
         {
-            double bestObjective = Double.PositiveInfinity;
-            point1 = Vector.Zero;
-            point2 = Vector.Zero;
-            distanceFromPoint = Vector.Zero;
-            distanceSqr = 0;
-            penalty = 0;
+            private readonly ProblemProperties properties;
+            private Polygon segmentPoint1Constraints;
+            private Polygon segmentPoint2Constraints;
+            private Polygon pointConstraints;
 
-            for (double x1 = this.properties.Box1Min.X; x1 <= properties.Box1Max.X; x1 += SolutionStep)
-                for (double y1 = this.properties.Box1Min.Y; y1 <= properties.Box1Max.Y; y1 += SolutionStep)
-                    for (double x2 = this.properties.Box2Min.X; x2 <= properties.Box2Max.X; x2 += SolutionStep)
-                        for (double y2 = this.properties.Box2Min.Y; y2 <= properties.Box2Max.Y; y2 += SolutionStep)
-                        {
-                            Vector segmentStart = new Vector(x1, y1);
-                            Vector segmentEnd = new Vector(x2, y2);
-                            double curDistanceSqr, curAlpha;
-                            this.properties.Point.DistanceToSegmentSquared(segmentStart, segmentEnd, out curDistanceSqr, out curAlpha);
-                            double curPenalty =
-                                Vector.DotProduct(segmentStart, properties.Lambda1) +
-                                Vector.DotProduct(segmentEnd, properties.Lambda2);
-                            double objective = curDistanceSqr + curPenalty;
-                            if (objective < bestObjective)
-                            {
-                                bestObjective = objective;
-                                point1 = segmentStart;
-                                point2 = segmentEnd;
-                                distanceFromPoint = segmentStart + (segmentEnd - segmentStart) * MathHelper.Trunc(curAlpha, 0, 1);
-                                penalty = curPenalty;
-                                distanceSqr = curDistanceSqr;
-                            }
-                        }
+            public OptimizationObjective(ProblemProperties properties)
+            {
+                this.properties = properties;
+
+                IEnumerable<Vector> segment1Corners = EnumerateCorners(this.properties.Box1Min, this.properties.Box1Max);
+                IEnumerable<Vector> segment2Corners = EnumerateCorners(this.properties.Box2Min, this.properties.Box2Max);
+                this.segmentPoint1Constraints = Polygon.FromPoints(segment1Corners);
+                this.segmentPoint2Constraints = Polygon.FromPoints(segment2Corners);
+                this.pointConstraints = Polygon.ConvexHull(segment1Corners.Concat(segment2Corners).ToList());
+            }
+
+            public void ExtractData(IChromosome chromosome, out Vector segmentPoint1, out Vector segmentPoint2, out Vector point)
+            {
+                DoubleArrayChromosome castedChromosome = (DoubleArrayChromosome)chromosome;
+                segmentPoint1 = new Vector(castedChromosome.Value[0], castedChromosome.Value[1]);
+                segmentPoint2 = new Vector(castedChromosome.Value[2], castedChromosome.Value[3]);
+                point = new Vector(castedChromosome.Value[4], castedChromosome.Value[5]);
+            }
+
+            public double Evaluate(IChromosome chromosome)
+            {
+                Vector segmentPoint1, segmentPoint2, point;
+                ExtractData(chromosome, out segmentPoint1, out segmentPoint2, out point);
+
+                if (!segmentPoint1Constraints.IsPointInside(segmentPoint1))
+                    return Double.NegativeInfinity;
+                if (!segmentPoint2Constraints.IsPointInside(segmentPoint2))
+                    return Double.NegativeInfinity;
+                if (!pointConstraints.IsPointInside(point))
+                    return Double.NegativeInfinity;
+
+                double distanceSqr = point.DistanceToSegmentSquared(segmentPoint1, segmentPoint2);
+                double penalty =
+                    Vector.DotProduct(point, properties.Lambda) +
+                    Vector.DotProduct(segmentPoint1, properties.Lambda1) +
+                    Vector.DotProduct(segmentPoint2, properties.Lambda2);
+                return -(distanceSqr * properties.DistanceWeight + penalty);
+            }
+        }
+
+        void SolveProblemWithStochasticSearch(out Vector bestSegmentPoint1, out Vector bestSegmentPoint2, out Vector bestPoint, out double bestObjective)
+        {
+            OptimizationObjective objective = new OptimizationObjective(this.properties);
+            DoubleArrayChromosome startChromosome = new DoubleArrayChromosome(
+                new UniformGenerator(new AForge.Range(0, 1.5f)), new UniformOneGenerator(), new GaussianGenerator(0, 0.1f), 6);
+            Population population = new Population(500, startChromosome, objective, new EliteSelection());
+
+            int maxUpdateTime = 0;
+            double lastMax = Double.NegativeInfinity;
+            int iteration = 0;
+            while (true)
+            {
+                population.RunEpoch();
+                if (iteration - maxUpdateTime > 500 && population.FitnessMax - lastMax < 1e-8)
+                {
+                    Trace.WriteLine("Convergence detected. Breaking...");
+                    break;
+                }
+                if (population.FitnessMax > lastMax)
+                {
+                    maxUpdateTime = iteration;
+                    lastMax = population.FitnessMax;
+                }
+                if (iteration % 20 == 0)
+                    Trace.WriteLine(String.Format("On iteration {0} best={1} avg={2}", iteration + 1, -population.FitnessMax, -population.FitnessAvg));
+                ++iteration;
+            }
+
+            bestObjective = -population.BestChromosome.Fitness;
+            objective.ExtractData(population.BestChromosome, out bestSegmentPoint1, out bestSegmentPoint2, out bestPoint);
         }
     }
 }

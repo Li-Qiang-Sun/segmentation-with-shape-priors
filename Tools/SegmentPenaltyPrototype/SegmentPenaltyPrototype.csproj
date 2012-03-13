@@ -34,6 +34,16 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="AForge, Version=2.2.4.0, Culture=neutral, PublicKeyToken=c1db6ff4eaa06aeb, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\References\AForge.dll</HintPath>
+    </Reference>
+    <Reference Include="AForge.Genetic">
+      <HintPath>..\..\References\AForge.Genetic.dll</HintPath>
+    </Reference>
+    <Reference Include="AForge.Math">
+      <HintPath>..\..\References\AForge.Math.dll</HintPath>
+    </Reference>
     <Reference Include="Infer.Runtime, Version=2.4.1217.0, Culture=neutral, PublicKeyToken=e4813102a62778da, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\References\Infer.Runtime.dll</HintPath>
@@ -50,7 +60,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DistanceTransformBasedSolver.cs" />
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
