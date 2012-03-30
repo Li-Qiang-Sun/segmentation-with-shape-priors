@@ -6,26 +6,23 @@ using System.Drawing;
 
 namespace Research.GraphBasedShapePrior
 {
-    public class VertexConstraint
+    public class VertexConstraints
     {
         private readonly Vector[] corners = new Vector[4];
 
         private readonly ReadOnlyCollection<Vector> cornersReadOnly;
 
-        public VertexConstraint(Vector coord, double radius)
-            : this(coord, coord, radius, radius)
+        public VertexConstraints(Vector coord)
+            : this(coord, coord)
         {
         }
 
-        public VertexConstraint(Vector minCoordInclusive, Vector maxCoordExclusive, double minRadiusInclusive, double maxRadiusExclusive)
+        public VertexConstraints(Vector minCoord, Vector maxCoord)
         {
-            Debug.Assert(minCoordInclusive.X <= maxCoordExclusive.X && minCoordInclusive.Y <= maxCoordExclusive.Y);
-            Debug.Assert(minRadiusInclusive >= 0 && minRadiusInclusive <= maxRadiusExclusive);
+            Debug.Assert(minCoord.X <= maxCoord.X && minCoord.Y <= maxCoord.Y);
 
-            this.MinCoord = minCoordInclusive;
-            this.MaxCoord = maxCoordExclusive;
-            this.MinRadius = minRadiusInclusive;
-            this.MaxRadius = maxRadiusExclusive;
+            this.MinCoord = minCoord;
+            this.MaxCoord = maxCoord;
 
             this.corners[0] = new Vector(this.MinCoord.X, this.MinCoord.Y);
             this.corners[1] = new Vector(this.MinCoord.X, this.MaxCoord.Y);
@@ -39,28 +36,29 @@ namespace Research.GraphBasedShapePrior
 
         public Vector MaxCoord { get; private set; }
 
-        public double MinRadius { get; private set; }
+        public Range XRange
+        {
+            get { return new Range(MinCoord.X, MaxCoord.X); }
+        }
 
-        public double MaxRadius { get; private set; }
+        public Range YRange
+        {
+            get { return new Range(MinCoord.Y, MaxCoord.Y); }
+        }
 
         public RectangleF CoordRectangle
         {
             get
             {
                 return new RectangleF(
-                    (float) this.MinCoord.X,
+                    (float)this.MinCoord.X,
                     (float)this.MinCoord.Y,
                     (float)(this.MaxCoord.X - this.MinCoord.X),
                     (float)(this.MaxCoord.Y - this.MinCoord.Y));
             }
         }
 
-        public double RadiusViolation
-        {
-            get { return this.MaxRadius - this.MinRadius; }
-        }
-
-        public double CoordViolation
+        public double FreedomLevel
         {
             get
             {
@@ -70,59 +68,36 @@ namespace Research.GraphBasedShapePrior
             }
         }
 
-        public double MiddleRadius
-        {
-            get { return 0.5 * (MinRadius + MaxRadius); }
-        }
-
         public Vector MiddleCoord
         {
             get { return 0.5 * (this.MinCoord + this.MaxCoord); }
         }
 
-        public bool RadiusSatisfied
+        public bool NoFreedom
         {
             // TODO: make this customizable
-            get { return this.RadiusViolation < 1 + 1e-8; }
+            get { return this.FreedomLevel < 1 + 1e-8; }
         }
 
-        public bool CoordSatisfied
+        public VertexConstraints Collapse()
         {
-            // TODO: make this customizable
-            get { return this.CoordViolation < 1 + 1e-8; }
+            return new VertexConstraints(this.MiddleCoord);
         }
 
-        public List<VertexConstraint> SplitByRadius()
-        {
-            // We'll use it to split into non-intersecting sets
-            const double eps = 1e-4;
-
-            return new List<VertexConstraint>
-            {
-                new VertexConstraint(MinCoord, MaxCoord, MinRadius, this.MiddleRadius - eps),
-                new VertexConstraint(MinCoord, MaxCoord, this.MiddleRadius + eps, MaxRadius)
-            };
-        }
-
-        public VertexConstraint Collapse()
-        {
-            return new VertexConstraint(this.MiddleCoord, this.MiddleRadius);
-        }
-
-        public List<VertexConstraint> SplitByCoords()
+        public List<VertexConstraints> Split()
         {
             // We'll use it to split into non-intersecting sets
             const double eps = 1e-4;
 
             Vector middle = this.MiddleCoord;
-            List<VertexConstraint> result = new List<VertexConstraint>();
+            List<VertexConstraints> result = new List<VertexConstraints>();
             if (middle.X != MinCoord.X && middle.Y != MinCoord.Y)
-                result.Add(new VertexConstraint(MinCoord, new Vector(middle.X - eps, middle.Y - eps), MinRadius, MaxRadius));
+                result.Add(new VertexConstraints(MinCoord, new Vector(middle.X - eps, middle.Y - eps)));
             if (middle.Y != MinCoord.Y)
-                result.Add(new VertexConstraint(new Vector(middle.X + eps, MinCoord.Y), new Vector(MaxCoord.X, middle.Y - eps), MinRadius, MaxRadius));
+                result.Add(new VertexConstraints(new Vector(middle.X + eps, MinCoord.Y), new Vector(MaxCoord.X, middle.Y - eps)));
             if (middle.X != MinCoord.X)
-                result.Add(new VertexConstraint(new Vector(MinCoord.X, middle.Y + eps), new Vector(middle.X - eps, MaxCoord.Y), MinRadius, MaxRadius));
-            result.Add(new VertexConstraint(new Vector(middle.X + eps, middle.Y + eps), MaxCoord, MinRadius, MaxRadius));
+                result.Add(new VertexConstraints(new Vector(MinCoord.X, middle.Y + eps), new Vector(middle.X - eps, MaxCoord.Y)));
+            result.Add(new VertexConstraints(new Vector(middle.X + eps, middle.Y + eps), MaxCoord));
 
             // We should split at least something
             Debug.Assert(result.Count >= 2);
@@ -138,11 +113,13 @@ namespace Research.GraphBasedShapePrior
                 vector.Y <= this.MaxCoord.Y;
         }
 
+        // TODO: do we need it?
         public ReadOnlyCollection<Vector> Corners
         {
             get { return this.cornersReadOnly; }
         }
 
+        // TODO: do we need it?
         public Vector? GetClosestPoint(Vector point)
         {
             if (point.X >= MinCoord.X && point.X <= MaxCoord.X)
@@ -175,13 +152,11 @@ namespace Research.GraphBasedShapePrior
         public override string ToString()
         {
             return String.Format(
-                "X in [{0:0.0000}, {1:0.0000}), Y in [{2:0.0000}, {3:0.0000}), R in [{4:0.0000}, {5:0.0000}).",
+                "X in [{0:0.0000}, {1:0.0000}), Y in [{2:0.0000}, {3:0.0000})",
                 this.MinCoord.X,
                 this.MaxCoord.X,
                 this.MinCoord.Y,
-                this.MaxCoord.Y,
-                this.MinRadius,
-                this.MaxRadius);
+                this.MaxCoord.Y);
         }
     }
 }

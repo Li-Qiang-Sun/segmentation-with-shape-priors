@@ -18,9 +18,9 @@ namespace TestArea
             List<ShapeEdge> edges = new List<ShapeEdge>();
             edges.Add(new ShapeEdge(0, 1));
 
-            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
-            vertexParams.Add(new ShapeVertexParams(0.3, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.3, 0.1));
+            List<ShapeEdgeParams> vertexParams = new List<ShapeEdgeParams>();
+            vertexParams.Add(new ShapeEdgeParams(0.3, 0.1));
+            vertexParams.Add(new ShapeEdgeParams(0.3, 0.1));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
@@ -34,10 +34,10 @@ namespace TestArea
             edges.Add(new ShapeEdge(0, 1));
             edges.Add(new ShapeEdge(1, 2));
 
-            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            List<ShapeEdgeParams> vertexParams = new List<ShapeEdgeParams>();
+            vertexParams.Add(new ShapeEdgeParams(0.15, 0.1));
+            vertexParams.Add(new ShapeEdgeParams(0.15, 0.1));
+            vertexParams.Add(new ShapeEdgeParams(0.15, 0.1));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
@@ -55,13 +55,13 @@ namespace TestArea
             edges.Add(new ShapeEdge(2, 4));
             edges.Add(new ShapeEdge(4, 5));
 
-            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
+            List<ShapeEdgeParams> vertexParams = new List<ShapeEdgeParams>();
+            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
+            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
+            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
+            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
+            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
+            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams = new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
             edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(-Math.PI * 0.5, 1.3, Math.PI * 0.1, 5)); // TODO: we need edge length deviations to be relative
@@ -91,76 +91,163 @@ namespace TestArea
             Console.WriteLine(p.IsPointInside(new Vector(3, 1)));
         }
 
+        static void PointIsClosestExperiment(
+            Vector point,
+            VertexConstraints point1Constraints,
+            VertexConstraints point2Constraints,
+            string fileName)
+        {
+            Console.WriteLine(string.Format("Doing experiment for {0}", fileName));
+
+            Bitmap image = new Bitmap(320, 240);
+            const int iterations = 200000;
+            using (Graphics graphics = Graphics.FromImage(image))
+            {
+                Random random = new Random();
+                for (int i = 0; i < iterations; ++i)
+                {
+                    Vector point1 = new Vector(
+                        point1Constraints.MinCoord.X + (point1Constraints.MaxCoord.X - point1Constraints.MinCoord.X) * random.NextDouble(),
+                        point1Constraints.MinCoord.Y + (point1Constraints.MaxCoord.Y - point1Constraints.MinCoord.Y) * random.NextDouble());
+                    Vector point2 = new Vector(
+                        point2Constraints.MinCoord.X + (point2Constraints.MaxCoord.X - point2Constraints.MinCoord.X) * random.NextDouble(),
+                        point2Constraints.MinCoord.Y + (point2Constraints.MaxCoord.Y - point2Constraints.MinCoord.Y) * random.NextDouble());
+
+                    double distanceSqr, alpha;
+                    point.DistanceToSegmentSquared(point1, point2, out distanceSqr, out alpha);
+                    alpha = MathHelper.Trunc(alpha, 0, 1);
+                    Vector closestPoint = point1 + (point2 - point1) * alpha;
+                    const float radius = 2;
+                    graphics.FillEllipse(
+                        Brushes.Green,
+                        (float)closestPoint.X - radius,
+                        (float)closestPoint.Y - radius,
+                        radius * 2,
+                        radius * 2);
+                }
+
+                graphics.DrawRectangle(
+                    Pens.Blue,
+                    point1Constraints.CoordRectangle.Left,
+                    point1Constraints.CoordRectangle.Top,
+                    point1Constraints.CoordRectangle.Width,
+                    point1Constraints.CoordRectangle.Height);
+                graphics.DrawRectangle(
+                    Pens.Blue,
+                    point2Constraints.CoordRectangle.Left,
+                    point2Constraints.CoordRectangle.Top,
+                    point2Constraints.CoordRectangle.Width,
+                    point2Constraints.CoordRectangle.Height);
+                graphics.FillEllipse(Brushes.Red, (float)point.X - 2, (float)point.Y - 2, 4, 4);
+            }
+
+            image.Save(fileName);
+        }
+
+        static void MainForPointIsClosestExperiment()
+        {
+            PointIsClosestExperiment(
+                new Vector(20, 100),
+                new VertexConstraints(new Vector(40, 10), new Vector(180, 120)),
+                new VertexConstraints(new Vector(80, 100), new Vector(230, 170)),
+                "cp_experiment1.png");
+            PointIsClosestExperiment(
+                new Vector(200, 10),
+                new VertexConstraints(new Vector(40, 10), new Vector(180, 120)),
+                new VertexConstraints(new Vector(80, 100), new Vector(230, 170)),
+                "cp_experiment2.png");
+            PointIsClosestExperiment(
+                new Vector(120, 160),
+                new VertexConstraints(new Vector(40, 10), new Vector(180, 120)),
+                new VertexConstraints(new Vector(80, 100), new Vector(230, 170)),
+                "cp_experiment3.png");
+            PointIsClosestExperiment(
+                new Vector(10, 130),
+                new VertexConstraints(new Vector(40, 10), new Vector(120, 120)),
+                new VertexConstraints(new Vector(140, 140), new Vector(230, 170)),
+                "cp_experiment4.png");
+            PointIsClosestExperiment(
+                new Vector(130, 190),
+                new VertexConstraints(new Vector(40, 10), new Vector(120, 120)),
+                new VertexConstraints(new Vector(140, 140), new Vector(230, 170)),
+                "cp_experiment5.png");
+            PointIsClosestExperiment(
+                new Vector(100, 80),
+                new VertexConstraints(new Vector(40, 10), new Vector(120, 120)),
+                new VertexConstraints(new Vector(140, 140), new Vector(230, 170)),
+                "cp_experiment6.png");
+        }
+
         static void MainForLengthAngleDependenceExperiment()
         {
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(0, -5), new Vector(5, 5), 1, 1),
-                new VertexConstraint(new Vector(10, -10), new Vector(15, 10), 1, 1),
+                new VertexConstraints(new Vector(0, -5), new Vector(5, 5)),
+                new VertexConstraints(new Vector(10, -10), new Vector(15, 10)),
                 "experiment1.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(10, -10), new Vector(15, 10), 1, 1),
-                new VertexConstraint(new Vector(0, -5), new Vector(5, 5), 1, 1),
+                new VertexConstraints(new Vector(10, -10), new Vector(15, 10)),
+                new VertexConstraints(new Vector(0, -5), new Vector(5, 5)),
                 "experiment1_revert.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(-10, 8), new Vector(10, 10), 1, 1),
-                new VertexConstraint(new Vector(5, 0), new Vector(6, 7), 1, 1),
+                new VertexConstraints(new Vector(-10, 8), new Vector(10, 10)),
+                new VertexConstraints(new Vector(5, 0), new Vector(6, 7)),
                 "experiment2.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(5, 0), new Vector(6, 7), 1, 1),
-                new VertexConstraint(new Vector(-10, 8), new Vector(10, 10), 1, 1),
+                new VertexConstraints(new Vector(5, 0), new Vector(6, 7)),
+                new VertexConstraints(new Vector(-10, 8), new Vector(10, 10)),
                 "experiment2_revert.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
-                new VertexConstraint(new Vector(15, 15), new Vector(20, 20), 1, 1),
+                new VertexConstraints(new Vector(0, 0), new Vector(10, 10)),
+                new VertexConstraints(new Vector(15, 15), new Vector(20, 20)),
                 "experiment3.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(15, 15), new Vector(20, 20), 1, 1),
-                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                new VertexConstraints(new Vector(15, 15), new Vector(20, 20)),
+                new VertexConstraints(new Vector(0, 0), new Vector(10, 10)),
                 "experiment3_revert.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
-                new VertexConstraint(new Vector(-6, 11), new Vector(-1, 16), 1, 1),
+                new VertexConstraints(new Vector(0, 0), new Vector(10, 10)),
+                new VertexConstraints(new Vector(-6, 11), new Vector(-1, 16)),
                 "experiment4.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(-6, 11), new Vector(-1, 16), 1, 1),
-                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                new VertexConstraints(new Vector(-6, 11), new Vector(-1, 16)),
+                new VertexConstraints(new Vector(0, 0), new Vector(10, 10)),
                 "experiment4_revert.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
-                new VertexConstraint(new Vector(9, 9), new Vector(19, 19), 1, 1),
+                new VertexConstraints(new Vector(0, 0), new Vector(10, 10)),
+                new VertexConstraints(new Vector(9, 9), new Vector(19, 19)),
                 "experiment5.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(9, 9), new Vector(19, 19), 1, 1),
-                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                new VertexConstraints(new Vector(9, 9), new Vector(19, 19)),
+                new VertexConstraints(new Vector(0, 0), new Vector(10, 10)),
                 "experiment5_revert.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
-                new VertexConstraint(new Vector(13, 0), new Vector(23, 10), 1, 1),
+                new VertexConstraints(new Vector(0, 0), new Vector(10, 10)),
+                new VertexConstraints(new Vector(13, 0), new Vector(23, 10)),
                 "experiment6.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(13, 0), new Vector(23, 10), 1, 1),
-                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                new VertexConstraints(new Vector(13, 0), new Vector(23, 10)),
+                new VertexConstraints(new Vector(0, 0), new Vector(10, 10)),
                 "experiment6_revert.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
-                new VertexConstraint(new Vector(0, 15), new Vector(10, 45), 1, 1),
+                new VertexConstraints(new Vector(0, 0), new Vector(10, 10)),
+                new VertexConstraints(new Vector(0, 15), new Vector(10, 45)),
                 "experiment7.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(0, 15), new Vector(10, 45), 1, 1),
-                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                new VertexConstraints(new Vector(0, 15), new Vector(10, 45)),
+                new VertexConstraints(new Vector(0, 0), new Vector(10, 10)),
                 "experiment7_revert.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
-                new VertexConstraint(new Vector(5, 5), new Vector(8, 8), 1, 1),
+                new VertexConstraints(new Vector(0, 0), new Vector(10, 10)),
+                new VertexConstraints(new Vector(5, 5), new Vector(8, 8)),
                 "experiment8.png");
             LengthAngleDependenceExperiment(
-                new VertexConstraint(new Vector(5, 5), new Vector(8, 8), 1, 1),
-                new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1),
+                new VertexConstraints(new Vector(5, 5), new Vector(8, 8)),
+                new VertexConstraints(new Vector(0, 0), new Vector(10, 10)),
                 "experiment8_revert.png");
         }
 
         static void LengthAngleDependenceExperiment(
-            VertexConstraint constraint1, VertexConstraint constraint2, string fileName)
+            VertexConstraints constraint1, VertexConstraints constraint2, string fileName)
         {
             const int GeneratedPointCount = 100000;
 
@@ -186,8 +273,8 @@ namespace TestArea
                 maxLength = Math.Max(maxLength, length);
             }
 
-            VertexConstraintSet constraintSet = VertexConstraintSet.CreateFromConstraints(
-                CreateSimpleShapeModel1(), new[] { constraint1, constraint2 });
+            ShapeConstraints constraintSet = ShapeConstraints.CreateFromConstraints(
+                CreateSimpleShapeModel1(), new[] { constraint1, constraint2 }, new[] { new EdgeConstraints(1) });
             Range lengthRange, angleRange;
             constraintSet.DetermineEdgeLimits(0, out lengthRange, out angleRange);
 
@@ -263,8 +350,8 @@ namespace TestArea
                             image.SetPixel(i, j, Color.Orange);
                     }
 
-                    graphics.DrawString(
-                        String.Format("Max length is {0:0.0}", maxLength), SystemFonts.DefaultFont, Brushes.Green, 5, 5);
+                graphics.DrawString(
+                    String.Format("Max length is {0:0.0}", maxLength), SystemFonts.DefaultFont, Brushes.Green, 5, 5);
 
                 image.Save(fileName);
             }
@@ -287,7 +374,8 @@ namespace TestArea
         {
             Rand.Restart(666);
 
-            MainForLengthAngleDependenceExperiment();
+            MainForPointIsClosestExperiment();
+            //MainForLengthAngleDependenceExperiment();
             //GenerateMeanShape();
             //DrawLengthAngleDependence();
             //MainForUnaryPotentialsCheck();

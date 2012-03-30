@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Drawing;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -40,6 +41,11 @@ namespace Research.GraphBasedShapePrior
             while (angle <= -Math.PI)
                 angle += Math.PI * 2;
             return angle;
+        }
+
+        public static PointF VecToPointF(Vector vec)
+        {
+            return new PointF((float)vec.X, (float)vec.Y);
         }
 
         public static Tuple<double, double> LineIntersection(Vector point1, Vector dir1, Vector point2, Vector dir2)

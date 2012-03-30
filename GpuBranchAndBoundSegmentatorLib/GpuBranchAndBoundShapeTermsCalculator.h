@@ -20,50 +20,67 @@ namespace Research
 	{
 		public ref class GpuBranchAndBoundShapeTermsCalculator : public IBranchAndBoundShapeTermsCalculator
 		{
+		private:
+
+			float2 VectorToFloat2(Vector vec)
+			{
+				return make_float2(static_cast<float>(vec.X), static_cast<float>(vec.Y));
+			}
+
 		public:
 
-			virtual void CalculateShapeTerms(VertexConstraintSet ^constraintSet, Image2D<ObjectBackgroundTerm> ^result)
+			virtual void CalculateShapeTerms(ShapeConstraints ^shapeConstraints, Image2D<ObjectBackgroundTerm> ^result)
 			{
-				int edgeCount = constraintSet->ShapeModel->Edges->Count;
+				int edgeCount = shapeConstraints->ShapeModel->Edges->Count;
 				
 				// Allocate unmanaged storage
+				// TODO: memory leak is possible here
+				float2 **convexHulls = new float2*[edgeCount];
+				int *convexHullSizes = new int[edgeCount];
+				float2 *edgeWidthLimits = new float2[edgeCount];
 				float2 **corners1 = new float2*[edgeCount];
 				float2 **corners2 = new float2*[edgeCount];
-				float2 **convexHulls = new float2*[edgeCount];
-				int* convexHullSizes = new int[edgeCount];
-				float2 *minRadii = new float2[edgeCount];
-				float2 *maxRadii = new float2[edgeCount];
 				float *objectPenalties = new float[result->Width * result->Height];
 				float *backgroundPenalties = new float[result->Width * result->Height];
 
 				// Copy params
-				for (int i = 0; i < edgeCount; ++i)
+				for (int edgeIndex = 0; edgeIndex < edgeCount; ++edgeIndex)
 				{
-					ShapeEdge edge = constraintSet->ShapeModel->Edges[i];
-					VertexConstraint ^vertex1 = constraintSet->GetConstraintsForVertex(edge.Index1);
-					VertexConstraint ^vertex2 = constraintSet->GetConstraintsForVertex(edge.Index2);
+					ShapeEdge edge = shapeConstraints->ShapeModel->Edges[edgeIndex];
+					EdgeConstraints ^edgeConstraints = shapeConstraints->EdgeConstraints[edgeIndex];
+					VertexConstraints ^vertexConstraints1 = shapeConstraints->VertexConstraints[edge.Index1];
+					VertexConstraints ^vertexConstraints2 = shapeConstraints->VertexConstraints[edge.Index2];
 					
-					minRadii[i] = make_float2(static_cast<float>(vertex1->MinRadius), static_cast<float>(vertex2->MinRadius));
-					maxRadii[i] = make_float2(static_cast<float>(vertex1->MaxRadius), static_cast<float>(vertex2->MaxRadius));
-
-					corners1[i] = new float2[4];
-					corners2[i] = new float2[4];
-					for (int j = 0; j < 4; ++j)
+					edgeWidthLimits[edgeIndex] = make_float2(static_cast<float>(edgeConstraints->MinWidth), static_cast<float>(edgeConstraints->MaxWidth));
+					
+					corners1[edgeIndex] = new float2[4];
+					corners2[edgeIndex] = new float2[4];
+					for (int i = 0; i < 4; ++i)
 					{
-						corners1[i][j] = make_float2(static_cast<float>(vertex1->Corners[j].X), static_cast<float>(vertex1->Corners[j].Y));
-						corners2[i][j] = make_float2(static_cast<float>(vertex2->Corners[j].X), static_cast<float>(vertex2->Corners[j].Y));
+						corners1[edgeIndex][i] = VectorToFloat2(vertexConstraints1->Corners[i]);
+						corners2[edgeIndex][i] = VectorToFloat2(vertexConstraints2->Corners[i]);
 					}
-
-					Polygon ^convexHull = constraintSet->GetConvexHullForVertexPair(edge.Index1, edge.Index2);
-					convexHullSizes[i] = convexHull->Vertices->Count;
-					convexHulls[i] = new float2[convexHullSizes[i]];
-					for (int j = 0; j < convexHullSizes[i]; ++j)
-						convexHulls[i][j] = make_float2(static_cast<float>(convexHull->Vertices[j].X), static_cast<float>(convexHull->Vertices[j].Y));
+					
+					Polygon ^convexHull = shapeConstraints->GetConvexHullForVertexPair(edge.Index1, edge.Index2);
+					convexHullSizes[edgeIndex] = convexHull->Vertices->Count;
+					convexHulls[edgeIndex] = new float2[convexHull->Vertices->Count];
+					for (int i = 0; i < convexHull->Vertices->Count; ++i)
+						convexHulls[edgeIndex][i] = make_float2(static_cast<float>(convexHull->Vertices[i].X), static_cast<float>(convexHull->Vertices[i].Y));
 				}
 				
 				// Call CUDA code wrapper
-				CalculateShapeUnaryTerms(edgeCount, corners1, corners2, convexHulls, convexHullSizes, minRadii, maxRadii, result->Width, result->Height,
-					static_cast<float>(constraintSet->ShapeModel->Cutoff), objectPenalties, backgroundPenalties);
+				CalculateShapeUnaryTerms(
+					edgeCount,
+					convexHulls,
+					convexHullSizes,
+					corners1,
+					corners2,
+					edgeWidthLimits,
+					static_cast<float>(shapeConstraints->ShapeModel->BackgroundDistanceCoeff),
+					result->Width,
+					result->Height,
+					objectPenalties,
+					backgroundPenalties);
 
 				// Copy results
 				for (int x = 0; x < result->Width; ++x)
@@ -76,12 +93,11 @@ namespace Research
 				}
 
 				// Free unmanaged storage
+				FreeArray2D(convexHulls, edgeCount);
 				FreeArray2D(corners1, edgeCount);
 				FreeArray2D(corners2, edgeCount);
-				FreeArray2D(convexHulls, edgeCount);
 				delete[] convexHullSizes;
-				delete[] minRadii;
-				delete[] maxRadii;
+				delete[] edgeWidthLimits;
 				delete[] objectPenalties;
 				delete[] backgroundPenalties;
 			}

@@ -9,22 +9,20 @@ namespace Research.GraphBasedShapePrior.Tests
     public class ShapeEnergyTests
     {
         private static double TestShapeEnergyCalculationApproachesImpl(
-            ShapeModel model, IEnumerable<Circle> vertices, Size objectSize, int lengthGridSize, int angleGridSize, double eps)
+            ShapeModel model, IEnumerable<Vector> vertices, IEnumerable<double> edgeWidths, int lengthGridSize, int angleGridSize, double eps)
         {
-            double sizeEstimate = SegmentationAlgorithmBase.ImageSizeToObjectSizeEstimate(objectSize);
-
             // Create shape model and calculate energy in normal way
-            Shape shape = new Shape(model, vertices);
-            double energy1 = shape.CalculateEnergy(sizeEstimate);
+            Shape shape = new Shape(model, vertices, edgeWidths);
+            double energy1 = shape.CalculateEnergy();
 
             // Calculate energy via generalized distance transforms
-            VertexConstraintSet constraints = VertexConstraintSet.CreateFromConstraints(
-                model, TestHelper.VerticesToConstraints(vertices));
+            ShapeConstraints constraints = ShapeConstraints.CreateFromConstraints(
+                model, TestHelper.VerticesToConstraints(vertices), TestHelper.EdgeWidthsToConstraints(edgeWidths));
             BranchAndBoundSegmentationAlgorithm segmentator = new BranchAndBoundSegmentationAlgorithm();
             segmentator.ShapeModel = model;
             segmentator.LengthGridSize = lengthGridSize;
             segmentator.AngleGridSize = angleGridSize;
-            double energy2 = segmentator.CalculateMinShapeEnergy(constraints, objectSize);
+            double energy2 = segmentator.CalculateMinShapeEnergy(constraints);
 
             Assert.AreEqual(energy1, energy2, eps);
 
@@ -37,20 +35,22 @@ namespace Research.GraphBasedShapePrior.Tests
             Shape meanShape = shapeModel.FitMeanShape(imageSize);
 
             // Check GDT vs usual approach
-            double energy = TestShapeEnergyCalculationApproachesImpl(shapeModel, meanShape.Vertices, imageSize, 1001, 1001, eps);
+            double energy = TestShapeEnergyCalculationApproachesImpl(
+                shapeModel, meanShape.VertexPositions, meanShape.EdgeWidths, 1001, 1001, eps);
 
             // Check if energy is zero
-            Assert.AreEqual(0, energy, 1e-6);
+            Assert.AreEqual(0, energy, eps);
 
             // Check if shape is inside given rect);
-            foreach (Circle vertex in meanShape.Vertices)
-                Assert.IsTrue(new RectangleF(0, 0, imageSize.Width, imageSize.Height).Contains((float)vertex.Center.X, (float)vertex.Center.Y));
+            foreach (Vector vertex in meanShape.VertexPositions)
+                Assert.IsTrue(new RectangleF(0, 0, imageSize.Width, imageSize.Height).Contains((float)vertex.X, (float)vertex.Y));
         }
 
         private static void TestEdgeLimitsCommonImpl(
-            VertexConstraint constraint1, VertexConstraint constraint2, out Range lengthRange, out Range angleRange)
+            VertexConstraints constraint1, VertexConstraints constraint2, out Range lengthRange, out Range angleRange)
         {
-            VertexConstraintSet constraintSet = VertexConstraintSet.CreateFromConstraints(TestHelper.CreateTestShapeModelWith1Edge(), new[] { constraint1, constraint2 });
+            ShapeConstraints constraintSet = ShapeConstraints.CreateFromConstraints(
+                TestHelper.CreateTestShapeModelWith1Edge(), new[] { constraint1, constraint2 }, new[] { new EdgeConstraints(1, 10) });
             constraintSet.DetermineEdgeLimits(0, out lengthRange, out angleRange);
 
             GeneralizedDistanceTransform2D transform = new GeneralizedDistanceTransform2D(
@@ -58,7 +58,7 @@ namespace Research.GraphBasedShapePrior.Tests
             AllowedLengthAngleChecker allowedLengthAngleChecker = new AllowedLengthAngleChecker(constraint1, constraint2, transform, 1, 0);
 
             Random random = new Random(666);
-            
+
             const int insideCheckCount = 1000;
             for (int i = 0; i < insideCheckCount; ++i)
             {
@@ -113,101 +113,105 @@ namespace Research.GraphBasedShapePrior.Tests
         [TestMethod]
         public void TestShapeEnergyCalculationApproaches1()
         {
-            List<Circle> vertices = new List<Circle>();
-            vertices.Add(new Circle(0, 0, 10));
-            vertices.Add(new Circle(80, 0, 15));
-            vertices.Add(new Circle(80, 100, 13));
+            List<Vector> vertices = new List<Vector> { new Vector(0, 0), new Vector(80, 0), new Vector(80, 100) };
+            List<double> edgeWidths = new List<double> { 10, 15 };
 
             TestShapeEnergyCalculationApproachesImpl(
-                TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertices, new Size(100, 100), 2001, 2001, 0.1);
+                TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertices, edgeWidths, 2001, 2001, 0.1);
         }
 
         [TestMethod]
         public void TestShapeEnergyCalculationApproaches2()
         {
-            List<Circle> vertices = new List<Circle>();
-            vertices.Add(new Circle(0, 0, 10));
-            vertices.Add(new Circle(40, 0, 15));
-            vertices.Add(new Circle(0, 42, 13));
+            List<Vector> vertices = new List<Vector> { new Vector(0, 0), new Vector(40, 0), new Vector(0, 42) };
+            List<double> edgeWidths = new List<double> { 10, 15 };
 
             TestShapeEnergyCalculationApproachesImpl(
-                TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertices, new Size(100, 100), 2001, 2001, 0.2);
+                TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertices, edgeWidths, 2001, 2001, 0.2);
         }
 
         [TestMethod]
         public void TestShapeEnergyCalculationApproaches3()
         {
-            List<Circle> vertices = new List<Circle>();
-            vertices.Add(new Circle(0, 0, 10));
-            vertices.Add(new Circle(40, 0, 15));
-            vertices.Add(new Circle(40, 50, 13));
-            vertices.Add(new Circle(80, 70, 7));
-            vertices.Add(new Circle(30, 55, 20));
-            vertices.Add(new Circle(10, -50, 10));
+            List<Vector> vertices = new List<Vector>
+            {
+                new Vector(0, 0),
+                new Vector(40, 0),
+                new Vector(40, 50),
+                new Vector(80, 70),
+                new Vector(30, 55),
+                new Vector(10, -50)
+            };
+            List<double> edgeWidths = new List<double> { 10, 11, 12, 13, 14 };
 
-            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateTestShapeModel5Edges(), vertices, new Size(100, 100), 2001, 2001, 0.5);
+            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateTestShapeModel5Edges(), vertices, edgeWidths, 2001, 2001, 2);
         }
 
         [TestMethod]
         public void TestShapeEnergyCalculationApproaches4()
         {
-            List<Circle> vertices = new List<Circle>();
-            vertices.Add(new Circle(0, 0, 10));
-            vertices.Add(new Circle(40, 0, 15));
-            vertices.Add(new Circle(3, -40, 13));
-            vertices.Add(new Circle(37, -43, 7));
-            vertices.Add(new Circle(2, -90, 20));
-            vertices.Add(new Circle(-35, -95, 10));
+            List<Vector> vertices = new List<Vector>
+            {
+                new Vector(0, 0),
+                new Vector(40, 0),
+                new Vector(3, -40),
+                new Vector(37, -43),
+                new Vector(2, -90),
+                new Vector(-35, -95)
+            };
+            List<double> edgeWidths = new List<double> { 10, 11, 12, 13, 14 };
 
-            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateTestShapeModel5Edges(), vertices, new Size(100, 100), 3001, 3001, 2);
+            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateTestShapeModel5Edges(), vertices, edgeWidths, 3001, 3001, 2);
         }
 
         [TestMethod]
         public void TestShapeEnergyCalculationApproaches5()
         {
-            List<Circle> vertices = new List<Circle>();
-            vertices.Add(new Circle(0, 0, 10));
-            vertices.Add(new Circle(-40, -1, 15));
-            vertices.Add(new Circle(3, -40, 13));
-            vertices.Add(new Circle(37, -43, 7));
-            vertices.Add(new Circle(2, -90, 20));
-            vertices.Add(new Circle(-35, -95, 10));
+            List<Vector> vertices = new List<Vector>
+            {
+                new Vector(0, 0),
+                new Vector(-40, -1),
+                new Vector(3, -40),
+                new Vector(37, -43),
+                new Vector(2, -90),
+                new Vector(-35, -95)
+            };
+            List<double> edgeWidths = new List<double> { 10, 11, 12, 13, 14 };
 
-            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateLetterShapeModel(), vertices, new Size(100, 100), 3001, 3001, 2);
+            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateLetterShapeModel(), vertices, edgeWidths, 3001, 3001, 2);
         }
 
         [TestMethod]
         public void TestMeanShape1()
         {
-            TestMeanShapeImpl(TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), 1e-6);
+            TestMeanShapeImpl(TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), 1e-4);
         }
 
         [TestMethod]
         public void TestMeanShape2()
         {
-            TestMeanShapeImpl(TestHelper.CreateTestShapeModel5Edges(), 1e-6);
+            TestMeanShapeImpl(TestHelper.CreateTestShapeModel5Edges(), 1e-4);
         }
 
         [TestMethod]
         public void TestMeanShape3()
         {
-            TestMeanShapeImpl(TestHelper.CreateLetterShapeModel(), 1e-6);
+            TestMeanShapeImpl(TestHelper.CreateLetterShapeModel(), 1e-4);
         }
 
         [TestMethod]
         public void TestShapeTwist()
         {
-            Size objectSize = new Size(100, 100);
             const double edgeLength = 100;
             const double startAngle = Math.PI * 0.5;
 
             ShapeModel shapeModel = TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1);
-            List<Circle> vertices = new List<Circle>();
-            vertices.Add(new Circle(0, 0, 10));
-            vertices.Add(new Circle(Math.Cos(startAngle) * edgeLength, Math.Sin(startAngle) * edgeLength, 10));
-            vertices.Add(new Circle());
+            List<Vector> vertices = new List<Vector>();
+            vertices.Add(new Vector(0, 0));
+            vertices.Add(new Vector(Math.Cos(startAngle) * edgeLength, Math.Sin(startAngle) * edgeLength));
+            vertices.Add(new Vector());
 
-            double objectSizeEstimate = SegmentationAlgorithmBase.ImageSizeToObjectSizeEstimate(objectSize);
+            List<double> edgeWidths = new List<double> { 10, 10 };
 
             const int iterationCount = 10;
             const double angleStep = 2 * Math.PI / iterationCount;
@@ -215,16 +219,16 @@ namespace Research.GraphBasedShapePrior.Tests
             for (int i = 0; i < iterationCount; ++i)
             {
                 double angle = startAngle + Math.PI * 0.5 + angleStep * i;
-                vertices[2] = new Circle(vertices[1].Center.X + edgeLength * Math.Cos(angle), vertices[1].Center.Y + edgeLength * Math.Sin(angle), 10);
-                Shape shape = new Shape(shapeModel, vertices);
+                vertices[2] = new Vector(vertices[1].X + edgeLength * Math.Cos(angle), vertices[1].Y + edgeLength * Math.Sin(angle));
+                Shape shape = new Shape(shapeModel, vertices, edgeWidths);
 
                 // Test if energy is increasing/decreasing properly
                 if (i <= iterationCount / 2)
-                    Assert.IsTrue(lastShape == null || lastShape.CalculateEnergy(objectSizeEstimate) < shape.CalculateEnergy(objectSizeEstimate));
+                    Assert.IsTrue(lastShape == null || lastShape.CalculateEnergy() < shape.CalculateEnergy());
                 else
-                    Assert.IsTrue(lastShape.CalculateEnergy(objectSizeEstimate) > shape.CalculateEnergy(objectSizeEstimate));
+                    Assert.IsTrue(lastShape.CalculateEnergy() > shape.CalculateEnergy());
 
-                TestShapeEnergyCalculationApproachesImpl(shapeModel, vertices, objectSize, 2001, 2001, 1e-6);
+                TestShapeEnergyCalculationApproachesImpl(shapeModel, vertices, edgeWidths, 2001, 2001, 1e-6);
 
                 lastShape = shape;
             }
@@ -233,8 +237,8 @@ namespace Research.GraphBasedShapePrior.Tests
         [TestMethod]
         public void TestEdgeLimits1()
         {
-            VertexConstraint constraint1 = new VertexConstraint(new Vector(-10, -10), new Vector(10, 10), 3, 6);
-            VertexConstraint constraint2 = new VertexConstraint(new Vector(11, -7), new Vector(13, 15), 2, 4);
+            VertexConstraints constraint1 = new VertexConstraints(new Vector(-10, -10), new Vector(10, 10));
+            VertexConstraints constraint2 = new VertexConstraints(new Vector(11, -7), new Vector(13, 15));
 
             Range lengthRange, angleRange;
             TestEdgeLimitsCommonImpl(constraint1, constraint2, out lengthRange, out angleRange);
@@ -250,8 +254,8 @@ namespace Research.GraphBasedShapePrior.Tests
         [TestMethod]
         public void TestEdgeLimits2()
         {
-            VertexConstraint constraint1 = new VertexConstraint(new Vector(11, -7), new Vector(13, 15), 2, 4);
-            VertexConstraint constraint2 = new VertexConstraint(new Vector(-10, -10), new Vector(10, 10), 3, 6);
+            VertexConstraints constraint1 = new VertexConstraints(new Vector(11, -7), new Vector(13, 15));
+            VertexConstraints constraint2 = new VertexConstraints(new Vector(-10, -10), new Vector(10, 10));
 
             Range lengthRange, angleRange;
             TestEdgeLimitsCommonImpl(constraint1, constraint2, out lengthRange, out angleRange);
@@ -267,8 +271,8 @@ namespace Research.GraphBasedShapePrior.Tests
         [TestMethod]
         public void TestEdgeLimits3()
         {
-            VertexConstraint constraint1 = new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 2, 4);
-            VertexConstraint constraint2 = new VertexConstraint(new Vector(11, 11), new Vector(12, 16), 3, 6);
+            VertexConstraints constraint1 = new VertexConstraints(new Vector(0, 0), new Vector(10, 10));
+            VertexConstraints constraint2 = new VertexConstraints(new Vector(11, 11), new Vector(12, 16));
 
             Range lengthRange, angleRange;
             TestEdgeLimitsCommonImpl(constraint1, constraint2, out lengthRange, out angleRange);
@@ -286,8 +290,8 @@ namespace Research.GraphBasedShapePrior.Tests
         public void TestEdgeLimits4()
         {
             const double eps = 0.01;
-            VertexConstraint constraint1 = new VertexConstraint(new Vector(0, 0), new Vector(1 - eps, 1 - eps), 2, 4);
-            VertexConstraint constraint2 = new VertexConstraint(new Vector(1 + eps, 1 + eps), new Vector(2, 2), 3, 6);
+            VertexConstraints constraint1 = new VertexConstraints(new Vector(0, 0), new Vector(1 - eps, 1 - eps));
+            VertexConstraints constraint2 = new VertexConstraints(new Vector(1 + eps, 1 + eps), new Vector(2, 2));
 
             Range lengthRange, angleRange;
             TestEdgeLimitsCommonImpl(constraint1, constraint2, out lengthRange, out angleRange);
@@ -307,8 +311,8 @@ namespace Research.GraphBasedShapePrior.Tests
         [TestMethod]
         public void TestEdgeLimits5()
         {
-            VertexConstraint constraint1 = new VertexConstraint(new Vector(-10, 8), new Vector(10, 10), 1, 1);
-            VertexConstraint constraint2 = new VertexConstraint(new Vector(5, 0), new Vector(6, 7), 1, 1);
+            VertexConstraints constraint1 = new VertexConstraints(new Vector(-10, 8), new Vector(10, 10));
+            VertexConstraints constraint2 = new VertexConstraints(new Vector(5, 0), new Vector(6, 7));
 
             Range lengthRange, angleRange;
             TestEdgeLimitsCommonImpl(constraint1, constraint2, out lengthRange, out angleRange);
@@ -317,8 +321,8 @@ namespace Research.GraphBasedShapePrior.Tests
         [TestMethod]
         public void TestEdgeLimits6()
         {
-            VertexConstraint constraint1 = new VertexConstraint(new Vector(0, 0), new Vector(5, 5), 1, 1);
-            VertexConstraint constraint2 = new VertexConstraint(new Vector(4, 4), new Vector(10, 9), 1, 1);
+            VertexConstraints constraint1 = new VertexConstraints(new Vector(0, 0), new Vector(5, 5));
+            VertexConstraints constraint2 = new VertexConstraints(new Vector(4, 4), new Vector(10, 9));
 
             Range lengthRange, angleRange;
             TestEdgeLimitsCommonImpl(constraint1, constraint2, out lengthRange, out angleRange);
@@ -327,38 +331,44 @@ namespace Research.GraphBasedShapePrior.Tests
         [TestMethod]
         public void TestEdgeLimits7()
         {
-            VertexConstraint constraint1 = new VertexConstraint(new Vector(0, 0), new Vector(10, 10), 1, 1);
-            VertexConstraint constraint2 = new VertexConstraint(new Vector(5, 5), new Vector(8, 8), 1, 1);
+            VertexConstraints constraint1 = new VertexConstraints(new Vector(0, 0), new Vector(10, 10));
+            VertexConstraints constraint2 = new VertexConstraints(new Vector(5, 5), new Vector(8, 8));
 
             Range lengthRange, angleRange;
             TestEdgeLimitsCommonImpl(constraint1, constraint2, out lengthRange, out angleRange);
         }
 
         [TestMethod]
-        public void TestSplitsNonIntersection()
+        public void TestVertexConstraintSplitsNonIntersection()
         {
-            VertexConstraint constraint = new VertexConstraint(new Vector(0, 0), new Vector(1, 1), 0, 1);
-            
-            List<VertexConstraint> coordSplit = constraint.SplitByCoords();
-            Assert.IsTrue(coordSplit.Count == 4);
-            for (int i = 0; i < coordSplit.Count; ++i)
+            VertexConstraints constraints = new VertexConstraints(new Vector(0, 0), new Vector(1, 1));
+
+            List<VertexConstraints> split = constraints.Split();
+            Assert.IsTrue(split.Count == 4);
+            for (int i = 0; i < split.Count; ++i)
             {
-                for (int j = i + 1; j < coordSplit.Count; ++j)
+                for (int j = i + 1; j < split.Count; ++j)
                 {
-                    Range xRange1 = new Range(coordSplit[i].MinCoord.X, coordSplit[i].MaxCoord.X, false);
-                    Range yRange1 = new Range(coordSplit[i].MinCoord.Y, coordSplit[i].MaxCoord.Y, false);
-                    Range xRange2 = new Range(coordSplit[j].MinCoord.X, coordSplit[j].MaxCoord.X, false);
-                    Range yRange2 = new Range(coordSplit[j].MinCoord.Y, coordSplit[j].MaxCoord.Y, false);
-                    
+                    Range xRange1 = new Range(split[i].MinCoord.X, split[i].MaxCoord.X, false);
+                    Range yRange1 = new Range(split[i].MinCoord.Y, split[i].MaxCoord.Y, false);
+                    Range xRange2 = new Range(split[j].MinCoord.X, split[j].MaxCoord.X, false);
+                    Range yRange2 = new Range(split[j].MinCoord.Y, split[j].MaxCoord.Y, false);
+
                     Assert.IsFalse(xRange1.IntersectsWith(xRange2) && yRange1.IntersectsWith(yRange2));
                 }
             }
+        }
 
-            List<VertexConstraint> radiusSplit = constraint.SplitByRadius();
-            Assert.IsTrue(radiusSplit.Count == 2);
-            Range rRange1 = new Range(radiusSplit[0].MinRadius, radiusSplit[0].MaxRadius, false);
-            Range rRange2 = new Range(radiusSplit[1].MinRadius, radiusSplit[1].MaxRadius, false);
-            Assert.IsFalse(rRange1.IntersectsWith(rRange2));
+        [TestMethod]
+        public void TestEdgeConstraintSplitsNonIntersection()
+        {
+            EdgeConstraints constraints = new EdgeConstraints(3, 5);
+            List<EdgeConstraints> split = constraints.Split();
+            Assert.IsTrue(split.Count == 2);
+
+            Range range1 = new Range(split[0].MinWidth, split[0].MaxWidth, false);
+            Range range2 = new Range(split[1].MinWidth, split[1].MaxWidth, false);
+            Assert.IsFalse(range1.IntersectsWith(range2));
         }
     }
 }

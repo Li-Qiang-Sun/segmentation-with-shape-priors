@@ -8,9 +8,9 @@ namespace Research.GraphBasedShapePrior
     {
         private readonly List<List<LengthAngleSpaceSeparator>> separatorLists = new List<List<LengthAngleSpaceSeparator>>();
 
-        public LengthAngleSpaceSeparatorSet(VertexConstraint constraint1, VertexConstraint constraint2)
+        public LengthAngleSpaceSeparatorSet(VertexConstraints constraint1, VertexConstraints constraint2)
         {
-            if (constraint1.CoordViolation < 1e-6 || constraint2.CoordViolation < 1e-6)
+            if (constraint1.FreedomLevel < 1e-6 || constraint2.FreedomLevel < 1e-6)
                 throw new ArgumentException("Coord constraints should not be singular.");
             
             this.AddSeparatorsForPair(constraint1, constraint2, false);
@@ -41,13 +41,13 @@ namespace Research.GraphBasedShapePrior
             return false;
         }
 
-        private void AddSeparatorsForPair(VertexConstraint constraint1, VertexConstraint constraint2, bool swapDirection)
+        private void AddSeparatorsForPair(VertexConstraints constraint1, VertexConstraints constraint2, bool swapDirection)
         {
             for (int i = 0; i < 4; ++i)
                 this.AddSeparatorsForPoint(constraint1.Corners[i], constraint2, swapDirection);
         }
 
-        private void AddSeparatorsForPoint(Vector point, VertexConstraint constraint2, bool swapDirection)
+        private void AddSeparatorsForPoint(Vector point, VertexConstraints constraint2, bool swapDirection)
         {
             this.separatorLists.Add(new List<LengthAngleSpaceSeparator>());
 

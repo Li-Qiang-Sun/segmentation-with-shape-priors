@@ -158,13 +158,12 @@ namespace Research.GraphBasedShapePrior
         public double SegmentImageWithShapeTerms(
             Func<Point, ObjectBackgroundTerm> shapeTermCalculator)
         {
-            // Calculate shape terms, check for changes
+            // Calculate shape terms, check for changes))
             for (int x = 0; x < this.lastUnaryTerms.Width; ++x)
             {
                 for (int y = 0; y < this.lastUnaryTerms.Height; ++y)
                 {
                     ObjectBackgroundTerm shapeTerms = shapeTermCalculator(new Point(x, y));
-                    Debug.Assert(shapeTerms.ObjectTerm >= 0 && shapeTerms.BackgroundTerm >= 0);
                     
                     if (firstTime || shapeTerms != this.lastShapeTerms[x, y])
                     {
@@ -201,6 +200,7 @@ namespace Research.GraphBasedShapePrior
             // Compute energy
             double energy = 0;
             for (int x = 0; x < this.lastSegmentationMask.Width; ++x)
+            {
                 for (int y = 0; y < this.lastSegmentationMask.Height; ++y)
                 {
                     energy += this.lastSegmentationMask[x, y] ? this.lastUnaryTerms[x, y].ObjectTerm : this.lastUnaryTerms[x, y].BackgroundTerm;
@@ -211,6 +211,7 @@ namespace Research.GraphBasedShapePrior
                     if (x < this.lastSegmentationMask.Width - 1 && y < this.lastSegmentationMask.Height - 1 && this.lastSegmentationMask[x, y] != this.lastSegmentationMask[x + 1, y + 1])
                         energy += this.pairwiseTerms[x, y].Item3;
                 }
+            }
 
             this.firstTime = false;
 

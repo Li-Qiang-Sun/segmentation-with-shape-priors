@@ -13,8 +13,13 @@ namespace Research.GraphBasedShapePrior
 
         public bool Outside { get; private set; }
 
-        public static readonly Range Everything = new Range(Double.NegativeInfinity, Double.PositiveInfinity, false);
+        public static readonly Range Everything = new Range(Double.NegativeInfinity, Double.PositiveInfinity);
 
+        public Range(double left, double right)
+            : this(left, right, false)
+        {
+        }
+        
         public Range(double left, double right, bool outside)
             : this()
         {

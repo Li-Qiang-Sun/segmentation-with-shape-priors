@@ -152,11 +152,6 @@ namespace Research.GraphBasedShapePrior
             return mask;
         }
 
-        public static double ImageSizeToObjectSizeEstimate(Size imageSize)
-        {
-            return Math.Max(imageSize.Width, imageSize.Height);
-        }
-
         protected abstract Image2D<bool> SegmentImageImpl(
             Image2D<Color> shrinkedImage,
             Mixture<VectorGaussian> backgroundColorModel,

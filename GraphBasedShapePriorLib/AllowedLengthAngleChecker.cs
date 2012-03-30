@@ -12,8 +12,8 @@ namespace Research.GraphBasedShapePrior
         private readonly GeneralizedDistanceTransform2D checkingTransform;
         
         public AllowedLengthAngleChecker(
-            VertexConstraint constraint1,
-            VertexConstraint constraint2,
+            VertexConstraints constraint1,
+            VertexConstraints constraint2,
             GeneralizedDistanceTransform2D checkingTransform,
             double lengthRatio,
             double meanAngle)

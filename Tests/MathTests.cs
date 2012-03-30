@@ -15,8 +15,8 @@ namespace Research.GraphBasedShapePrior.Tests
         [TestMethod]
         public void TestRange1()
         {
-            Range range1 = new Range(1, 2, false);
-            Range range2 = new Range(1.5, 2.5, false);
+            Range range1 = new Range(1, 2);
+            Range range2 = new Range(1.5, 2.5);
             Assert.IsTrue(range1.IntersectsWith(range2));
             Assert.IsTrue(range2.IntersectsWith(range1));
         }
@@ -24,8 +24,8 @@ namespace Research.GraphBasedShapePrior.Tests
         [TestMethod]
         public void TestRange2()
         {
-            Range range1 = new Range(1, 2, false);
-            Range range2 = new Range(2.1, 2.5, false);
+            Range range1 = new Range(1, 2);
+            Range range2 = new Range(2.1, 2.5);
             Assert.IsFalse(range1.IntersectsWith(range2));
             Assert.IsFalse(range2.IntersectsWith(range1));
         }
@@ -60,8 +60,8 @@ namespace Research.GraphBasedShapePrior.Tests
         [TestMethod]
         public void TestRange6()
         {
-            Range range1 = new Range(1, 1, false);
-            Range range2 = new Range(1, 2, false);
+            Range range1 = new Range(1, 1);
+            Range range2 = new Range(1, 2);
             Assert.IsTrue(range1.IntersectsWith(range2));
             Assert.IsTrue(range2.IntersectsWith(range1));
         }
@@ -69,8 +69,8 @@ namespace Research.GraphBasedShapePrior.Tests
         [TestMethod]
         public void TestRange7()
         {
-            Range range1 = new Range(1, 2, false);
-            Range range2 = new Range(1.1, 1.1, false);
+            Range range1 = new Range(1, 2);
+            Range range2 = new Range(1.1, 1.1);
             Assert.IsTrue(range1.IntersectsWith(range2));
             Assert.IsTrue(range2.IntersectsWith(range1));
         }

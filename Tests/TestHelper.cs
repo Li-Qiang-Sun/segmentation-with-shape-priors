@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
-using System.Text;
 
 namespace Research.GraphBasedShapePrior.Tests
 {
@@ -13,14 +11,13 @@ namespace Research.GraphBasedShapePrior.Tests
             List<ShapeEdge> edges = new List<ShapeEdge>();
             edges.Add(new ShapeEdge(0, 1));
 
-            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
+            edgeParams.Add(new ShapeEdgeParams(0.15, 0.05));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
 
-            return ShapeModel.Create(edges, vertexParams, edgePairParams);
+            return ShapeModel.Create(edges, edgeParams, edgePairParams);
         }
         
         public static ShapeModel CreateTestShapeModelWith2Edges(double meanAngle, double lengthRatio)
@@ -29,16 +26,15 @@ namespace Research.GraphBasedShapePrior.Tests
             edges.Add(new ShapeEdge(0, 1));
             edges.Add(new ShapeEdge(1, 2));
 
-            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
+            edgeParams.Add(new ShapeEdgeParams(0.15, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.15, 0.05));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
             edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(meanAngle, lengthRatio, 0.1, 10));
 
-            return ShapeModel.Create(edges, vertexParams, edgePairParams);
+            return ShapeModel.Create(edges, edgeParams, edgePairParams);
         }
 
         public static ShapeModel CreateTestShapeModel5Edges()
@@ -50,13 +46,12 @@ namespace Research.GraphBasedShapePrior.Tests
             edges.Add(new ShapeEdge(2, 4));
             edges.Add(new ShapeEdge(0, 5));
 
-            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.15, 0.1));
+            List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
+            edgeParams.Add(new ShapeEdgeParams(0.15, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.15, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.15, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.15, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.15, 0.05));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
@@ -65,7 +60,7 @@ namespace Research.GraphBasedShapePrior.Tests
             edgePairParams.Add(new Tuple<int, int>(1, 3), new ShapeEdgePairParams(Math.PI * 0.5, 0.8, 0.1, 10));
             edgePairParams.Add(new Tuple<int, int>(0, 4), new ShapeEdgePairParams(-Math.PI * 0.5, 1.2, 0.05, 5));
 
-            return ShapeModel.Create(edges, vertexParams, edgePairParams);
+            return ShapeModel.Create(edges, edgeParams, edgePairParams);
         }
 
         public static ShapeModel CreateLetterShapeModel()
@@ -77,13 +72,12 @@ namespace Research.GraphBasedShapePrior.Tests
             edges.Add(new ShapeEdge(2, 4));
             edges.Add(new ShapeEdge(4, 5));
 
-            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.07, 0.05));
+            List<ShapeEdgeParams> vertexParams = new List<ShapeEdgeParams>();
+            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
+            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
+            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
+            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
+            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams = new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
             edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(-Math.PI * 0.5, 1.3, Math.PI * 0.02, 2));
@@ -94,9 +88,14 @@ namespace Research.GraphBasedShapePrior.Tests
             return ShapeModel.Create(edges, vertexParams, edgePairParams);
         }
 
-        public static IEnumerable<VertexConstraint> VerticesToConstraints(IEnumerable<Circle> vertices)
+        public static IEnumerable<VertexConstraints> VerticesToConstraints(IEnumerable<Vector> vertices)
         {
-            return from v in vertices select new VertexConstraint(v.Center, v.Radius);
+            return from vertex in vertices select new VertexConstraints(vertex);
+        }
+
+        public static IEnumerable<EdgeConstraints> EdgeWidthsToConstraints(IEnumerable<double> edgeWidths)
+        {
+            return from width in edgeWidths select new EdgeConstraints(width);
         }
     }
 }

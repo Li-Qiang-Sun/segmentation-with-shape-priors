@@ -12,6 +12,21 @@ __device__ float length_sqr(float2 vec)
 	return dot(vec, vec);
 }
 
+__device__ float2 min(float2 value1, float2 value2)
+{
+	return make_float2(min(value1.x, value2.x), min(value1.y, value2.y));
+}
+
+__device__ float2 max(float2 value1, float2 value2)
+{
+	return make_float2(max(value1.x, value2.x), max(value1.y, value2.y));
+}
+
+__device__ float2 trunc(float2 value, float2 minValue, float2 maxValue)
+{
+	return max(min(value, maxValue), minValue);
+}
+
 __device__ float log_inf(float x)
 {
 	const float threshold = 1e-15;
@@ -40,21 +55,7 @@ __device__ bool PointInConvexHull(float2 point, float2 *convexHullPoints, int co
     return inside;
 }
 
-__device__ float DistanceToCircleArea(
-	float2 point, float2 circleCenter, float circleRadius)
-{
-    return max(length(point - circleCenter) - circleRadius, 0.f);
-}
-
-__device__ bool CircleInCircle(
-	float2 centerOuter, float radiusOuter, float2 centerInner, float radiusInner)
-{
-    float distanceSqr = length_sqr(centerOuter - centerInner);
-	float radiusDiff = radiusOuter - radiusInner;
-	return radiusDiff >= 0 && distanceSqr <= radiusDiff * radiusDiff;
-}
-
-__device__ float DistanceToSegment(
+__device__ float DistanceToSegmentSqr(
     float2 point,
     float2 segmentStart,
     float2 segmentEnd)
@@ -64,72 +65,8 @@ __device__ float DistanceToSegment(
 
     float alpha = dot(v, p) / dot(v, v);
     if (alpha < 0)
-        return length(p);
+        return length_sqr(p);
     if (alpha > 1)
-        return length(point - segmentEnd);
-    return length(segmentStart + v * alpha - point);
-}
-
-__device__ float DistanceToPulleyArea(
-    float2 point,
-    float2 pulleyPoint1,
-    float pulleyRadius1,
-    float2 pulleyPoint2,
-    float pulleyRadius2)
-{
-    // First circle should always be bigger
-    if (pulleyRadius1 < pulleyRadius2)
-    {
-        device_swap(pulleyPoint1, pulleyPoint2);
-        device_swap(pulleyRadius1, pulleyRadius2);
-    }
-
-    // Check distance to first circle
-    float distance = DistanceToCircleArea(point, pulleyPoint1, pulleyRadius1);
-
-	// Check for singular pulley
-	if (CircleInCircle(pulleyPoint1, pulleyRadius1, pulleyPoint2, pulleyRadius2))
-		return distance;
-
-	// Check distance to second circle
-    distance = min(distance, DistanceToCircleArea(point, pulleyPoint2, pulleyRadius2));
-
-	// Point is inside one of the circles
-	if (distance == 0)
-		return 0;
-    
-    // All that stuff needed to solve pulley problem
-	float edgeLength = length(pulleyPoint1 - pulleyPoint2);
-    float cosAngle = (pulleyRadius1 - pulleyRadius2) / edgeLength;
-    float angle = acos(cosAngle);
-    float lineAngle = atan2(pulleyPoint2.y - pulleyPoint1.y, pulleyPoint2.x - pulleyPoint1.x);
-    float cosPlusPlus = cos(lineAngle + angle);
-    float sinPlusPlus = sin(lineAngle + angle);
-    float cosPlusMinus = cos(lineAngle - angle);
-    float sinPlusMinus = sin(lineAngle - angle);
-
-    // Find pulley points
-    float2 pulleyPoints[4];
-    pulleyPoints[0] = make_float2(	// Line 2 point 1
-        pulleyPoint1.x + pulleyRadius1 * cosPlusMinus,
-        pulleyPoint1.y + pulleyRadius1 * sinPlusMinus);
-	pulleyPoints[1] = make_float2(	// Line 1 point 1
-        pulleyPoint1.x + pulleyRadius1 * cosPlusPlus,
-        pulleyPoint1.y + pulleyRadius1 * sinPlusPlus);
-    pulleyPoints[2] = make_float2(	// Line 1 point 2
-        pulleyPoint2.x + pulleyRadius2 * cosPlusPlus,
-        pulleyPoint2.y + pulleyRadius2 * sinPlusPlus);
-    pulleyPoints[3] = make_float2(	// Line 2 point 2
-        pulleyPoint2.x + pulleyRadius2 * cosPlusMinus,
-        pulleyPoint2.y + pulleyRadius2 * sinPlusMinus);
-
-	// Point is inside pulley
-	if (PointInConvexHull(point, pulleyPoints, 4))
-		return 0;
-
-	// Check distance to pulley lines
-    distance = min(distance, DistanceToSegment(point, pulleyPoints[0], pulleyPoints[3]));
-    distance = min(distance, DistanceToSegment(point, pulleyPoints[1], pulleyPoints[2]));
-
-    return distance;
+        return length_sqr(point - segmentEnd);
+    return length_sqr(segmentStart + v * alpha - point);
 }

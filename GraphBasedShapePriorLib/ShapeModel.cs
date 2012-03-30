@@ -9,9 +9,7 @@ namespace Research.GraphBasedShapePrior
 {
     public class ShapeModel
     {
-        private double cutoff = 0.1;
-        
-        private List<ShapeVertexParams> shapeVertexParams;
+        private List<ShapeEdgeParams> edgeParams;
 
         private Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams;
 
@@ -19,42 +17,36 @@ namespace Research.GraphBasedShapePrior
 
         private List<LinkedList<int>> edgeTree;
 
+        private double backgroundDistanceCoeff = 1;
+
         private ShapeModel()
         {
         }
 
-        public double Cutoff
-        {
-            get { return cutoff; }
-            set
-            {
-                if (value <= 0)
-                    throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
-                cutoff = value;
-            }
-        }
-
         public static ShapeModel Create(
             IList<ShapeEdge> edges,
-            IList<ShapeVertexParams> vertexParams,
+            IList<ShapeEdgeParams> edgeParams,
             IDictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams)
         {
-            Debug.Assert(edges != null);
-            Debug.Assert(vertexParams != null);
-            Debug.Assert(edgePairParams != null);
+            if (edges == null)
+                throw new ArgumentNullException("edges");
+            if (edgeParams == null)
+                throw new ArgumentNullException("edgeParams");
+            if (edgePairParams == null)
+                throw new ArgumentNullException("edgePairParams");
 
-            if (edges.Count() == 0)
+            if (edges.Count == 0)
                 throw new ArgumentException("Model should contain at least one edge.", "edges");
 
+            if (edgeParams.Count != edges.Count)
+                throw new ArgumentException("Edge params count is not equal to edge count.");
+
+            // Vertex count is implicitly specified by the maximum index
+            int vertexCount = edges.Max(e => Math.Max(e.Index1, e.Index2)) + 1;
+
             // Check if all the edge vertex indices are valid
-            if (edges.Any(
-                shapeEdge => shapeEdge.Index1 < 0 ||
-                shapeEdge.Index1 >= vertexParams.Count ||
-                shapeEdge.Index2 < 0 ||
-                shapeEdge.Index2 >= vertexParams.Count))
-            {
-                throw new ArgumentException("One of the given edges has invalid edge indices.", "edges");
-            }
+            if (edges.Any(shapeEdge => shapeEdge.Index1 < 0 || shapeEdge.Index2 < 0))
+                throw new ArgumentException("Some of the edges have negative vertex indices.", "edges");
 
             // Check edge pair constraints
             foreach (Tuple<int, int> edgePair in edgePairParams.Keys)
@@ -76,16 +68,25 @@ namespace Research.GraphBasedShapePrior
             // Set
             ShapeModel result = new ShapeModel();
             result.edges = new List<ShapeEdge>(edges);
-            result.shapeVertexParams = new List<ShapeVertexParams>(vertexParams);
+            result.edgeParams = new List<ShapeEdgeParams>(edgeParams);
             result.edgePairParams = new Dictionary<Tuple<int, int>, ShapeEdgePairParams>(edgePairParams);
+            result.VertexCount = vertexCount;
             result.BuildEdgeTree();
 
             return result;
         }
 
-        public int VertexCount
+        public int VertexCount { get; private set; }
+
+        public double BackgroundDistanceCoeff
         {
-            get { return this.shapeVertexParams.Count; }
+            get { return this.backgroundDistanceCoeff; }   
+            set
+            {
+                if (value <= 0)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
+                this.backgroundDistanceCoeff = value;
+            }
         }
 
         public ReadOnlyCollection<ShapeEdge> Edges
@@ -103,12 +104,12 @@ namespace Research.GraphBasedShapePrior
             get { return this.edgePairParams.Count; }
         }
 
-        public ShapeVertexParams GetVertexParams(int vertexIndex)
+        public ShapeEdgeParams GetEdgeParams(int edgeIndex)
         {
-            return this.shapeVertexParams[vertexIndex];
+            return this.edgeParams[edgeIndex];
         }
 
-        public ShapeEdgePairParams GetEdgeParams(int edgeIndex1, int edgeIndex2)
+        public ShapeEdgePairParams GetEdgePairParams(int edgeIndex1, int edgeIndex2)
         {
             bool shouldSwap = false;
             if (edgeIndex1 > edgeIndex2)
@@ -118,11 +119,11 @@ namespace Research.GraphBasedShapePrior
             }
 
             Tuple<int, int> key = new Tuple<int, int>(edgeIndex1, edgeIndex2);
-            ShapeEdgePairParams edgeParams;
-            if (!this.edgePairParams.TryGetValue(key, out edgeParams))
+            ShapeEdgePairParams @params;
+            if (!this.edgePairParams.TryGetValue(key, out @params))
                 throw new ArgumentException("Given edges do not have common parameters.");
 
-            return shouldSwap ? edgeParams.Swap() : edgeParams;
+            return shouldSwap ? @params.Swap() : @params;
         }
 
         public IEnumerable<int> IterateNeighboringEdgeIndices(int edge)
@@ -130,16 +131,22 @@ namespace Research.GraphBasedShapePrior
             return this.edgeTree[edge];
         }
 
-        public double CalculateVertexEnergyTerm(int vertex, double bodyLength, double radius)
+        public double CalculateEdgeWidthEnergyTerm(int edgeIndex, double width, Vector edge1Vector, Vector edge2Vector)
         {
-            double diff = radius - bodyLength * this.shapeVertexParams[vertex].RadiusToObjectSizeRatio;
-            double stddev = bodyLength * this.shapeVertexParams[vertex].RadiusRelativeDeviation;
+            return CalculateEdgeWidthEnergyTerm(edgeIndex, width, (edge1Vector - edge2Vector).Length);
+        }
+
+        public double CalculateEdgeWidthEnergyTerm(int edgeIndex, double width, double edgeLength)
+        {
+            ShapeEdgeParams @params = this.edgeParams[edgeIndex];
+            double diff = edgeLength * @params.WidthToEdgeLengthRatio - width;
+            double stddev = @params.RelativeWidthDeviation * edgeLength;
             return diff * diff / (stddev * stddev);
         }
 
-        public double CalculateEdgePairEnergyTerm(int edge1, int edge2, Vector edge1Vector, Vector edge2Vector)
+        public double CalculateEdgePairEnergyTerm(int edgeIndex1, int edgeIndex2, Vector edge1Vector, Vector edge2Vector)
         {
-            Tuple<int, int> pair = new Tuple<int, int>(edge1, edge2);
+            Tuple<int, int> pair = new Tuple<int, int>(edgeIndex1, edgeIndex2);
             ShapeEdgePairParams pairParams;
             if (!this.edgePairParams.TryGetValue(pair, out pairParams))
                 throw new ArgumentException("Given edge pair has no common pairwise constraints.");
@@ -154,73 +161,39 @@ namespace Research.GraphBasedShapePrior
             return lengthTerm + angleTerm;
         }
 
-        public double CalculateDistanceToEdge(Vector point, Circle edgePoint1, Circle edgePoint2, Polygon preCalculatedPulleyPoints = null)
+        public double CalculateObjectPenaltyForEdge(Vector point, double edgeWidth, Vector edgePoint1, Vector edgePoint2)
         {
-            // First circle is the largest one
-            if (edgePoint1.Radius < edgePoint2.Radius)
-                Helper.Swap(ref edgePoint1, ref edgePoint2);
-            
-            // Distance to first circle
-            double distance = point.DistanceToCircleArea(edgePoint1);
-            
-            // Singular pulley
-            if (edgePoint1.Contains(edgePoint2))
-                return distance;
-
-            // Distance to second circle
-            distance = Math.Min(distance, point.DistanceToCircleArea(edgePoint2));
-            
-            // Inside one of the circles
-            if (distance == 0)
-                return 0;
-
-            if (preCalculatedPulleyPoints == null)
-                preCalculatedPulleyPoints = MathHelper.SolvePulleyProblem(edgePoint1, edgePoint2);
-            Debug.Assert(preCalculatedPulleyPoints.Vertices.Count == 4);
-
-            // Inside the pulley
-            if (preCalculatedPulleyPoints.IsPointInside(point))
-                return 0;
-
-            distance = Math.Min(distance, point.DistanceToSegment(preCalculatedPulleyPoints.Vertices[0], preCalculatedPulleyPoints.Vertices[1]));
-            distance = Math.Min(distance, point.DistanceToSegment(preCalculatedPulleyPoints.Vertices[2], preCalculatedPulleyPoints.Vertices[3]));
-
-            return distance;
+            double distanceSqr = point.DistanceToSegmentSquared(edgePoint1, edgePoint2);
+            return CalculateObjectPenaltyForEdge(distanceSqr, edgeWidth);
         }
 
-        public double CalculateObjectPenaltyForEdge(Vector point, Circle edgePoint1, Circle edgePoint2)
+        public double CalculateBackgroundPenaltyForEdge(Vector point, double edgeWidth, Vector edgePoint1, Vector edgePoint2)
         {
-            double distance = CalculateDistanceToEdge(point, edgePoint1, edgePoint2);
-            return CalculateObjectPenaltyFromDistance(distance);
+            double distanceSqr = point.DistanceToSegmentSquared(edgePoint1, edgePoint2);
+            return CalculateBackgroundPenaltyForEdge(distanceSqr, edgeWidth);
         }
 
-        public double CalculateBackgroundPenaltyForEdge(Vector point, Circle edgePoint1, Circle edgePoint2)
+        public double CalculateObjectPenaltyForEdge(double distanceSqr, double edgeWidth)
         {
-            double distance = CalculateDistanceToEdge(point, edgePoint1, edgePoint2);
-            return CalculateBackgroundPenaltyFromDistance(distance);
+            return distanceSqr;
         }
 
-        public double CalculateObjectPenaltyFromDistance(double distance)
+        public double CalculateBackgroundPenaltyForEdge(double distanceSqr, double edgeWidth)
         {
-            return -MathHelper.LogInf(Math.Exp(-this.Cutoff * distance * distance));
-        }
-
-        public double CalculateBackgroundPenaltyFromDistance(double distance)
-        {
-            return -MathHelper.LogInf(1 - Math.Exp(-this.Cutoff * distance * distance));
+            return Math.Max(
+                edgeWidth * edgeWidth * (1 + this.backgroundDistanceCoeff) - this.backgroundDistanceCoeff * distanceSqr,
+                0);
         }
 
         public Shape FitMeanShape(Size imageSize)
         {
-            double objectSize = SegmentationAlgorithmBase.ImageSizeToObjectSizeEstimate(imageSize);
-            
             // Build tree, ignore scale           
-            Circle[] vertices = new Circle[this.VertexCount];
-            vertices[this.edges[0].Index1] = new Circle(0, 0, this.shapeVertexParams[this.edges[0].Index1].RadiusToObjectSizeRatio * objectSize);
-            vertices[this.edges[0].Index2] = new Circle(1, 0, this.shapeVertexParams[this.edges[0].Index2].RadiusToObjectSizeRatio * objectSize);
+            Vector[] vertices = new Vector[this.VertexCount];
+            vertices[this.edges[0].Index1] = new Vector(0, 0);
+            vertices[this.edges[0].Index2] = new Vector(1, 0);
             foreach (int childEdgeIndex in this.IterateNeighboringEdgeIndices(0))
             {
-                BuildMeanShapeDfs(vertices, childEdgeIndex, 0, vertices[this.edges[0].Index1].Center, vertices[this.edges[0].Index2].Center, objectSize);
+                BuildMeanShapeDfs(vertices, childEdgeIndex, 0, vertices[this.edges[0].Index1], vertices[this.edges[0].Index2]);
             }
             
             // Determine axis-aligned bounding box for the generated shapes
@@ -228,36 +201,45 @@ namespace Research.GraphBasedShapePrior
             Vector max = new Vector(Double.NegativeInfinity, Double.NegativeInfinity);
             for (int i = 0; i < this.VertexCount; ++i)
             {
-                min.X = Math.Min(min.X, vertices[i].Center.X);
-                min.Y = Math.Min(min.Y, vertices[i].Center.Y);
-                max.X = Math.Max(max.X, vertices[i].Center.X);
-                max.Y = Math.Max(max.Y, vertices[i].Center.Y);
+                min.X = Math.Min(min.X, vertices[i].X);
+                min.Y = Math.Min(min.Y, vertices[i].Y);
+                max.X = Math.Max(max.X, vertices[i].X);
+                max.Y = Math.Max(max.Y, vertices[i].Y);
             }
             
             // Scale & shift vertices, leaving some place near the borders
             double scale = Math.Min(imageSize.Width / (max.X - min.X), imageSize.Height / (max.Y - min.Y));
             for (int i = 0; i < this.VertexCount; ++i)
             {
-                Vector pos = vertices[i].Center;
+                Vector pos = vertices[i];
                 pos -= 0.5 * (max + min);
                 pos *= scale * 0.8;
                 pos += new Vector(imageSize.Width * 0.5, imageSize.Height * 0.5);
-                vertices[i] = new Circle(pos, vertices[i].Radius);
+                vertices[i] = pos;
             }
 
-            return new Shape(this, vertices);
+            // Generate best possible edge widths
+            List<double> edgeWidths = new List<double>();
+            for (int i = 0; i < this.edgeParams.Count; ++i)
+            {
+                ShapeEdge edge = this.edges[i];
+                double length = (vertices[edge.Index1] - vertices[edge.Index2]).Length;
+                edgeWidths.Add(length * this.edgeParams[i].WidthToEdgeLengthRatio);
+            }
+
+            return new Shape(this, vertices, edgeWidths);
         }
 
-        private void BuildMeanShapeDfs(Circle[] vertices, int currentEdgeIndex, int parentEdgeIndex, Vector parentEdgePoint1, Vector parentEdgePoint2, double objectSize)
+        private void BuildMeanShapeDfs(Vector[] vertices, int currentEdgeIndex, int parentEdgeIndex, Vector parentEdgePoint1, Vector parentEdgePoint2)
         {
-            ShapeEdgePairParams edgeParams = this.GetEdgeParams(parentEdgeIndex, currentEdgeIndex);
+            ShapeEdgePairParams @params = this.GetEdgePairParams(parentEdgeIndex, currentEdgeIndex);
             ShapeEdge currentEdge = this.edges[currentEdgeIndex];
             ShapeEdge parentEdge = this.edges[parentEdgeIndex];
             
             // Determine edge direction and length
             Vector parentEdgeVec = parentEdgePoint2 - parentEdgePoint1;
-            double length = parentEdgeVec.Length / edgeParams.LengthRatio;
-            double angle = Vector.AngleBetween(new Vector(1, 0), parentEdgeVec) + edgeParams.MeanAngle;
+            double length = parentEdgeVec.Length / @params.LengthRatio;
+            double angle = Vector.AngleBetween(new Vector(1, 0), parentEdgeVec) + @params.MeanAngle;
             Vector edgeVec = new Vector(Math.Cos(angle), Math.Sin(angle)) * length;
             
             // Choose correct start/end points
@@ -285,13 +267,13 @@ namespace Research.GraphBasedShapePrior
             }
 
             // Setup vertices (some vertex already was placed, but who cares?)
-            vertices[this.edges[currentEdgeIndex].Index1] = new Circle(edgePoint1, this.shapeVertexParams[this.edges[currentEdgeIndex].Index1].RadiusToObjectSizeRatio * objectSize);
-            vertices[this.edges[currentEdgeIndex].Index2] = new Circle(edgePoint2, this.shapeVertexParams[this.edges[currentEdgeIndex].Index2].RadiusToObjectSizeRatio * objectSize);
+            vertices[this.edges[currentEdgeIndex].Index1] = edgePoint1;
+            vertices[this.edges[currentEdgeIndex].Index2] = edgePoint2;
 
             foreach (int childEdgeIndex in this.IterateNeighboringEdgeIndices(currentEdgeIndex))
             {
                 if (childEdgeIndex != parentEdgeIndex)
-                    BuildMeanShapeDfs(vertices, childEdgeIndex, currentEdgeIndex, edgePoint1, edgePoint2, objectSize);
+                    BuildMeanShapeDfs(vertices, childEdgeIndex, currentEdgeIndex, edgePoint1, edgePoint2);
             }
         }
 
@@ -308,7 +290,7 @@ namespace Research.GraphBasedShapePrior
             }
 
             if (!CheckIfTree(graphStructure))
-                throw new InvalidOperationException("Pairwise edge constraint graph should be a tree.");
+                throw new InvalidOperationException("Pairwise edge constraint graph should be a fully-connected tree.");
 
             this.edgeTree = graphStructure;
         }

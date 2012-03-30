@@ -20,6 +20,11 @@ namespace Research.GraphBasedShapePrior
             this.BackgroundTerm = backgroundTerm;
         }
 
+        public ObjectBackgroundTerm Shift(double shift)
+        {
+            return new ObjectBackgroundTerm(this.ObjectTerm + shift, this.BackgroundTerm + shift);
+        }
+
         public override bool Equals(object obj)
         {
             if (obj == null || GetType() != obj.GetType())

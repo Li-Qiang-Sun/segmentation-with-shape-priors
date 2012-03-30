@@ -31,13 +31,13 @@ namespace Segmentator
         public double ShapeEnergyWeight { get; set; }
 
         [Category("High-level energy")]
-        public double ShapeDistanceCutoff { get; set; }
+        public double MinEdgeWidth { get; set; }
 
         [Category("High-level energy")]
-        public double MinVertexRadius { get; set; }
+        public double MaxEdgeWidth { get; set; }
 
         [Category("High-level energy")]
-        public double MaxVertexRadius { get; set; }
+        public double BackgroundDistanceCoeff { get; set; }
 
         [Category("Algorithm")]
         public int BfsIterations { get; set; }
@@ -53,18 +53,18 @@ namespace Segmentator
 
         public SegmentationProperties()
         {
-            this.ShapeTermWeight = 1;
+            this.ShapeTermWeight = 0.05;
             this.UnaryTermWeight = 1;
             this.ConstantBinaryTermWeight = 0;
             this.BrightnessBinaryTermCutoff = 0.01;
 
             this.ShapeEnergyWeight = 10;
-            this.ShapeDistanceCutoff = 1;
-            this.MinVertexRadius = 9;
-            this.MaxVertexRadius = 10;
+            this.MinEdgeWidth = 10;
+            this.MaxEdgeWidth = 20;
+            this.BackgroundDistanceCoeff = 1;
 
             this.BfsIterations = 10000;
-            this.ReportRate = 5;
+            this.ReportRate = 50;
             this.FrontSaveRate = 100000;
             this.Model = Model.OneEdge;
         }

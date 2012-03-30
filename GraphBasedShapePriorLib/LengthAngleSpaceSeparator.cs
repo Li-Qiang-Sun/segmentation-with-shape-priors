@@ -50,7 +50,7 @@ namespace Research.GraphBasedShapePrior
                     minAngle = angle - Math.PI;
                 }
 
-                singularModeAngleRange = new Range(minAngle, maxAngle, false);
+                singularModeAngleRange = new Range(minAngle, maxAngle);
                 if (!singularModeAngleRange.Contains(allowedAngle))
                     singularModeAngleRange = singularModeAngleRange.Invert();
             }

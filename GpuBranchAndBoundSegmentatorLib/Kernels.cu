@@ -1,55 +1,36 @@
 #include "CudaMath.h"
 #include "Kernels.h"
 
-__device__ float DistanceToObjectPenalty(float distance, float cutoff)
+__device__ float DistanceSqrToObjectPenalty(float distanceSqr, float edgeWidthSqr, float backgroundDistanceCoeff)
 {
-    return -log_inf(exp(-cutoff * distance * distance));
+	return distanceSqr;
 }
 
-__device__ float DistanceToBackgroundPenalty(float distance, float cutoff)
+__device__ float DistanceSqrToBackgroundPenalty(float distanceSqr, float edgeWidthSqr, float backgroundDistanceCoeff)
 {
-    return -log_inf(1 - exp(-cutoff * distance * distance));
+	return max(edgeWidthSqr * (1 + backgroundDistanceCoeff) - backgroundDistanceCoeff * distanceSqr, 0.f);
 }
 
-__device__ float2 GetClosestPoint(float2 point, float2 corners[4])
+// Clockwise order from bottom left (min) corner assumed
+__device__ float2 ProjectToConstraints(float2 point, float2 corners[4])
 {
-    // Clockwise order from bottom left (min) corner assumed
-    float2 min = corners[0];
-    float2 max = corners[2];
-    
-    if (point.x >= min.x && point.x <= max.x)
-    {
-        if (point.y <= min.y)
-            return make_float2(point.x, min.y);
-        if (point.y >= max.y)
-            return make_float2(point.x, max.y);
-    }
-
-    if (point.y >= min.y && point.y <= max.y)
-    {
-        if (point.x <= min.x)
-            return make_float2(min.x, point.y);
-        if (point.x >= max.x)
-            return make_float2(max.x, point.y);
-    }
-
-    // Just because we have to return some point
-    return min;
+	return trunc(point, corners[0], corners[2]);
 }
 
 #define BLOCK_DIM 16
 #define INFINITY 1e+20f
 
-__device__ __constant__ float2 VertexCorners1[4];
-__device__ __constant__ float2 VertexCorners2[4];
 __device__ __constant__ float2 EdgeConvexHull[8];
+__device__ __constant__ float2 Corners1[4];
+__device__ __constant__ float2 Corners2[4];
 
-__global__ void CalcMinObjectPenaltyKernel(
+__global__ void CalcMinPenaltiesForEdgeKernel(
     int2 imageSize,
     int edgeConvexHullSize,
-    float2 maxRadii,
-    float distanceCutoff,
-    float *minObjectPenalties)
+	float backgroundDistanceCoeff,
+    float2 minMaxWidthSqr,
+    float *objectPenalties,
+	float *backgroundPenalties)
 {
     int2 pointInt;
     pointInt.x = blockIdx.x * BLOCK_DIM + threadIdx.x;
@@ -59,103 +40,47 @@ __global__ void CalcMinObjectPenaltyKernel(
     int index = pointInt.x + pointInt.y * imageSize.x;
     float2 point = make_float2(pointInt.x, pointInt.y);
 
-    float distance = INFINITY;
+    float minDistanceSqr = INFINITY;
+	float maxDistanceSqr = 0;
+
     if (PointInConvexHull(point, EdgeConvexHull, edgeConvexHullSize))
-    {
-        distance = 0;
-    }
-    else
-    {
-		for (int corner1 = 0; corner1 < 4; ++corner1)
-            for (int corner2 = 0; corner2 < 4; ++corner2)
-            {
-                float distanceToEdge = DistanceToPulleyArea(
-                    point,
-                    VertexCorners1[corner1],
-                    maxRadii.x,
-                    VertexCorners2[corner2],
-                    maxRadii.y);
-                distance = min(distance, distanceToEdge);
-            }
+        minDistanceSqr = 0;
+	
+	for (int i = 0; i < 4; ++i)
+	{
+		for (int j = 0; j < 4; ++j)
+		{
+			float distanceSqr = DistanceToSegmentSqr(point, Corners1[i], Corners2[j]);
+			minDistanceSqr = min(minDistanceSqr, distanceSqr);
+			maxDistanceSqr = max(maxDistanceSqr, distanceSqr);
+		}
+	}
+	
+	float2 projection1 = ProjectToConstraints(point, Corners1);
+	for (int i = 0; i < 4; ++i)
+		minDistanceSqr = min(minDistanceSqr, DistanceToSegmentSqr(point, projection1, Corners2[i]));
 
-        float2 closestPoint1 = GetClosestPoint(point, VertexCorners1);
-        float2 closestPoint2 = GetClosestPoint(point, VertexCorners2);
+	float2 projection2 = ProjectToConstraints(point, Corners2);
+	for (int i = 0; i < 4; ++i)
+		minDistanceSqr = min(minDistanceSqr, DistanceToSegmentSqr(point, Corners1[i], projection2));
 
-        for (int corner = 0; corner < 4; ++corner)
-        {
-            float distanceToEdge1 = DistanceToPulleyArea(
-                point,
-                closestPoint1,
-                maxRadii.x,
-                VertexCorners2[corner],
-                maxRadii.y);
-            distance = min(distance, distanceToEdge1);
+	float minObjectPenalty = DistanceSqrToObjectPenalty(minDistanceSqr, minMaxWidthSqr.y, backgroundDistanceCoeff);
+	float minBackgroundPenalty = DistanceSqrToBackgroundPenalty(maxDistanceSqr, minMaxWidthSqr.x, backgroundDistanceCoeff);
 
-            float distanceToEdge2 = DistanceToPulleyArea(
-                point,
-                VertexCorners1[corner], 
-                maxRadii.x,
-                closestPoint2,
-                maxRadii.y);
-            distance = min(distance, distanceToEdge2);
-        }
-
-        float distanceBetweenClosestPoints = DistanceToPulleyArea(
-                point,
-                closestPoint1,
-                maxRadii.x,
-                closestPoint2,
-                maxRadii.y);
-        distance = min(distance, distanceBetweenClosestPoints);
-    }
-
-    float penalty = DistanceToObjectPenalty(distance, distanceCutoff);
-    minObjectPenalties[index] = min(minObjectPenalties[index], penalty);
-}
-
-__global__ void CalcMaxBackgroundPenaltyKernel(
-    int2 imageSize,
-    int edgeConvexHullSize,
-    float2 minRadii,
-    float distanceCutoff,
-    float *maxBackgroundPenalties)
-{
-    int2 pointInt;
-    pointInt.x = blockIdx.x * BLOCK_DIM + threadIdx.x;
-    pointInt.y = blockIdx.y * BLOCK_DIM + threadIdx.y;
-    if (pointInt.x >= imageSize.x || pointInt.y >= imageSize.y)
-        return;
-    int index = pointInt.x + pointInt.y * imageSize.x;
-    float2 point = make_float2(pointInt.x, pointInt.y);
-
-    float distance = 0;
-	for (int corner1 = 0; corner1 < 4; ++corner1)
-        for (int corner2 = 0; corner2 < 4; ++corner2)
-        {
-            float distanceToEdge = DistanceToPulleyArea(
-                point,
-                VertexCorners1[corner1],
-                minRadii.x,
-                VertexCorners2[corner2],
-                minRadii.y);
-            distance = max(distance, distanceToEdge);
-        }
-
-    float penalty = DistanceToBackgroundPenalty(distance, distanceCutoff);
-    maxBackgroundPenalties[index] = max(maxBackgroundPenalties[index], penalty);
+    objectPenalties[index] = min(objectPenalties[index], minObjectPenalty);
+	backgroundPenalties[index] = max(backgroundPenalties[index], minBackgroundPenalty);
 }
 
 void CalculateShapeUnaryTerms(
 	int edgeCount,
-	float2 **corners1,
-	float2 **corners2,
 	float2 **convexHulls,
 	int *convexHullSizes,
-	float2 *minRadii,
-	float2 *maxRadii,
+	float2 **corners1,
+	float2 **corners2,
+	float2 *edgeWidthLimits,
+	float backgroundDistanceCoeff,
     int imageWidth,
     int imageHeight,
-    float distanceCutoff,
     float *objectPenalties,
     float *backgroundPenalties)
 {
@@ -177,31 +102,25 @@ void CalculateShapeUnaryTerms(
     cudaMemcpy(objectPenaltiesGPU, objectPenalties, totalStorageSize, cudaMemcpyHostToDevice);
 	cudaMemcpy(backgroundPenaltiesGPU, backgroundPenalties, totalStorageSize, cudaMemcpyHostToDevice);
 
-    // Calculate min object penalty
     for (int i = 0; i < edgeCount; ++i)
     {
-        // Prepare corners and convex hull
-        cudaMemcpyToSymbol("VertexCorners1", corners1[i], 4 * sizeof(float2));
-		cudaMemcpyToSymbol("VertexCorners2", corners2[i], 4 * sizeof(float2));
-		cudaMemcpyToSymbol("EdgeConvexHull", convexHulls[i], convexHullSizes[i] * sizeof(float2));
+        // Setup convex hull for the current edge
+        cudaMemcpyToSymbol("EdgeConvexHull", convexHulls[i], convexHullSizes[i] * sizeof(float2));
+		cudaMemcpyToSymbol("Corners1", corners1[i], 4 * sizeof(float2));
+		cudaMemcpyToSymbol("Corners2", corners2[i], 4 * sizeof(float2));
         
         // Prepare GPU grid
         dim3 blockDim(BLOCK_DIM, BLOCK_DIM, 1);
         dim3 gridDim((imageWidth + blockDim.x - 1) / blockDim.x, (imageHeight + blockDim.y - 1) / blockDim.y, 1);
         
         // Run kernel to update penalty storage
-        CalcMinObjectPenaltyKernel<<<gridDim, blockDim, 0>>>(
+        CalcMinPenaltiesForEdgeKernel<<<gridDim, blockDim, 0>>>(
             make_int2(imageWidth, imageHeight),
             convexHullSizes[i],
-            maxRadii[i],
-            distanceCutoff,
-            objectPenaltiesGPU);
-		CalcMaxBackgroundPenaltyKernel<<<gridDim, blockDim, 0>>>(
-            make_int2(imageWidth, imageHeight),
-            convexHullSizes[i],
-            minRadii[i],
-            distanceCutoff,
-            backgroundPenaltiesGPU);
+			backgroundDistanceCoeff,
+            make_float2(edgeWidthLimits[i].x * edgeWidthLimits[i].x, edgeWidthLimits[i].y * edgeWidthLimits[i].y),
+            objectPenaltiesGPU,
+			backgroundPenaltiesGPU);
 
 		cudaThreadSynchronize();
     }

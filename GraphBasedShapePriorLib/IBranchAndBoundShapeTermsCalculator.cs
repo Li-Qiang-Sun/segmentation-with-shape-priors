@@ -7,6 +7,6 @@ namespace Research.GraphBasedShapePrior
 {
     public interface IBranchAndBoundShapeTermsCalculator
     {
-        void CalculateShapeTerms(VertexConstraintSet constraints, Image2D<ObjectBackgroundTerm> result);
+        void CalculateShapeTerms(ShapeConstraints constraints, Image2D<ObjectBackgroundTerm> result);
     }
 }

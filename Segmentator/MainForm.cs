@@ -27,14 +27,13 @@ namespace Segmentator
             List<ShapeEdge> edges = new List<ShapeEdge>();
             edges.Add(new ShapeEdge(0, 1));
 
-            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
-            vertexParams.Add(new ShapeVertexParams(0.1, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.1, 0.1));
+            List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
+            edgeParams.Add(new ShapeEdgeParams(0.1, 0.1));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
 
-            return ShapeModel.Create(edges, vertexParams, edgePairParams);
+            return ShapeModel.Create(edges, edgeParams, edgePairParams);
         }
 
         private static ShapeModel CreateSimpleShapeModel2()
@@ -43,16 +42,15 @@ namespace Segmentator
             edges.Add(new ShapeEdge(0, 1));
             edges.Add(new ShapeEdge(1, 2));
 
-            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
-            vertexParams.Add(new ShapeVertexParams(0.1, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.1, 0.1));
-            vertexParams.Add(new ShapeVertexParams(0.1, 0.1));
+            List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
+            edgeParams.Add(new ShapeEdgeParams(0.1, 0.1));
+            edgeParams.Add(new ShapeEdgeParams(0.1, 0.1));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
             edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.5, 1, Math.PI * 0.1, 5)); // TODO: we need edge length deviations to be relative
 
-            return ShapeModel.Create(edges, vertexParams, edgePairParams);
+            return ShapeModel.Create(edges, edgeParams, edgePairParams);
         }
 
         private static ShapeModel CreateLetterShapeModel()
@@ -64,13 +62,12 @@ namespace Segmentator
             edges.Add(new ShapeEdge(2, 4));
             edges.Add(new ShapeEdge(4, 5));
 
-            List<ShapeVertexParams> vertexParams = new List<ShapeVertexParams>();
-            vertexParams.Add(new ShapeVertexParams(0.05, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.05, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.05, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.05, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.05, 0.05));
-            vertexParams.Add(new ShapeVertexParams(0.05, 0.05));
+            List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
+            edgeParams.Add(new ShapeEdgeParams(0.05, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.05, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.05, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.05, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.05, 0.05));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams = new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
             edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(-Math.PI * 0.5, 1.3, Math.PI * 0.01, 1)); // TODO: we need edge length deviations to be relative
@@ -78,7 +75,7 @@ namespace Segmentator
             edgePairParams.Add(new Tuple<int, int>(2, 3), new ShapeEdgePairParams(-Math.PI * 0.5, 1, Math.PI * 0.01, 1));
             edgePairParams.Add(new Tuple<int, int>(3, 4), new ShapeEdgePairParams(Math.PI * 0.5, 0.77, Math.PI * 0.01, 1));
 
-            return ShapeModel.Create(edges, vertexParams, edgePairParams);
+            return ShapeModel.Create(edges, edgeParams, edgePairParams);
         }
 
         public MainForm()
@@ -200,18 +197,18 @@ namespace Segmentator
             segmentator.ShapeEnergyWeight = this.segmentationProperties.ShapeEnergyWeight;
             segmentator.BrightnessBinaryTermCutoff = this.segmentationProperties.BrightnessBinaryTermCutoff;
             segmentator.ConstantBinaryTermWeight = this.segmentationProperties.ConstantBinaryTermWeight;
-            segmentator.MinVertexRadius = this.segmentationProperties.MinVertexRadius;
-            segmentator.MaxVertexRadius = this.segmentationProperties.MaxVertexRadius;
+            segmentator.MinEdgeWidth = this.segmentationProperties.MinEdgeWidth;
+            segmentator.MaxEdgeWidth = this.segmentationProperties.MaxEdgeWidth;
 
             // Load what has to be segmented
             ShapeModel model;
             Image2D<Color> image;
             Rectangle objectRect;
             this.LoadModel(out model, out image, out objectRect);
+            model.BackgroundDistanceCoeff = this.segmentationProperties.BackgroundDistanceCoeff;
             
             // Setup shape model
             this.segmentator.ShapeModel = model;
-            this.segmentator.ShapeModel.Cutoff = this.segmentationProperties.ShapeDistanceCutoff;
 
             // Show original image in status window);
             this.currentImage.Image = Image2D.ToRegularImage(image);
