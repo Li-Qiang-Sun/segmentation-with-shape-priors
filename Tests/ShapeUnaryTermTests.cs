@@ -8,7 +8,7 @@ namespace Research.GraphBasedShapePrior.Tests
     [TestClass]
     public class ShapeUnaryTermTests
     {
-        private static void TestShapeTermsImpl(ShapeModel shapeModel, IEnumerable<VertexConstraints> vertexConstraints, IEnumerable<EdgeConstraints> edgeConstraints, Size imageSize)
+        private static void TestShapeTermsImpl(string testName, ShapeModel shapeModel, IEnumerable<VertexConstraints> vertexConstraints, IEnumerable<EdgeConstraints> edgeConstraints, Size imageSize)
         {
             ShapeConstraints constraintSet = ShapeConstraints.CreateFromConstraints(shapeModel, vertexConstraints, edgeConstraints);
 
@@ -16,13 +16,13 @@ namespace Research.GraphBasedShapePrior.Tests
             Image2D<ObjectBackgroundTerm> shapeTermsCpu = new Image2D<ObjectBackgroundTerm>(imageSize.Width, imageSize.Height);
             CpuBranchAndBoundShapeTermsCalculator calculatorCpu = new CpuBranchAndBoundShapeTermsCalculator();
             calculatorCpu.CalculateShapeTerms(constraintSet, shapeTermsCpu);
-            Image2D.SaveToFile(shapeTermsCpu, -1000, 1000, "./cpu.png");
+            Image2D.SaveToFile(shapeTermsCpu, -1000, 1000, String.Format("./{0}_cpu.png", testName));
 
             // Get GPU results
             Image2D<ObjectBackgroundTerm> shapeTermsGpu = new Image2D<ObjectBackgroundTerm>(imageSize.Width, imageSize.Height);
             GpuBranchAndBoundShapeTermsCalculator calculatorGpu = new GpuBranchAndBoundShapeTermsCalculator();
             calculatorGpu.CalculateShapeTerms(constraintSet, shapeTermsGpu);
-            Image2D.SaveToFile(shapeTermsGpu, -1000, 1000, "./gpu.png");
+            Image2D.SaveToFile(shapeTermsGpu, -1000, 1000, String.Format("./{0}_gpu.png", testName));
 
             // Compare with CPU results
             for (int x = 0; x < imageSize.Width; ++x)
@@ -45,7 +45,7 @@ namespace Research.GraphBasedShapePrior.Tests
             edgeConstraints.Add(new EdgeConstraints(1, 8));
             edgeConstraints.Add(new EdgeConstraints(5, 21));
             
-            TestShapeTermsImpl(TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertexConstraints, edgeConstraints, new Size(320, 240));
+            TestShapeTermsImpl("test1", TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertexConstraints, edgeConstraints, new Size(320, 240));
         }
 
         [TestMethod]
@@ -60,7 +60,7 @@ namespace Research.GraphBasedShapePrior.Tests
             edgeConstraints.Add(new EdgeConstraints(30, 31));
             edgeConstraints.Add(new EdgeConstraints(2, 41));
 
-            TestShapeTermsImpl(TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertexConstraints, edgeConstraints, new Size(320, 240));
+            TestShapeTermsImpl("test2", TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertexConstraints, edgeConstraints, new Size(320, 240));
         }
 
         [TestMethod]
@@ -75,7 +75,7 @@ namespace Research.GraphBasedShapePrior.Tests
             edgeConstraints.Add(new EdgeConstraints(10));
             edgeConstraints.Add(new EdgeConstraints(20));
 
-            TestShapeTermsImpl(TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertexConstraints, edgeConstraints, new Size(320, 240));
+            TestShapeTermsImpl("test3", TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertexConstraints, edgeConstraints, new Size(320, 240));
         }
 
         [TestMethod]
@@ -90,7 +90,7 @@ namespace Research.GraphBasedShapePrior.Tests
             edgeConstraints.Add(new EdgeConstraints(20));
             edgeConstraints.Add(new EdgeConstraints(30));
 
-            TestShapeTermsImpl(TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertexConstraints, edgeConstraints, new Size(320, 240));
+            TestShapeTermsImpl("test4", TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertexConstraints, edgeConstraints, new Size(320, 240));
         }
 
         [TestMethod]
@@ -103,7 +103,7 @@ namespace Research.GraphBasedShapePrior.Tests
             List<EdgeConstraints> edgeConstraints = new List<EdgeConstraints>();
             edgeConstraints.Add(new EdgeConstraints(1, 40));
 
-            TestShapeTermsImpl(TestHelper.CreateTestShapeModelWith1Edge(), vertexConstraints, edgeConstraints, new Size(320, 240));
+            TestShapeTermsImpl("test5", TestHelper.CreateTestShapeModelWith1Edge(), vertexConstraints, edgeConstraints, new Size(320, 240));
         }
 
         [TestMethod]
@@ -116,7 +116,7 @@ namespace Research.GraphBasedShapePrior.Tests
             List<EdgeConstraints> edgeConstraints = new List<EdgeConstraints>();
             edgeConstraints.Add(new EdgeConstraints(20, 20));
 
-            TestShapeTermsImpl(TestHelper.CreateTestShapeModelWith1Edge(), vertexConstraints, edgeConstraints, new Size(320, 240));
+            TestShapeTermsImpl("test6", TestHelper.CreateTestShapeModelWith1Edge(), vertexConstraints, edgeConstraints, new Size(320, 240));
         }
     }
 }
