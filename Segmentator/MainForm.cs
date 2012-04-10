@@ -63,11 +63,11 @@ namespace Segmentator
             edges.Add(new ShapeEdge(4, 5));
 
             List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
-            edgeParams.Add(new ShapeEdgeParams(0.05, 0.05));
-            edgeParams.Add(new ShapeEdgeParams(0.05, 0.05));
-            edgeParams.Add(new ShapeEdgeParams(0.05, 0.05));
-            edgeParams.Add(new ShapeEdgeParams(0.05, 0.05));
-            edgeParams.Add(new ShapeEdgeParams(0.05, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams = new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
             edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(-Math.PI * 0.5, 1.3, Math.PI * 0.01, 1)); // TODO: we need edge length deviations to be relative
@@ -99,6 +99,8 @@ namespace Segmentator
             this.startCpuButton.Enabled = false;
             this.segmentationPropertiesGrid.Enabled = false;
             this.pauseContinueButton.Enabled = true;
+
+            this.consoleContents.Clear();
 
             this.segmentationWorker.RunWorkerAsync(regularSegmentation);
         }
@@ -186,8 +188,6 @@ namespace Segmentator
             segmentator.SwitchToDfsBranchAndBound += OnSwitchToDfsBranchAndBound;
 
             // Setup params
-            segmentator.AngleGridSize = 201;
-            segmentator.LengthGridSize = 201;
             segmentator.BranchAndBoundType = BranchAndBoundType.Combined;
             segmentator.MaxBfsIterationsInCombinedMode = this.segmentationProperties.BfsIterations;
             segmentator.StatusReportRate = this.segmentationProperties.ReportRate;
@@ -199,6 +199,13 @@ namespace Segmentator
             segmentator.ConstantBinaryTermWeight = this.segmentationProperties.ConstantBinaryTermWeight;
             segmentator.MinEdgeWidth = this.segmentationProperties.MinEdgeWidth;
             segmentator.MaxEdgeWidth = this.segmentationProperties.MaxEdgeWidth;
+            segmentator.MaxCoordFreedom = this.segmentationProperties.MaxCoordFreedom;
+            segmentator.MaxWidthFreedom = this.segmentationProperties.MaxWidthFreedom;
+
+            // Customize lower bound calculators
+            ShapeEnergyLowerBoundCalculator shapeEnergyCalculator = new ShapeEnergyLowerBoundCalculator(201, 201);
+            shapeEnergyCalculator.SkipEarlyCalculations = true;
+            segmentator.ShapeEnergyLowerBoundCalculator = shapeEnergyCalculator;
 
             // Load what has to be segmented
             ShapeModel model;
@@ -295,7 +302,7 @@ namespace Segmentator
         private void OnStartGpuButtonClick(object sender, EventArgs e)
         {
             this.segmentator = new BranchAndBoundSegmentationAlgorithm();
-            this.segmentator.ShapeTermCalculator = new GpuBranchAndBoundShapeTermsCalculator();
+            this.segmentator.ShapeTermCalculator = new GpuShapeTermsLowerBoundCalculator();
             this.RunSegmentation(false);
         }
 

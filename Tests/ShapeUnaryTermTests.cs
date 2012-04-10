@@ -10,17 +10,17 @@ namespace Research.GraphBasedShapePrior.Tests
     {
         private static void TestShapeTermsImpl(string testName, ShapeModel shapeModel, IEnumerable<VertexConstraints> vertexConstraints, IEnumerable<EdgeConstraints> edgeConstraints, Size imageSize)
         {
-            ShapeConstraints constraintSet = ShapeConstraints.CreateFromConstraints(shapeModel, vertexConstraints, edgeConstraints);
+            ShapeConstraints constraintSet = ShapeConstraints.CreateFromConstraints(shapeModel, vertexConstraints, edgeConstraints, 1, 1);
 
             // Get CPU results
             Image2D<ObjectBackgroundTerm> shapeTermsCpu = new Image2D<ObjectBackgroundTerm>(imageSize.Width, imageSize.Height);
-            CpuBranchAndBoundShapeTermsCalculator calculatorCpu = new CpuBranchAndBoundShapeTermsCalculator();
+            CpuShapeTermsLowerBoundCalculator calculatorCpu = new CpuShapeTermsLowerBoundCalculator();
             calculatorCpu.CalculateShapeTerms(constraintSet, shapeTermsCpu);
             Image2D.SaveToFile(shapeTermsCpu, -1000, 1000, String.Format("./{0}_cpu.png", testName));
 
             // Get GPU results
             Image2D<ObjectBackgroundTerm> shapeTermsGpu = new Image2D<ObjectBackgroundTerm>(imageSize.Width, imageSize.Height);
-            GpuBranchAndBoundShapeTermsCalculator calculatorGpu = new GpuBranchAndBoundShapeTermsCalculator();
+            GpuShapeTermsLowerBoundCalculator calculatorGpu = new GpuShapeTermsLowerBoundCalculator();
             calculatorGpu.CalculateShapeTerms(constraintSet, shapeTermsGpu);
             Image2D.SaveToFile(shapeTermsGpu, -1000, 1000, String.Format("./{0}_gpu.png", testName));
 
@@ -34,7 +34,7 @@ namespace Research.GraphBasedShapePrior.Tests
         }
 
         [TestMethod]
-        public void TestGpuShapeTerms1()
+        public void TestShapeTerms1()
         {
             List<VertexConstraints> vertexConstraints = new List<VertexConstraints>();
             vertexConstraints.Add(new VertexConstraints(new Vector(30, 30), new Vector(70, 40)));
@@ -49,7 +49,7 @@ namespace Research.GraphBasedShapePrior.Tests
         }
 
         [TestMethod]
-        public void TestGpuShapeTerms2()
+        public void TestShapeTerms2()
         {
             List<VertexConstraints> vertexConstraints = new List<VertexConstraints>();
             vertexConstraints.Add(new VertexConstraints(new Vector(100, 100), new Vector(105, 107)));
@@ -64,7 +64,7 @@ namespace Research.GraphBasedShapePrior.Tests
         }
 
         [TestMethod]
-        public void TestGpuShapeTerms3()
+        public void TestShapeTerms3()
         {
             List<VertexConstraints> vertexConstraints = new List<VertexConstraints>();
             vertexConstraints.Add(new VertexConstraints(new Vector(100, 100), new Vector(105, 107)));
@@ -79,7 +79,7 @@ namespace Research.GraphBasedShapePrior.Tests
         }
 
         [TestMethod]
-        public void TestGpuShapeTerms4()
+        public void TestShapeTerms4()
         {
             List<VertexConstraints> vertexConstraints = new List<VertexConstraints>();
             vertexConstraints.Add(new VertexConstraints(new Vector(100, 200), new Vector(101, 201)));
@@ -94,7 +94,7 @@ namespace Research.GraphBasedShapePrior.Tests
         }
 
         [TestMethod]
-        public void TestGpuShapeTerms5()
+        public void TestShapeTerms5()
         {
             List<VertexConstraints> vertexConstraints = new List<VertexConstraints>();
             vertexConstraints.Add(new VertexConstraints(new Vector(100, 100), new Vector(101, 101)));
@@ -107,7 +107,7 @@ namespace Research.GraphBasedShapePrior.Tests
         }
 
         [TestMethod]
-        public void TestGpuShapeTerms6()
+        public void TestShapeTerms6()
         {
             List<VertexConstraints> vertexConstraints = new List<VertexConstraints>();
             vertexConstraints.Add(new VertexConstraints(new Vector(100, 100), new Vector(101, 101)));

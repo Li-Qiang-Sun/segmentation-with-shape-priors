@@ -24,7 +24,7 @@
     <ClInclude Include="Kernels.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GpuBranchAndBoundShapeTermsCalculator.h">
+    <ClInclude Include="GpuShapeTermsLowerBoundCalculator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -35,7 +35,7 @@
     <ClCompile Include="Stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GpuBranchAndBoundShapeTermsCalculator.cpp">
+    <ClCompile Include="GpuShapeTermsLowerBoundCalculator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -19,6 +19,8 @@ namespace Research.GraphBasedShapePrior.Tests
             Range range2 = new Range(1.5, 2.5);
             Assert.IsTrue(range1.IntersectsWith(range2));
             Assert.IsTrue(range2.IntersectsWith(range1));
+            Assert.AreEqual(range1.Length, 1, 1e-6);
+            Assert.AreEqual(range2.Length, 1, 1e-6);
         }
 
         [TestMethod]
@@ -28,6 +30,8 @@ namespace Research.GraphBasedShapePrior.Tests
             Range range2 = new Range(2.1, 2.5);
             Assert.IsFalse(range1.IntersectsWith(range2));
             Assert.IsFalse(range2.IntersectsWith(range1));
+            Assert.AreEqual(range1.Length, 1, 1e-6);
+            Assert.AreEqual(range2.Length, 0.4, 1e-6);
         }
 
         [TestMethod]
@@ -37,6 +41,8 @@ namespace Research.GraphBasedShapePrior.Tests
             Range range2 = new Range(2.1, 2.5, false);
             Assert.IsTrue(range1.IntersectsWith(range2));
             Assert.IsTrue(range2.IntersectsWith(range1));
+            Assert.IsTrue(Double.IsPositiveInfinity(range1.Length));
+            Assert.AreEqual(range2.Length, 0.4, 1e-6);
         }
 
         [TestMethod]
@@ -46,6 +52,8 @@ namespace Research.GraphBasedShapePrior.Tests
             Range range2 = new Range(1.1, 1.3, false);
             Assert.IsFalse(range1.IntersectsWith(range2));
             Assert.IsFalse(range2.IntersectsWith(range1));
+            Assert.IsTrue(Double.IsPositiveInfinity(range1.Length));
+            Assert.AreEqual(range2.Length, 0.2, 1e-6);
         }
 
         [TestMethod]
@@ -55,6 +63,8 @@ namespace Research.GraphBasedShapePrior.Tests
             Range range2 = new Range(1.1, 1.3, true);
             Assert.IsTrue(range1.IntersectsWith(range2));
             Assert.IsTrue(range2.IntersectsWith(range1));
+            Assert.IsTrue(Double.IsPositiveInfinity(range1.Length));
+            Assert.IsTrue(Double.IsPositiveInfinity(range2.Length));
         }
 
         [TestMethod]
@@ -64,6 +74,8 @@ namespace Research.GraphBasedShapePrior.Tests
             Range range2 = new Range(1, 2);
             Assert.IsTrue(range1.IntersectsWith(range2));
             Assert.IsTrue(range2.IntersectsWith(range1));
+            Assert.AreEqual(range1.Length, 0, 1e-6);
+            Assert.AreEqual(range2.Length, 1, 1e-6);
         }
 
         [TestMethod]
@@ -73,6 +85,8 @@ namespace Research.GraphBasedShapePrior.Tests
             Range range2 = new Range(1.1, 1.1);
             Assert.IsTrue(range1.IntersectsWith(range2));
             Assert.IsTrue(range2.IntersectsWith(range1));
+            Assert.AreEqual(range1.Length, 1, 1e-6);
+            Assert.AreEqual(range2.Length, 0, 1e-6);
         }
 
         [TestMethod]

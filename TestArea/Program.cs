@@ -274,7 +274,11 @@ namespace TestArea
             }
 
             ShapeConstraints constraintSet = ShapeConstraints.CreateFromConstraints(
-                CreateSimpleShapeModel1(), new[] { constraint1, constraint2 }, new[] { new EdgeConstraints(1) });
+                CreateSimpleShapeModel1(),
+                new[] { constraint1, constraint2 },
+                new[] { new EdgeConstraints(1) },
+                1,
+                1);
             Range lengthRange, angleRange;
             constraintSet.DetermineEdgeLimits(0, out lengthRange, out angleRange);
 

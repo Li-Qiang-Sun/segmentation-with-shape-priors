@@ -49,6 +49,12 @@ namespace Segmentator
         public int FrontSaveRate { get; set; }
 
         [Category("Algorithm")]
+        public double MaxCoordFreedom { get; set; }
+
+        [Category("Algorithm")]
+        public double MaxWidthFreedom { get; set; }
+
+        [Category("Algorithm")]
         public Model Model { get; set; }
 
         public SegmentationProperties()
@@ -66,6 +72,8 @@ namespace Segmentator
             this.BfsIterations = 10000;
             this.ReportRate = 50;
             this.FrontSaveRate = 100000;
+            this.MaxCoordFreedom = 1;
+            this.MaxWidthFreedom = 1;
             this.Model = Model.OneEdge;
         }
     }

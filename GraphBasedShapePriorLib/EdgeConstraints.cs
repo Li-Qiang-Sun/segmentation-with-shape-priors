@@ -30,15 +30,9 @@ namespace Research.GraphBasedShapePrior
             get { return new Range(this.MinWidth, this.MaxWidth); }
         }
 
-        public double FreedomLevel
+        public double Freedom
         {
             get { return this.MaxWidth - this.MinWidth; }
-        }
-
-        public bool NoFreedom
-        {
-            // TODO: make this customizable            
-            get { return this.FreedomLevel < 1 + 1e-8; }
         }
 
         public double MiddleWidth
@@ -62,6 +56,32 @@ namespace Research.GraphBasedShapePrior
                 new EdgeConstraints(this.MiddleWidth + eps, this.MaxWidth)
             };
             return result;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+                return false;
+
+            EdgeConstraints objCasted = (EdgeConstraints)obj;
+            return objCasted.MinWidth == this.MinWidth && objCasted.MaxWidth == this.MaxWidth;
+        }
+
+        public override int GetHashCode()
+        {
+            return this.MinWidth.GetHashCode() ^ this.MaxWidth.GetHashCode();
+        }
+
+        public static bool operator ==(EdgeConstraints left, EdgeConstraints right)
+        {
+            if (ReferenceEquals(left, null))
+                return ReferenceEquals(right, null);
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(EdgeConstraints left, EdgeConstraints right)
+        {
+            return !(left == right);
         }
     }
 }

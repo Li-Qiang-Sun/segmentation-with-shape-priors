@@ -18,7 +18,7 @@ namespace Research
 {
 	namespace GraphBasedShapePrior
 	{
-		public ref class GpuBranchAndBoundShapeTermsCalculator : public IBranchAndBoundShapeTermsCalculator
+		public ref class GpuShapeTermsLowerBoundCalculator : public IShapeTermsLowerBoundCalculator
 		{
 		private:
 

@@ -12,8 +12,6 @@ namespace Research.GraphBasedShapePrior
         private List<VertexConstraints> vertexConstraints;
         private List<EdgeConstraints> edgeConstraints;
 
-        private Polygon[,] convexHullsForEdges;
-
         public ShapeModel ShapeModel { get; private set; }
 
         private ShapeConstraints()
@@ -26,17 +24,34 @@ namespace Research.GraphBasedShapePrior
             this.vertexConstraints = new List<VertexConstraints>(other.vertexConstraints);
             this.edgeConstraints = new List<EdgeConstraints>(other.edgeConstraints);
             this.ShapeModel = other.ShapeModel;
+            this.MaxCoordFreedom = other.MaxCoordFreedom;
+            this.MaxWidthFreedom = other.MaxWidthFreedom;
         }
 
         public static ShapeConstraints CreateFromConstraints(
             ShapeModel model,
             IEnumerable<VertexConstraints> vertexConstraints,
-            IEnumerable<EdgeConstraints> edgeConstraints)
+            IEnumerable<EdgeConstraints> edgeConstraints,
+            double maxCoordFreedom,
+            double maxWidthFreedom)
         {
+            if (model == null)
+                throw new ArgumentNullException("model");
+            if (vertexConstraints == null)
+                throw new ArgumentNullException("vertexConstraints");
+            if (edgeConstraints == null)
+                throw new ArgumentNullException("edgeConstraints");
+            if (maxCoordFreedom <= 0)
+                throw new ArgumentOutOfRangeException("maxCoordFreedom", "Parameter value should be positive");
+            if (maxWidthFreedom <= 0)
+                throw new ArgumentOutOfRangeException("maxWidthFreedom", "Parameter value should be positive");
+            
             ShapeConstraints result = new ShapeConstraints();
             result.ShapeModel = model;
             result.vertexConstraints = new List<VertexConstraints>(vertexConstraints);
             result.edgeConstraints = new List<EdgeConstraints>(edgeConstraints);
+            result.MaxCoordFreedom = maxCoordFreedom;
+            result.MaxWidthFreedom = maxWidthFreedom;
 
             if (result.vertexConstraints.Count != result.ShapeModel.VertexCount)
                 throw new ArgumentException("Vertex constraint should be given for every vertex (and for every vertex only).", "vertexConstraints");
@@ -52,15 +67,24 @@ namespace Research.GraphBasedShapePrior
                 shape.VertexPositions.Select(vertex => new VertexConstraints(vertex));
             IEnumerable<EdgeConstraints> edgeConstraints =
                 shape.EdgeWidths.Select(width => new EdgeConstraints(width));
-            return CreateFromConstraints(shape.Model, vertexConstraints, edgeConstraints);
+            return CreateFromConstraints(shape.Model, vertexConstraints, edgeConstraints, 1e-6, 1e-6);
         }
 
-        public static ShapeConstraints CreateFromBounds(ShapeModel model, Vector coordMin, Vector coordMax, double minEdgeWidth, double maxEdgeWidth)
+        public static ShapeConstraints CreateFromBounds(
+            ShapeModel model,
+            Vector coordMin,
+            Vector coordMax,
+            double minEdgeWidth,
+            double maxEdgeWidth,
+            double maxCoordFreedom,
+            double maxWidthFreedom)
         {
             ShapeConstraints result = new ShapeConstraints();
             result.ShapeModel = model;
             result.vertexConstraints = new List<VertexConstraints>();
             result.edgeConstraints = new List<EdgeConstraints>();
+            result.MaxCoordFreedom = maxCoordFreedom;
+            result.MaxWidthFreedom = maxWidthFreedom;
 
             for (int i = 0; i < model.VertexCount; ++i)
                 result.vertexConstraints.Add(new VertexConstraints(coordMin, coordMax));
@@ -71,57 +95,61 @@ namespace Research.GraphBasedShapePrior
             return result;
         }
 
-        public List<ShapeConstraints> SplitMostViolated()
+        public double MaxCoordFreedom { get; private set; }
+
+        public double MaxWidthFreedom { get; private set; }
+
+        public List<ShapeConstraints> SplitMostFree()
         {
             Debug.Assert(!this.CheckIfSatisfied());
 
             // Most violated vertex constraint
-            int mostViolatedVertexConstraint = -1;
-            double vertexViolation = 0;
+            int mostFreeVertexConstraint = -1;
+            double maxVertexFreedom = 0;
             for (int i = 0; i < vertexConstraints.Count; ++i)
             {
-                if (!vertexConstraints[i].NoFreedom &&
-                    (mostViolatedVertexConstraint == -1 || vertexConstraints[i].FreedomLevel > vertexViolation))
+                if (vertexConstraints[i].Freedom > this.MaxCoordFreedom &&
+                    (mostFreeVertexConstraint == -1 || vertexConstraints[i].Freedom > maxVertexFreedom))
                 {
-                    mostViolatedVertexConstraint = i;
-                    vertexViolation = vertexConstraints[i].FreedomLevel;
+                    mostFreeVertexConstraint = i;
+                    maxVertexFreedom = vertexConstraints[i].Freedom;
                 }
             }
             
             // Most violated edge constraint
-            int mostViolatedEdgeConstraint = -1;
-            double edgeViolation = 0;
+            int mostFreeEdgeConstraint = -1;
+            double maxEdgeFreedom = 0;
             for (int i = 0; i < edgeConstraints.Count; ++i)
             {
-                if (!edgeConstraints[i].NoFreedom &&
-                    (mostViolatedEdgeConstraint == -1 || edgeConstraints[i].FreedomLevel > edgeViolation))
+                if (edgeConstraints[i].Freedom > this.MaxWidthFreedom &&
+                    (mostFreeEdgeConstraint == -1 || edgeConstraints[i].Freedom > maxEdgeFreedom))
                 {
-                    mostViolatedEdgeConstraint = i;
-                    edgeViolation = edgeConstraints[i].FreedomLevel;
+                    mostFreeEdgeConstraint = i;
+                    maxEdgeFreedom = edgeConstraints[i].Freedom;
                 }
             }
 
-            bool splitEdgeConstraint = edgeViolation > vertexViolation;
+            bool splitEdgeConstraint = maxEdgeFreedom > maxVertexFreedom;
             List<ShapeConstraints> result = new List<ShapeConstraints>();
             if (splitEdgeConstraint)
             {
                 List<EdgeConstraints> splittedEdgeConstraints =
-                    this.edgeConstraints[mostViolatedEdgeConstraint].Split();
+                    this.edgeConstraints[mostFreeEdgeConstraint].Split();
                 for (int i = 0; i < splittedEdgeConstraints.Count; ++i)
                 {
                     ShapeConstraints newSet = new ShapeConstraints(this);
-                    newSet.edgeConstraints[mostViolatedEdgeConstraint] = splittedEdgeConstraints[i];
+                    newSet.edgeConstraints[mostFreeEdgeConstraint] = splittedEdgeConstraints[i];
                     result.Add(newSet);
                 }    
             }
             else
             {
                 List<VertexConstraints> splittedVertexConstraints =
-                    this.vertexConstraints[mostViolatedVertexConstraint].Split();
+                    this.vertexConstraints[mostFreeVertexConstraint].Split();
                 for (int i = 0; i < splittedVertexConstraints.Count; ++i)
                 {
                     ShapeConstraints newSet = new ShapeConstraints(this);
-                    newSet.vertexConstraints[mostViolatedVertexConstraint] = splittedVertexConstraints[i];
+                    newSet.vertexConstraints[mostFreeVertexConstraint] = splittedVertexConstraints[i];
                     result.Add(newSet);
                 }    
             }
@@ -131,33 +159,14 @@ namespace Research.GraphBasedShapePrior
 
         public Polygon GetConvexHullForVertexPair(int vertex1, int vertex2)
         {
-            // Convex hull is order-invariant
-            if (vertex1 > vertex2)
-                Helper.Swap(ref vertex1, ref vertex2);
-
-            // Do some caching
-            if (this.convexHullsForEdges == null)
-                this.convexHullsForEdges = new Polygon[this.vertexConstraints.Count, this.vertexConstraints.Count];
-            if (this.convexHullsForEdges[vertex1, vertex2] != null)
-                return this.convexHullsForEdges[vertex1, vertex2];
-
-            // Calculate convex hull
             List<Vector> points = new List<Vector>();
             points.AddRange(this.VertexConstraints[vertex1].Corners);
             points.AddRange(this.VertexConstraints[vertex2].Corners);
             Polygon convexHull = Polygon.ConvexHull(points);
 
-            // Store result in cache
-            this.convexHullsForEdges[vertex1, vertex2] = convexHull;
-
             return convexHull;
         }
 
-        public void ClearCaches()
-        {
-            this.convexHullsForEdges = null;
-        }
-        
         public void DetermineEdgeLimits(
            int edgeIndex,
            out Range lengthRange,
@@ -248,28 +257,28 @@ namespace Research.GraphBasedShapePrior
         public bool CheckIfSatisfied()
         {
             for (int i = 0; i < vertexConstraints.Count; ++i)
-                if (!vertexConstraints[i].NoFreedom)
+                if (vertexConstraints[i].Freedom > this.MaxCoordFreedom)
                     return false;
             
             for (int i = 0; i < edgeConstraints.Count; ++i)
-                if (!edgeConstraints[i].NoFreedom)
+                if (edgeConstraints[i].Freedom > this.MaxWidthFreedom)
                     return false;
             
             return true;
         }
 
-        public double GetMaxViolation()
+        public double GetMaxFreedom()
         {
-            double maxViolation = vertexConstraints.Max(c => c.FreedomLevel);
-            maxViolation = Math.Max(maxViolation, edgeConstraints.Max(c => c.FreedomLevel));
+            double maxViolation = vertexConstraints.Max(c => c.Freedom);
+            maxViolation = Math.Max(maxViolation, edgeConstraints.Max(c => c.Freedom));
             return maxViolation;
         }
 
-        public double GetViolationSum()
+        public double GetFreedomSum()
         {
             double sum = 0;
-            sum += vertexConstraints.Sum(c => c.FreedomLevel);
-            sum += edgeConstraints.Sum(c => c.FreedomLevel);
+            sum += vertexConstraints.Sum(c => c.Freedom);
+            sum += edgeConstraints.Sum(c => c.Freedom);
             return sum;
         }
 
@@ -308,12 +317,12 @@ namespace Research.GraphBasedShapePrior
                 Vector middle = point1 + 0.5 * diff;
                 graphics.DrawLine(
                     Pens.Cyan,
-                    MathHelper.VecToPointF(middle - edgeNormal * edgeConstraint.MaxWidth),
-                    MathHelper.VecToPointF(middle + edgeNormal * edgeConstraint.MaxWidth));
+                    MathHelper.VecToPointF(middle - edgeNormal * edgeConstraint.MaxWidth * 0.5),
+                    MathHelper.VecToPointF(middle + edgeNormal * edgeConstraint.MaxWidth * 0.5));
                 graphics.DrawLine(
                     Pens.Red,
-                    MathHelper.VecToPointF(middle - edgeNormal * edgeConstraint.MinWidth),
-                    MathHelper.VecToPointF(middle + edgeNormal * edgeConstraint.MinWidth));
+                    MathHelper.VecToPointF(middle - edgeNormal * edgeConstraint.MinWidth * 0.5),
+                    MathHelper.VecToPointF(middle + edgeNormal * edgeConstraint.MinWidth * 0.5));
             }
         }
 
@@ -321,7 +330,7 @@ namespace Research.GraphBasedShapePrior
         {
             List<VertexConstraints> collapsedVertexConstraints = this.vertexConstraints.Select(c => c.Collapse()).ToList();
             List<EdgeConstraints> collapsedEdgeConstraints = this.edgeConstraints.Select(c => c.Collapse()).ToList();
-            return CreateFromConstraints(this.ShapeModel, collapsedVertexConstraints, collapsedEdgeConstraints);
+            return CreateFromConstraints(this.ShapeModel, collapsedVertexConstraints, collapsedEdgeConstraints, 1e-6, 1e-6);
         }
     }
 }

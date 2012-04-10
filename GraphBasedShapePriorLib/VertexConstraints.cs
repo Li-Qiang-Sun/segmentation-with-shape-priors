@@ -58,7 +58,7 @@ namespace Research.GraphBasedShapePrior
             }
         }
 
-        public double FreedomLevel
+        public double Freedom
         {
             get
             {
@@ -71,12 +71,6 @@ namespace Research.GraphBasedShapePrior
         public Vector MiddleCoord
         {
             get { return 0.5 * (this.MinCoord + this.MaxCoord); }
-        }
-
-        public bool NoFreedom
-        {
-            // TODO: make this customizable
-            get { return this.FreedomLevel < 1 + 1e-8; }
         }
 
         public VertexConstraints Collapse()
@@ -113,13 +107,11 @@ namespace Research.GraphBasedShapePrior
                 vector.Y <= this.MaxCoord.Y;
         }
 
-        // TODO: do we need it?
         public ReadOnlyCollection<Vector> Corners
         {
             get { return this.cornersReadOnly; }
         }
 
-        // TODO: do we need it?
         public Vector? GetClosestPoint(Vector point)
         {
             if (point.X >= MinCoord.X && point.X <= MaxCoord.X)
@@ -157,6 +149,32 @@ namespace Research.GraphBasedShapePrior
                 this.MaxCoord.X,
                 this.MinCoord.Y,
                 this.MaxCoord.Y);
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+                return false;
+
+            VertexConstraints objCasted = (VertexConstraints) obj;
+            return objCasted.MinCoord == this.MinCoord && objCasted.MaxCoord == this.MaxCoord;
+        }
+
+        public override int GetHashCode()
+        {
+            return this.MinCoord.GetHashCode() ^ this.MaxCoord.GetHashCode();
+        }
+
+        public static bool operator ==(VertexConstraints left, VertexConstraints right)
+        {
+            if (ReferenceEquals(left, null))
+                return ReferenceEquals(right, null);
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(VertexConstraints left, VertexConstraints right)
+        {
+            return !(left == right);
         }
     }
 }

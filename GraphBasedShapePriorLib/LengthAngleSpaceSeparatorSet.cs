@@ -10,7 +10,7 @@ namespace Research.GraphBasedShapePrior
 
         public LengthAngleSpaceSeparatorSet(VertexConstraints constraint1, VertexConstraints constraint2)
         {
-            if (constraint1.FreedomLevel < 1e-6 || constraint2.FreedomLevel < 1e-6)
+            if (constraint1.Freedom < 1e-6 || constraint2.Freedom < 1e-6)
                 throw new ArgumentException("Coord constraints should not be singular.");
             
             this.AddSeparatorsForPair(constraint1, constraint2, false);

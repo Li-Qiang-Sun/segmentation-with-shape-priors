@@ -8,7 +8,7 @@ __device__ float DistanceSqrToObjectPenalty(float distanceSqr, float edgeWidthSq
 
 __device__ float DistanceSqrToBackgroundPenalty(float distanceSqr, float edgeWidthSqr, float backgroundDistanceCoeff)
 {
-	return max(edgeWidthSqr * (1 + backgroundDistanceCoeff) - backgroundDistanceCoeff * distanceSqr, 0.f);
+	return max(0.25 * edgeWidthSqr * (1 + backgroundDistanceCoeff) - backgroundDistanceCoeff * distanceSqr, 0.f);
 }
 
 // Clockwise order from bottom left (min) corner assumed

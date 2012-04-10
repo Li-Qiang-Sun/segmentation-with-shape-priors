@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Research.GraphBasedShapePrior
 {
-    public interface IBranchAndBoundShapeTermsCalculator
+    public interface IShapeTermsLowerBoundCalculator
     {
         void CalculateShapeTerms(ShapeConstraints constraints, Image2D<ObjectBackgroundTerm> result);
     }

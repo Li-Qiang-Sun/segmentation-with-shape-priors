@@ -31,6 +31,16 @@ namespace Research.GraphBasedShapePrior
             this.Outside = outside;
         }
 
+        public double Length
+        {
+            get
+            {
+                if (this.Outside)
+                    return Double.PositiveInfinity;
+                return this.Right - this.Left;
+            }
+        }
+
         public bool Contains(double coord)
         {
             if (this.Outside)

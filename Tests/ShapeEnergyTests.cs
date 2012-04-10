@@ -9,7 +9,13 @@ namespace Research.GraphBasedShapePrior.Tests
     public class ShapeEnergyTests
     {
         private static double TestShapeEnergyCalculationApproachesImpl(
-            ShapeModel model, IEnumerable<Vector> vertices, IEnumerable<double> edgeWidths, int lengthGridSize, int angleGridSize, double eps)
+            ShapeModel model,
+            IEnumerable<Vector> vertices,
+            IEnumerable<double> edgeWidths,
+            Size imageSize,
+            int lengthGridSize,
+            int angleGridSize,
+            double eps)
         {
             // Create shape model and calculate energy in normal way
             Shape shape = new Shape(model, vertices, edgeWidths);
@@ -17,12 +23,9 @@ namespace Research.GraphBasedShapePrior.Tests
 
             // Calculate energy via generalized distance transforms
             ShapeConstraints constraints = ShapeConstraints.CreateFromConstraints(
-                model, TestHelper.VerticesToConstraints(vertices), TestHelper.EdgeWidthsToConstraints(edgeWidths));
-            BranchAndBoundSegmentationAlgorithm segmentator = new BranchAndBoundSegmentationAlgorithm();
-            segmentator.ShapeModel = model;
-            segmentator.LengthGridSize = lengthGridSize;
-            segmentator.AngleGridSize = angleGridSize;
-            double energy2 = segmentator.CalculateMinShapeEnergy(constraints);
+                model, TestHelper.VerticesToConstraints(vertices), TestHelper.EdgeWidthsToConstraints(edgeWidths), 1, 1);
+            ShapeEnergyLowerBoundCalculator calculator = new ShapeEnergyLowerBoundCalculator(lengthGridSize, angleGridSize);
+            double energy2 = calculator.CalculateLowerBound(imageSize, constraints);
 
             Assert.AreEqual(energy1, energy2, eps);
 
@@ -36,7 +39,7 @@ namespace Research.GraphBasedShapePrior.Tests
 
             // Check GDT vs usual approach
             double energy = TestShapeEnergyCalculationApproachesImpl(
-                shapeModel, meanShape.VertexPositions, meanShape.EdgeWidths, 1001, 1001, eps);
+                shapeModel, meanShape.VertexPositions, meanShape.EdgeWidths, imageSize, 1001, 1001, eps);
 
             // Check if energy is zero
             Assert.AreEqual(0, energy, eps);
@@ -50,7 +53,11 @@ namespace Research.GraphBasedShapePrior.Tests
             VertexConstraints constraint1, VertexConstraints constraint2, out Range lengthRange, out Range angleRange)
         {
             ShapeConstraints constraintSet = ShapeConstraints.CreateFromConstraints(
-                TestHelper.CreateTestShapeModelWith1Edge(), new[] { constraint1, constraint2 }, new[] { new EdgeConstraints(1, 10) });
+                TestHelper.CreateTestShapeModelWith1Edge(),
+                new[] { constraint1, constraint2 },
+                new[] { new EdgeConstraints(1, 10) },
+                1,
+                1);
             constraintSet.DetermineEdgeLimits(0, out lengthRange, out angleRange);
 
             GeneralizedDistanceTransform2D transform = new GeneralizedDistanceTransform2D(
@@ -117,7 +124,7 @@ namespace Research.GraphBasedShapePrior.Tests
             List<double> edgeWidths = new List<double> { 10, 15 };
 
             TestShapeEnergyCalculationApproachesImpl(
-                TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertices, edgeWidths, 2001, 2001, 0.1);
+                TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertices, edgeWidths, new Size(120, 120), 2001, 2001, 0.1);
         }
 
         [TestMethod]
@@ -127,7 +134,7 @@ namespace Research.GraphBasedShapePrior.Tests
             List<double> edgeWidths = new List<double> { 10, 15 };
 
             TestShapeEnergyCalculationApproachesImpl(
-                TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertices, edgeWidths, 2001, 2001, 0.2);
+                TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), vertices, edgeWidths, new Size(50, 50), 2001, 2001, 0.2);
         }
 
         [TestMethod]
@@ -144,7 +151,7 @@ namespace Research.GraphBasedShapePrior.Tests
             };
             List<double> edgeWidths = new List<double> { 10, 11, 12, 13, 14 };
 
-            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateTestShapeModel5Edges(), vertices, edgeWidths, 2001, 2001, 2);
+            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateTestShapeModel5Edges(), vertices, edgeWidths, new Size(100, 140), 2001, 2001, 2);
         }
 
         [TestMethod]
@@ -161,7 +168,7 @@ namespace Research.GraphBasedShapePrior.Tests
             };
             List<double> edgeWidths = new List<double> { 10, 11, 12, 13, 14 };
 
-            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateTestShapeModel5Edges(), vertices, edgeWidths, 3001, 3001, 2);
+            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateTestShapeModel5Edges(), vertices, edgeWidths, new Size(120, 120), 3001, 3001, 2);
         }
 
         [TestMethod]
@@ -178,31 +185,31 @@ namespace Research.GraphBasedShapePrior.Tests
             };
             List<double> edgeWidths = new List<double> { 10, 11, 12, 13, 14 };
 
-            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateLetterShapeModel(), vertices, edgeWidths, 3001, 3001, 2);
+            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateLetterShapeModel(), vertices, edgeWidths, new Size(120, 120), 3001, 3001, 2);
         }
 
         [TestMethod]
         public void TestMeanShape1()
         {
-            TestMeanShapeImpl(TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), 1e-4);
+            TestMeanShapeImpl(TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), 1e-3);
         }
 
         [TestMethod]
         public void TestMeanShape2()
         {
-            TestMeanShapeImpl(TestHelper.CreateTestShapeModel5Edges(), 1e-4);
+            TestMeanShapeImpl(TestHelper.CreateTestShapeModel5Edges(), 1e-3);
         }
 
         [TestMethod]
         public void TestMeanShape3()
         {
-            TestMeanShapeImpl(TestHelper.CreateLetterShapeModel(), 1e-4);
+            TestMeanShapeImpl(TestHelper.CreateLetterShapeModel(), 1e-3);
         }
 
         [TestMethod]
         public void TestShapeTwist()
         {
-            const double edgeLength = 100;
+            const double edgeLength = 50;
             const double startAngle = Math.PI * 0.5;
 
             ShapeModel shapeModel = TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1);
@@ -228,7 +235,7 @@ namespace Research.GraphBasedShapePrior.Tests
                 else
                     Assert.IsTrue(lastShape.CalculateEnergy() > shape.CalculateEnergy());
 
-                TestShapeEnergyCalculationApproachesImpl(shapeModel, vertices, edgeWidths, 2001, 2001, 1e-6);
+                TestShapeEnergyCalculationApproachesImpl(shapeModel, vertices, edgeWidths, new Size(51, 51), 2001, 2001, 0.01);
 
                 lastShape = shape;
             }

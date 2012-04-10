@@ -180,9 +180,8 @@ namespace Research.GraphBasedShapePrior
 
         public double CalculateBackgroundPenaltyForEdge(double distanceSqr, double edgeWidth)
         {
-            return Math.Max(
-                edgeWidth * edgeWidth * (1 + this.backgroundDistanceCoeff) - this.backgroundDistanceCoeff * distanceSqr,
-                0);
+            double shift = 0.25 * edgeWidth * edgeWidth * (1 + this.backgroundDistanceCoeff);
+            return Math.Max(shift - this.backgroundDistanceCoeff * distanceSqr, 0);
         }
 
         public Shape FitMeanShape(Size imageSize)
