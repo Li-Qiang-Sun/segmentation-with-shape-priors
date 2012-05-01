@@ -5,7 +5,6 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using MicrosoftResearch.Infer.Distributions;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -40,8 +39,6 @@ namespace Research.GraphBasedShapePrior
         private bool isRunning;
 
         private bool isPaused;
-
-        private Image2D<Color> segmentedImage;
 
         private Image2D<ObjectBackgroundTerm> shapeUnaryTerms;
 
@@ -226,15 +223,8 @@ namespace Research.GraphBasedShapePrior
                 Thread.Sleep(10);
         }
 
-        protected override Image2D<bool> SegmentImageImpl(
-            Image2D<Color> segmentedImage,
-            Mixture<VectorGaussian> backgroundColorModel,
-            Mixture<VectorGaussian> objectColorModel)
+        protected override Image2D<bool> SegmentCurrentImage()
         {
-            Debug.Assert(segmentedImage != null);
-            Debug.Assert(backgroundColorModel != null);
-            Debug.Assert(objectColorModel != null);
-
             if (this.minEdgeWidth >= this.maxEdgeWidth)
                 throw new InvalidOperationException("Min edge width should be less than max edge width.");
 
@@ -243,8 +233,8 @@ namespace Research.GraphBasedShapePrior
             this.shouldStop = false;
             this.isPaused = false;
 
-            this.segmentedImage = segmentedImage;
-            this.shapeUnaryTerms = new Image2D<ObjectBackgroundTerm>(segmentedImage.Width, segmentedImage.Height);
+            this.shapeUnaryTerms = new Image2D<ObjectBackgroundTerm>(
+                this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height);
 
             if (this.BranchAndBoundStarted != null)
                 this.BranchAndBoundStarted(this, EventArgs.Empty);
@@ -346,7 +336,7 @@ namespace Research.GraphBasedShapePrior
             ShapeConstraints initialConstraints = ShapeConstraints.CreateFromBounds(
                 this.ShapeModel,
                 Vector.Zero,
-                new Vector(this.segmentedImage.Width, this.segmentedImage.Height),
+                new Vector(this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height),
                 this.minEdgeWidth,
                 this.maxEdgeWidth,
                 this.maxCoordFreedom,
@@ -378,7 +368,7 @@ namespace Research.GraphBasedShapePrior
             ShapeConstraints initialConstraints = ShapeConstraints.CreateFromBounds(
                 this.ShapeModel,
                 Vector.Zero,
-                new Vector(this.segmentedImage.Width, this.segmentedImage.Height),
+                new Vector(this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height),
                 this.minEdgeWidth,
                 this.maxEdgeWidth,
                 this.maxCoordFreedom,
@@ -558,7 +548,7 @@ namespace Research.GraphBasedShapePrior
 
         private EnergyBound MakeMeanShapeBasedSolutionGuess()
         {
-            Shape shape = this.ShapeModel.FitMeanShape(this.segmentedImage.Rectangle.Size);
+            Shape shape = this.ShapeModel.FitMeanShape(this.ImageSegmentator.ImageSize);
             ShapeConstraints constraintsSet = ShapeConstraints.CreateFromShape(shape);
             return this.CalculateEnergyBound(constraintsSet);
         }
@@ -579,7 +569,7 @@ namespace Research.GraphBasedShapePrior
         private void ReportDepthFirstSearchStatus(ShapeConstraints currentNode, EnergyBound upperBound)
         {
             // Draw current constraints on top of an image
-            Image statusImage = Image2D.ToRegularImage(this.segmentedImage);
+            Image statusImage = Image2D.ToRegularImage(this.ImageSegmentator.GetSegmentedImage());
             using (Graphics graphics = Graphics.FromImage(statusImage))
                 currentNode.Draw(graphics);
 
@@ -601,7 +591,7 @@ namespace Research.GraphBasedShapePrior
             EnergyBound currentMin = front.Min;
 
             // Draw current constraints on top of an image
-            Image statusImage = Image2D.ToRegularImage(this.segmentedImage);
+            Image statusImage = Image2D.ToRegularImage(this.ImageSegmentator.GetSegmentedImage());
             using (Graphics graphics = Graphics.FromImage(statusImage))
                 currentMin.Constraints.Draw(graphics);
 
@@ -622,9 +612,10 @@ namespace Research.GraphBasedShapePrior
             Directory.CreateDirectory(dir);
             using (StreamWriter writer = new StreamWriter(Path.Combine(dir, "stats.txt")))
             {
+                Image2D<Color> segmentedImage = this.ImageSegmentator.GetSegmentedImage();
                 foreach (EnergyBound energyBound in bounds)
                 {
-                    Image image = Image2D.ToRegularImage(this.segmentedImage);
+                    Image image = Image2D.ToRegularImage(segmentedImage);
                     using (Graphics graphics = Graphics.FromImage(image))
                         energyBound.Constraints.Draw(graphics);
                     image.Save(Path.Combine(dir, string.Format("{0:00}.png", index)));
@@ -643,7 +634,7 @@ namespace Research.GraphBasedShapePrior
         {
             this.shapeTermsCalculator.CalculateShapeTerms(constraintsSet, this.shapeUnaryTerms);
             double segmentationEnergy = this.ImageSegmentator.SegmentImageWithShapeTerms(point => this.shapeUnaryTerms[point.X, point.Y]);
-            double shapeEnergy = this.shapeEnergyLowerBoundCalculator.CalculateLowerBound(this.segmentedImage.Rectangle.Size, constraintsSet);
+            double shapeEnergy = this.shapeEnergyLowerBoundCalculator.CalculateLowerBound(this.ImageSegmentator.ImageSize, constraintsSet);
             return new EnergyBound(constraintsSet, shapeEnergy, segmentationEnergy, this.ShapeEnergyWeight);
         }
 

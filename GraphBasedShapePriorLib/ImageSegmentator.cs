@@ -13,6 +13,10 @@ namespace Research.GraphBasedShapePrior
     /// </summary>
     public class ImageSegmentator
     {
+        private const double MixtureFittingThreshold = 0.2;
+
+        private readonly Image2D<Color> segmentedImage;
+        
         private Image2D<ObjectBackgroundTerm> colorTerms;
 
         private Image2D<ObjectBackgroundTerm> lastUnaryTerms;
@@ -29,20 +33,20 @@ namespace Research.GraphBasedShapePrior
 
         public ImageSegmentator(
             Image2D<Color> image,
-            Mixture<VectorGaussian> backgroundColorModel,
-            Mixture<VectorGaussian> objectColorModel,
+            Rectangle estimatedObjectLocation,
             double brightnessBinaryTermCutoff,
             double constantBinaryTermWeight,
             double unaryTermWeight,
-            double shapeUnaryTermWeight)
+            double shapeUnaryTermWeight,
+            int mixtureComponentCount)
         {
             if (image == null)
                 throw new ArgumentNullException("image");
-            if (backgroundColorModel == null)
-                throw new ArgumentNullException("backgroundColorModel");
-            if (objectColorModel == null)
-                throw new ArgumentNullException("objectColorModel");
-            
+            if (!image.Rectangle.Contains(estimatedObjectLocation))
+                throw new ArgumentException("Estimated object location should be inside the image.");
+            if (estimatedObjectLocation.Width == image.Width && estimatedObjectLocation.Height == image.Height)
+                throw new ArgumentException("Estimated object location should be strictly inside an image.");
+
             if (brightnessBinaryTermCutoff <= 0)
                 throw new ArgumentOutOfRangeException("brightnessBinaryTermCutoff", "Parameter value should be positive.");
             if (constantBinaryTermWeight < 0)
@@ -52,66 +56,56 @@ namespace Research.GraphBasedShapePrior
             if (shapeUnaryTermWeight < 0)
                 throw new ArgumentOutOfRangeException("shapeUnaryTermWeight", "Parameter value should be not be negative.");
 
+            if (mixtureComponentCount < 2)
+                throw new ArgumentOutOfRangeException("mixtureComponentCount", "Number of Gaussian mixture components should be 2 or greater.");
+
             this.BrightnessBinaryTermCutoff = brightnessBinaryTermCutoff;
             this.ConstantBinaryTermWeight = constantBinaryTermWeight;
             this.UnaryTermWeight = unaryTermWeight;
             this.ShapeUnaryTermWeight = shapeUnaryTermWeight;
 
-            this.graphCutCalculator = new GraphCutCalculator(image.Width, image.Height);
+            this.PrepareColorTerms(image, estimatedObjectLocation, mixtureComponentCount);
+            this.segmentedImage = image.Shrink(estimatedObjectLocation);
 
-            this.PreparePairwiseTerms(image);
-            this.PrepareColorTerms(image, backgroundColorModel, objectColorModel);
-            this.PrepareUnaryTermHolders(image);
+            this.graphCutCalculator = new GraphCutCalculator(this.segmentedImage.Width, this.segmentedImage.Height);
+
+            this.PreparePairwiseTerms();
+            this.PrepareOther();
         }
 
-        private void PrepareUnaryTermHolders(Image2D<Color> image)
+        private void PrepareOther()
         {
-            this.lastUnaryTerms = new Image2D<ObjectBackgroundTerm>(image.Width, image.Height);
-            this.lastShapeTerms = new Image2D<ObjectBackgroundTerm>(image.Width, image.Height);
-            this.lastSegmentationMask = new Image2D<bool>(image.Width, image.Height);
+            this.lastUnaryTerms = new Image2D<ObjectBackgroundTerm>(this.ImageSize.Width, this.ImageSize.Height);
+            this.lastShapeTerms = new Image2D<ObjectBackgroundTerm>(this.ImageSize.Width, this.ImageSize.Height);
+            this.lastSegmentationMask = new Image2D<bool>(this.ImageSize.Width, this.ImageSize.Height);
         }
 
-        private void PrepareColorTerms(Image2D<Color> image, Mixture<VectorGaussian> backgroundColorModel, Mixture<VectorGaussian> objectColorModel)
+        private void PreparePairwiseTerms()
         {
-            this.colorTerms = new Image2D<ObjectBackgroundTerm>(image.Width, image.Height);
-            for (int x = 0; x < image.Width; ++x)
+            this.pairwiseTerms = new Image2D<Tuple<double, double, double>>(this.segmentedImage.Width, this.segmentedImage.Height);
+
+            double meanBrightnessDiff = CalculateMeanBrightnessDifference(this.segmentedImage);
+            for (int x = 0; x < this.segmentedImage.Width; ++x)
             {
-                for (int y = 0; y < image.Height; ++y)
-                {
-                    MicrosoftResearch.Infer.Maths.Vector imagePixel = image[x, y].ToInferNetVector();
-                    double objectTerm = -objectColorModel.LogProb(imagePixel);
-                    double backgroundTerm = -backgroundColorModel.LogProb(imagePixel);
-                    this.colorTerms[x, y] = new ObjectBackgroundTerm(objectTerm, backgroundTerm);
-                }
-            }
-        }
-
-        private void PreparePairwiseTerms(Image2D<Color> image)
-        {
-            this.pairwiseTerms = new Image2D<Tuple<double, double, double>>(image.Width, image.Height);
-
-            double meanBrightnessDiff = this.CalculateMeanBrightnessDifference(image);
-            for (int x = 0; x < image.Width; ++x)
-            {
-                for (int y = 0; y < image.Height; ++y)
+                for (int y = 0; y < this.segmentedImage.Height; ++y)
                 {
                     double weightRight = 0, weightBottom = 0, weightBottomRight = 0;
-                    if (x < image.Width - 1)
+                    if (x < this.segmentedImage.Width - 1)
                     {
                         weightRight = CalculateBinaryTerm(
-                            image, meanBrightnessDiff, new Point(x, y), new Point(x + 1, y));
+                            this.segmentedImage, meanBrightnessDiff, new Point(x, y), new Point(x + 1, y));
                         this.graphCutCalculator.SetNeighborWeights(x, y, Neighbor.Right, weightRight);
                     }
-                    if (y < image.Height - 1)
+                    if (y < this.segmentedImage.Height - 1)
                     {
                         weightBottom = CalculateBinaryTerm(
-                            image, meanBrightnessDiff, new Point(x, y), new Point(x, y + 1));
+                            this.segmentedImage, meanBrightnessDiff, new Point(x, y), new Point(x, y + 1));
                         this.graphCutCalculator.SetNeighborWeights(x, y, Neighbor.Bottom, weightBottom);
                     }
-                    if (x < image.Width - 1 && y < image.Height - 1)
+                    if (x < this.segmentedImage.Width - 1 && y < this.segmentedImage.Height - 1)
                     {
                         weightBottomRight = CalculateBinaryTerm(
-                            image, meanBrightnessDiff, new Point(x, y), new Point(x + 1, y + 1));
+                            this.segmentedImage, meanBrightnessDiff, new Point(x, y), new Point(x + 1, y + 1));
                         this.graphCutCalculator.SetNeighborWeights(x, y, Neighbor.RightBottom, weightBottomRight);
                     }
 
@@ -128,6 +122,11 @@ namespace Research.GraphBasedShapePrior
         public double UnaryTermWeight { get; private set; }
 
         public double ShapeUnaryTermWeight { get; private set; }
+
+        public Size ImageSize
+        {
+            get { return this.segmentedImage.Rectangle.Size; }
+        }
 
         public Image2D<bool> GetLastSegmentationMask()
         {
@@ -153,6 +152,11 @@ namespace Research.GraphBasedShapePrior
         public Image2D<ObjectBackgroundTerm> GetColorTerms()
         {
             return this.colorTerms.Clone();
+        }
+
+        public Image2D<Color> GetSegmentedImage()
+        {
+            return this.segmentedImage.Clone();
         }
 
         public double SegmentImageWithShapeTerms(
@@ -218,7 +222,7 @@ namespace Research.GraphBasedShapePrior
             return energy;
         }
 
-        private double CalculateMeanBrightnessDifference(Image2D<Color> image)
+        private static double CalculateMeanBrightnessDifference(Image2D<Color> image)
         {
             double sum = 0;
             int count = 0;
@@ -247,7 +251,7 @@ namespace Research.GraphBasedShapePrior
             return sum / count;
         }
 
-        private double GetBrightnessDifference(Image2D<Color> image, Point point1, Point point2)
+        private static double GetBrightnessDifference(Image2D<Color> image, Point point1, Point point2)
         {
             Color color1 = image[point1.X, point1.Y];
             Color color2 = image[point2.X, point2.Y];
@@ -262,6 +266,86 @@ namespace Research.GraphBasedShapePrior
             double brightnessDiffSqr = brightnessDiff * brightnessDiff;
             double meanDiffSqr = meanBrightnessDiff * meanBrightnessDiff;
             return Math.Exp(-this.BrightnessBinaryTermCutoff * brightnessDiffSqr / meanDiffSqr) + this.ConstantBinaryTermWeight;
+        }
+
+        private void PrepareColorTerms(Image2D<Color> image, Rectangle objectLocation, int mixtureComponentCount)
+        {
+            Mixture<VectorGaussian> backgroundColorModel, objectColorModel;
+            EstimateColorModels(image, objectLocation, mixtureComponentCount, out backgroundColorModel, out objectColorModel);
+
+            // Calculate terms for shrinked image (since we know that object is not outside)
+            this.colorTerms = new Image2D<ObjectBackgroundTerm>(objectLocation.Width, objectLocation.Height);
+            for (int x = 0; x < colorTerms.Width; ++x)
+            {
+                for (int y = 0; y < colorTerms.Height; ++y)
+                {
+                    MicrosoftResearch.Infer.Maths.Vector imagePixel =
+                        image[x + objectLocation.X, y + objectLocation.Y].ToInferNetVector();
+                    double objectTerm = -objectColorModel.LogProb(imagePixel);
+                    double backgroundTerm = -backgroundColorModel.LogProb(imagePixel);
+                    this.colorTerms[x, y] = new ObjectBackgroundTerm(objectTerm, backgroundTerm);
+                }
+            }
+        }
+
+        private static void EstimateColorModels(
+            Image2D<Color> image,
+            Rectangle estimatedObjectLocation,
+            int mixtureComponentCount,
+            out Mixture<VectorGaussian> backgroundColorModel,
+            out Mixture<VectorGaussian> objectColorModel)
+        {
+            Debug.Assert(image != null);
+            Debug.Assert(image.Rectangle.Contains(estimatedObjectLocation));
+
+            // Extract background pixels (yeah, it can be done faster)
+            List<Color> backgroundPixels = new List<Color>();
+            for (int i = 0; i < image.Width; ++i)
+                for (int j = 0; j < image.Height; ++j)
+                    if (!estimatedObjectLocation.Contains(i, j))
+                        backgroundPixels.Add(image[i, j]);
+
+            // Fit GMM for background
+            backgroundColorModel = FitGaussianMixture(backgroundPixels, mixtureComponentCount);
+
+            // Find most unprobable background pixels in bbox
+            List<Tuple<Color, double>> innerPixelsWithProb = new List<Tuple<Color, double>>();
+            for (int i = estimatedObjectLocation.Left; i < estimatedObjectLocation.Right; ++i)
+                for (int j = estimatedObjectLocation.Top; j < estimatedObjectLocation.Bottom; ++j)
+                {
+                    Color color = image[i, j];
+                    double logProb = backgroundColorModel.LogProb(color.ToInferNetVector());
+                    innerPixelsWithProb.Add(new Tuple<Color, double>(color, logProb));
+                }
+            innerPixelsWithProb.Sort(
+                (t1, t2) =>
+                    t1.Item2 < t2.Item2
+                    ? -1
+                    : (t1.Item2 == t2.Item2 ? 0 : 1));
+
+            // Fit GMM for foreground
+            List<Color> objectPixels =
+                innerPixelsWithProb.Take((int)(innerPixelsWithProb.Count * MixtureFittingThreshold)).Select(t => t.Item1).ToList();
+            objectColorModel = FitGaussianMixture(objectPixels, mixtureComponentCount);
+
+            // Re-learn GMM for background with some new data
+            List<Color> moreBackgroundPixels =
+                innerPixelsWithProb.Skip((int)(innerPixelsWithProb.Count * (1 - MixtureFittingThreshold))).Select(t => t.Item1).ToList();
+            backgroundPixels.AddRange(moreBackgroundPixels);
+            backgroundColorModel = FitGaussianMixture(backgroundPixels, mixtureComponentCount);
+        }
+
+        private static Mixture<VectorGaussian> FitGaussianMixture(List<Color> pixels, int mixtureComponentCount)
+        {
+            Debug.Assert(pixels != null);
+            Debug.Assert(pixels.Count > mixtureComponentCount);
+
+            MicrosoftResearch.Infer.Maths.Vector[] observedData = new MicrosoftResearch.Infer.Maths.Vector[pixels.Count];
+            for (int i = 0; i < pixels.Count; ++i)
+                observedData[i] = pixels[i].ToInferNetVector();
+
+            Mixture<VectorGaussian> result = MixtureUtils.Fit(observedData, mixtureComponentCount, mixtureComponentCount, 1);
+            return result;
         }
     }
 }

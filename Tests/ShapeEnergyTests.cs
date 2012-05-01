@@ -168,7 +168,7 @@ namespace Research.GraphBasedShapePrior.Tests
             };
             List<double> edgeWidths = new List<double> { 10, 11, 12, 13, 14 };
 
-            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateTestShapeModel5Edges(), vertices, edgeWidths, new Size(120, 120), 3001, 3001, 2);
+            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateTestShapeModel5Edges(), vertices, edgeWidths, new Size(120, 120), 2001, 2001, 3);
         }
 
         [TestMethod]

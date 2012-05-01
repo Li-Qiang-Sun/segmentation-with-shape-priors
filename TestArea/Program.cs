@@ -18,14 +18,13 @@ namespace TestArea
             List<ShapeEdge> edges = new List<ShapeEdge>();
             edges.Add(new ShapeEdge(0, 1));
 
-            List<ShapeEdgeParams> vertexParams = new List<ShapeEdgeParams>();
-            vertexParams.Add(new ShapeEdgeParams(0.3, 0.1));
-            vertexParams.Add(new ShapeEdgeParams(0.3, 0.1));
+            List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
+            edgeParams.Add(new ShapeEdgeParams(0.2, 0.1));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
 
-            return ShapeModel.Create(edges, vertexParams, edgePairParams);
+            return ShapeModel.Create(edges, edgeParams, edgePairParams);
         }
 
         private static ShapeModel CreateSimpleShapeModel2()
@@ -34,16 +33,15 @@ namespace TestArea
             edges.Add(new ShapeEdge(0, 1));
             edges.Add(new ShapeEdge(1, 2));
 
-            List<ShapeEdgeParams> vertexParams = new List<ShapeEdgeParams>();
-            vertexParams.Add(new ShapeEdgeParams(0.15, 0.1));
-            vertexParams.Add(new ShapeEdgeParams(0.15, 0.1));
-            vertexParams.Add(new ShapeEdgeParams(0.15, 0.1));
+            List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
+            edgeParams.Add(new ShapeEdgeParams(0.15, 0.1));
+            edgeParams.Add(new ShapeEdgeParams(0.15, 0.1));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
             edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.5, 1, 0.1, 10)); // TODO: we need deviations to be relative
 
-            return ShapeModel.Create(edges, vertexParams, edgePairParams);
+            return ShapeModel.Create(edges, edgeParams, edgePairParams);
         }
 
         private static ShapeModel CreateLetterShapeModel()
@@ -55,13 +53,12 @@ namespace TestArea
             edges.Add(new ShapeEdge(2, 4));
             edges.Add(new ShapeEdge(4, 5));
 
-            List<ShapeEdgeParams> vertexParams = new List<ShapeEdgeParams>();
-            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
-            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
-            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
-            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
-            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
-            vertexParams.Add(new ShapeEdgeParams(0.07, 0.05));
+            List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
+            edgeParams.Add(new ShapeEdgeParams(0.07, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.07, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.07, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.07, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.07, 0.05));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams = new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
             edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(-Math.PI * 0.5, 1.3, Math.PI * 0.1, 5)); // TODO: we need edge length deviations to be relative
@@ -69,7 +66,7 @@ namespace TestArea
             edgePairParams.Add(new Tuple<int, int>(2, 3), new ShapeEdgePairParams(-Math.PI * 0.5, 1, Math.PI * 0.1, 5));
             edgePairParams.Add(new Tuple<int, int>(3, 4), new ShapeEdgePairParams(Math.PI * 0.5, 0.77, Math.PI * 0.1, 5));
 
-            return ShapeModel.Create(edges, vertexParams, edgePairParams);
+            return ShapeModel.Create(edges, edgeParams, edgePairParams);
         }
 
         static void MainForConvexHull()
@@ -374,11 +371,28 @@ namespace TestArea
             Shape shape = shapeModel.FitMeanShape(new Size(100, 200));
         }
 
+        private static void MainForDualDecomposition()
+        {
+            ShapeModel shapeModel = CreateSimpleShapeModel1();
+            ShapeConstraints constraints = ShapeConstraints.CreateFromConstraints(
+                shapeModel,
+                new[] { new VertexConstraints(new Vector(3, 0), new Vector(40, 40)), new VertexConstraints(new Vector(60, 10), new Vector(100, 50)) },
+                new[] { new EdgeConstraints(10, 20) },
+                1,
+                1);
+            Image2D<Color> image = Image2D.LoadFromFile("../../../images/simple_1.png", 0.2);
+            Rectangle objectLocation = new Rectangle(30, 24, 159, 96);
+            ImageSegmentator segmentator = new ImageSegmentator(image, objectLocation, 0.01, 0, 1, 0.05, 3);
+            LowerBoundCalculator lowerBoundCalculator = new LowerBoundCalculator(segmentator);
+            lowerBoundCalculator.CalculateLowerBound(constraints);
+        }
+
         static void Main()
         {
             Rand.Restart(666);
 
-            MainForPointIsClosestExperiment();
+            MainForDualDecomposition();
+            //MainForPointIsClosestExperiment();
             //MainForLengthAngleDependenceExperiment();
             //GenerateMeanShape();
             //DrawLengthAngleDependence();

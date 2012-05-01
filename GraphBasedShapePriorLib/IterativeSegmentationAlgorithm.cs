@@ -57,10 +57,7 @@ namespace Research.GraphBasedShapePrior
 
         public event EventHandler<SegmentationIterationFinishedEventArgs> IterationFinished;
 
-        protected override Image2D<bool> SegmentImageImpl(
-            Image2D<Color> shrinkedImage,
-            Mixture<VectorGaussian> backgroundColorModel,
-            Mixture<VectorGaussian> objectColorModel)
+        protected override Image2D<bool> SegmentCurrentImage()
         {
             if (this.ShapeFittingStrategy == null)
                 throw new InvalidOperationException("Shape fitting strategy must be specified before running segmentation");
@@ -80,7 +77,7 @@ namespace Research.GraphBasedShapePrior
                 Image2D<bool> newMask = this.ImageSegmentator.GetLastSegmentationMask();
 
                 int differentValues = Image2D<bool>.DifferentValueCount(currentMask, newMask);
-                double changeRate = (double)differentValues / (shrinkedImage.Width * shrinkedImage.Height);
+                double changeRate = (double)differentValues / (this.ImageSegmentator.ImageSize.Width * this.ImageSegmentator.ImageSize.Height);
                 DebugConfiguration.WriteImportantDebugText("Changed pixel rate is {0:0.000000}", changeRate);
                 if (iteration > this.WeightChangingIterationCount && changeRate < this.MinChangeRate)
                 {

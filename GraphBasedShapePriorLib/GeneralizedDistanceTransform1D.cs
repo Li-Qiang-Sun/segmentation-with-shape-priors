@@ -2,21 +2,17 @@
 
 namespace Research.GraphBasedShapePrior
 {
-    class GeneralizedDistanceTransform1D
+    public class GeneralizedDistanceTransform1D
     {
-        private double[] values;
+        private readonly double[] values;
 
-        private int[] bestIndices;
+        private readonly int[] bestIndices;
 
-        public double GridMin { get; private set; }
+        private readonly int[] envelope;
 
-        public double GridMax { get; private set; }
+        private readonly double[] parabolaRange;
 
-        public int GridSize { get; private set; }
-
-        private readonly double gridStepSize;
-
-        public bool IsComputed { get; private set; }
+        private readonly double[] functionValues;
 
         public GeneralizedDistanceTransform1D(double gridMin, double gridMax, int gridSize)
         {
@@ -28,7 +24,24 @@ namespace Research.GraphBasedShapePrior
             this.GridSize = gridSize;
             // Our grid covers all the evenly distributed points from min to max in a way that each point is the center of its cell
             this.gridStepSize = (this.GridMax - this.GridMin) / (this.GridSize - 1);
+
+            // Allocate all the necessary things
+            this.envelope = new int[this.GridSize];
+            this.parabolaRange = new double[this.GridSize + 1];
+            this.functionValues = new double[this.GridSize];
+            this.values = new double[this.GridSize];
+            this.bestIndices = new int[this.GridSize];
         }
+
+        public double GridMin { get; private set; }
+
+        public double GridMax { get; private set; }
+
+        public int GridSize { get; private set; }
+
+        private readonly double gridStepSize;
+
+        public bool IsComputed { get; private set; }
 
         public double GetValueByGridIndex(int gridIndex)
         {
@@ -74,10 +87,6 @@ namespace Research.GraphBasedShapePrior
             if (penaltyFunc == null)
                 throw new ArgumentNullException("penaltyFunc");
             
-            int[] envelope = new int[this.GridSize];
-            double[] parabolaRange = new double[this.GridSize + 1];
-
-            double[] functionValues = new double[this.GridSize];
             for (int i = 0; i < this.GridSize; ++i)
                 functionValues[i] = penaltyFunc(GridIndexToCoord(i), 0.5 * this.gridStepSize);
 
@@ -109,8 +118,6 @@ namespace Research.GraphBasedShapePrior
             }
 
             int currentParabola = 0;
-            this.values = new double[this.GridSize];
-            this.bestIndices = new int[this.GridSize];
             for (int i = 0; i < this.GridSize; ++i)
             {
                 while (parabolaRange[currentParabola + 1] < i)

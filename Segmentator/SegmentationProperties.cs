@@ -64,16 +64,16 @@ namespace Segmentator
             this.ConstantBinaryTermWeight = 0;
             this.BrightnessBinaryTermCutoff = 0.01;
 
-            this.ShapeEnergyWeight = 10;
+            this.ShapeEnergyWeight = 100;
             this.MinEdgeWidth = 10;
             this.MaxEdgeWidth = 20;
             this.BackgroundDistanceCoeff = 1;
 
-            this.BfsIterations = 10000;
+            this.BfsIterations = 1000000;
             this.ReportRate = 50;
             this.FrontSaveRate = 100000;
-            this.MaxCoordFreedom = 1;
-            this.MaxWidthFreedom = 1;
+            this.MaxCoordFreedom = 3;
+            this.MaxWidthFreedom = 3;
             this.Model = Model.OneEdge;
         }
     }
