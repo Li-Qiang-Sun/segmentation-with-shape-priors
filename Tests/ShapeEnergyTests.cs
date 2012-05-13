@@ -61,7 +61,7 @@ namespace Research.GraphBasedShapePrior.Tests
             constraintSet.DetermineEdgeLimits(0, out lengthRange, out angleRange);
 
             GeneralizedDistanceTransform2D transform = new GeneralizedDistanceTransform2D(
-                new Vector(0, -Math.PI * 2), new Vector(35, Math.PI * 2), new Size(2000, 2000));
+                new Range(0, 35), new Range(-Math.PI * 2, Math.PI * 2), new Size(2000, 2000));
             AllowedLengthAngleChecker allowedLengthAngleChecker = new AllowedLengthAngleChecker(constraint1, constraint2, transform, 1, 0);
 
             Random random = new Random(666);
@@ -108,7 +108,7 @@ namespace Research.GraphBasedShapePrior.Tests
                 double angle = Vector.AngleBetween(Vector.UnitX, vec);
 
                 // We've generated too large edge
-                if (length > transform.GridMax.X)
+                if (length > transform.RangeX.Right)
                     continue;
 
                 bool definitelyOutside = !lengthRange.Contains(length) || !angleRange.Contains(angle);

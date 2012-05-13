@@ -8,6 +8,14 @@ namespace Research.GraphBasedShapePrior
 {
     public class ShapeEnergyLowerBoundCalculator : IShapeEnergyLowerBoundCalculator
     {
+        private readonly LinkedList<GeneralizedDistanceTransform2D> usedDistanceTransforms =
+            new LinkedList<GeneralizedDistanceTransform2D>();
+
+        private readonly LinkedList<GeneralizedDistanceTransform2D> freeDistanceTransforms =
+            new LinkedList<GeneralizedDistanceTransform2D>();
+
+        private double currentMaxScaledLength;
+        
         public ShapeEnergyLowerBoundCalculator(int lengthGridSize, int angleGridSize)
         {
             this.LengthGridSize = lengthGridSize;
@@ -30,6 +38,8 @@ namespace Research.GraphBasedShapePrior
             if (this.SkipEarlyCalculations && TooEarlyForCalculations(imageSize, shapeConstraints))
                 return 0;
             
+            this.FreeAllDistanceTransforms();
+
             List<Range> lengthRanges, angleRanges;
             CalculateLengthAngleRanges(shapeConstraints, out lengthRanges, out angleRanges);
 
@@ -47,12 +57,12 @@ namespace Research.GraphBasedShapePrior
                                 select 1.0 / shapeConstraints.ShapeModel.GetEdgePairParams(edgePair.Item1, edgePair.Item2).LengthRatio).Max();
             double maxRatio = Math.Max(maxRatio1, maxRatio2);
             double maxEdgeLength = (new Vector(imageSize.Width, imageSize.Height)).Length;
-            double maxScaledLength = maxEdgeLength * maxRatio;
+            this.currentMaxScaledLength = maxEdgeLength * maxRatio;
 
             // Calculate distance transforms for all the child edges
             List<GeneralizedDistanceTransform2D> childTransforms = new List<GeneralizedDistanceTransform2D>();
             foreach (int edgeIndex in shapeConstraints.ShapeModel.IterateNeighboringEdgeIndices(0))
-                childTransforms.Add(CalculateMinEnergiesForAllParentEdges(shapeConstraints, 0, edgeIndex, maxScaledLength));
+                childTransforms.Add(CalculateMinEnergiesForAllParentEdges(shapeConstraints, 0, edgeIndex));
 
             // Find best overall solution
             double minEnergySum = Double.PositiveInfinity;
@@ -105,19 +115,20 @@ namespace Research.GraphBasedShapePrior
         {
             return false;
 
-            // TODO: this more about conditions here, make it work
-            Vector maxFreedom = new Vector(imageSize.Width * 0.3, imageSize.Height * 0.3);
-            int notTooFreeCount = 0;
-            for (int i = 0; i < shapeConstraints.VertexConstraints.Count; ++i)
-            {
-                if (shapeConstraints.VertexConstraints[i].XRange.Length <= maxFreedom.X &&
-                    shapeConstraints.VertexConstraints[i].YRange.Length <= maxFreedom.Y)
-                {
-                    ++notTooFreeCount;
-                }
-            }
+            // TODO: think more about conditions here, make it work
+            //Vector maxFreedom = new Vector(imageSize.Width * 0.3, imageSize.Height * 0.3);
+            //int notTooFreeCount = 0;
+            //for (int i = 0; i < shapeConstraints.VertexConstraints.Count; ++i)
+            //{
+            //    if (shapeConstraints.VertexConstraints[i].XRange.Length <= maxFreedom.X &&
+            //        shapeConstraints.VertexConstraints[i].YRange.Length <= maxFreedom.Y)
+            //    {
+            //        ++notTooFreeCount;
+            //    }
+            //}
 
-            return (double) notTooFreeCount / shapeConstraints.VertexConstraints.Count < 0.7;
+            //const double threshold = 0.8;
+            //return (double) notTooFreeCount / shapeConstraints.VertexConstraints.Count < threshold;
         }
 
         private static double CalculateSingleEdgeLowerBound(ShapeConstraints shapeConstraints, List<Range> lengthRanges, List<Range> angleRanges)
@@ -190,6 +201,35 @@ namespace Research.GraphBasedShapePrior
             return energySum;
         }
 
+        private GeneralizedDistanceTransform2D AllocateDistanceTransform()
+        {
+            GeneralizedDistanceTransform2D result;
+            if (this.freeDistanceTransforms.Count > 0)
+            {
+                result = this.freeDistanceTransforms.First.Value;
+                this.freeDistanceTransforms.RemoveFirst();
+            }
+            else
+            {
+                result = new GeneralizedDistanceTransform2D(
+                    new Range(0, this.currentMaxScaledLength), 
+                    new Range(-Math.PI * 2, Math.PI * 2), 
+                    new Size(this.LengthGridSize, this.AngleGridSize));
+            }
+
+            this.usedDistanceTransforms.AddFirst(result);
+            return result;
+        }
+
+        private void FreeAllDistanceTransforms()
+        {
+            foreach (GeneralizedDistanceTransform2D transform in this.usedDistanceTransforms)
+                this.freeDistanceTransforms.AddFirst(transform);
+            foreach (GeneralizedDistanceTransform2D transform in freeDistanceTransforms)
+                transform.ResetFinitePenaltyRange();
+            this.usedDistanceTransforms.Clear();
+        }
+
         private static double CalculateMinUnaryEdgeEnergy(int edgeIndex, ShapeConstraints shapeConstraints, double edgeLength)
         {
             double bestWidth = edgeLength * shapeConstraints.ShapeModel.GetEdgeParams(edgeIndex).WidthToEdgeLengthRatio;
@@ -201,8 +241,7 @@ namespace Research.GraphBasedShapePrior
         private GeneralizedDistanceTransform2D CalculateMinEnergiesForAllParentEdges(
             ShapeConstraints shapeConstraints,
             int parentEdgeIndex,
-            int currentEdgeIndex,
-            double maxScaledLength)
+            int currentEdgeIndex)
         {
             List<GeneralizedDistanceTransform2D> childDistanceTransforms = new List<GeneralizedDistanceTransform2D>();
             foreach (int neighborEdgeIndex in shapeConstraints.ShapeModel.IterateNeighboringEdgeIndices(currentEdgeIndex))
@@ -212,38 +251,40 @@ namespace Research.GraphBasedShapePrior
                     continue;
 
                 GeneralizedDistanceTransform2D childTransform = CalculateMinEnergiesForAllParentEdges(
-                    shapeConstraints, currentEdgeIndex, neighborEdgeIndex, maxScaledLength);
+                    shapeConstraints, currentEdgeIndex, neighborEdgeIndex);
                 Debug.Assert(childTransform.IsComputed);
                 childDistanceTransforms.Add(childTransform);
             }
 
+            // Boundaries for possible lengths and angles of the current edge
             Range lengthRange, angleRange;
             shapeConstraints.DetermineEdgeLimits(currentEdgeIndex, out lengthRange, out angleRange);
 
+            // (parent, current) edge pair parameters
             ShapeEdgePairParams pairParams = shapeConstraints.ShapeModel.GetEdgePairParams(parentEdgeIndex, currentEdgeIndex);
 
-            GeneralizedDistanceTransform2D transform = new GeneralizedDistanceTransform2D(
-                new Vector(0, -Math.PI * 2),
-                new Vector(maxScaledLength, Math.PI * 2),
-                new Size(this.LengthGridSize, this.AngleGridSize));
+            // Create GDT with finite penalties only in the allowed area
+            GeneralizedDistanceTransform2D transform = this.AllocateDistanceTransform();
+            transform.AddFinitePenaltyRangeX(
+                new Range(lengthRange.Left * pairParams.LengthRatio, lengthRange.Right * pairParams.LengthRatio));
+            if (!angleRange.Outside)
+            {
+                transform.AddFinitePenaltyRangeY(
+                    new Range(angleRange.Left - pairParams.MeanAngle, angleRange.Right - pairParams.MeanAngle));
+            }
+            else
+            {
+                transform.AddFinitePenaltyRangeY(
+                    new Range(-Math.PI - pairParams.MeanAngle, angleRange.Left - pairParams.MeanAngle));
+                transform.AddFinitePenaltyRangeY(
+                    new Range(angleRange.Right - pairParams.MeanAngle, Math.PI - pairParams.MeanAngle));
+            }
 
             Func<double, double, double, double, double> penaltyFunction =
                 (scaledLength, shiftedAngle, scaledLengthRadius, shiftedAngleRadius) =>
                 {
                     double length = scaledLength / pairParams.LengthRatio;
                     double angle = shiftedAngle + pairParams.MeanAngle;
-                    double lengthRadius = scaledLengthRadius / pairParams.LengthRatio;
-                    double angleRadius = shiftedAngleRadius;
-
-                    // Disallow invalid configurations
-                    Range currentLengthRange = new Range(length - lengthRadius, length + lengthRadius);
-                    Range currentAngleRange = new Range(angle - angleRadius, angle + angleRadius);
-                    const double eps = 1e-6;
-                    if (angle >= Math.PI + eps || angle <= -Math.PI - eps ||
-                        !currentLengthRange.IntersectsWith(lengthRange) || !currentAngleRange.IntersectsWith(angleRange))
-                    {
-                        return 1e+20; // Return something close to infinity
-                    }
 
                     return
                         CalculateMinUnaryEdgeEnergy(currentEdgeIndex, shapeConstraints, length) +
