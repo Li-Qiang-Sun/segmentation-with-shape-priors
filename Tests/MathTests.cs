@@ -90,6 +90,15 @@ namespace Research.GraphBasedShapePrior.Tests
         }
 
         [TestMethod]
+        public void TestRange8()
+        {
+            Range range1 = new Range(1, 2);
+            Range range2 = new Range(1, 2);
+            Assert.IsTrue(range1.IntersectsWith(range2));
+            Assert.IsTrue(range2.IntersectsWith(range1));
+        }
+
+        [TestMethod]
         public void TestLineIntersection()
         {
             Assert.AreEqual(null, MathHelper.LineIntersection(new Vector(0, 0), new Vector(1, 1), new Vector(2, 2), new Vector(-2, -2)));

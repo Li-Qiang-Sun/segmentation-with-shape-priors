@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -15,7 +16,13 @@ namespace Research.GraphBasedShapePrior
 
         private readonly double[] functionValues;
 
+        private readonly int[] timeStamps;
+
         private readonly List<Range> finitePenaltyRanges = new List<Range>();
+
+        private readonly List<Range> interestRanges = new List<Range>();
+
+        private int currentTimeStamp;
 
         public GeneralizedDistanceTransform1D(Range range, int gridSize)
         {
@@ -33,6 +40,7 @@ namespace Research.GraphBasedShapePrior
             this.functionValues = new double[this.GridSize];
             this.values = new double[this.GridSize];
             this.bestIndices = new int[this.GridSize];
+            this.timeStamps = new int[this.GridSize];
         }
 
         public Range Range { get; private set; }
@@ -50,44 +58,55 @@ namespace Research.GraphBasedShapePrior
 
         public void AddFinitePenaltyRange(Range range)
         {
-            if (range.Outside)
-                throw new ArgumentException("Outside ranges are not supported.", "range");
-            if (!this.Range.Contains(range.Left) || !this.Range.Contains(range.Right))
-                throw new ArgumentException("Given range is outside range of this distance tranform.", "range");
-            
-            foreach (Range penaltyRange in this.finitePenaltyRanges)
-            {
-                if (range.IntersectsWith(penaltyRange))
-                    throw new ArgumentException("Given range intersects with previously added ranges.", "range");
-            }
-
-            this.finitePenaltyRanges.Add(range);
+            AddRange(range, this.finitePenaltyRanges);
         }
 
         public IEnumerable<int> EnumerateFinitePenaltyGridIndices()
         {
-            if (this.finitePenaltyRanges.Count == 0)
-            {
-                for (int i = 0; i < this.GridSize; ++i)
-                    yield return i;
-                yield break;
-            }
+            return EnumerateRangeIndices(this.finitePenaltyRanges);
+        }
 
-            int currentRange = 0;
-            while (currentRange < this.finitePenaltyRanges.Count)
-            {
-                int start = this.CoordToGridIndex(this.finitePenaltyRanges[currentRange].Left);
-                int end = this.CoordToGridIndex(this.finitePenaltyRanges[currentRange].Right);
-                for (int i = start; i <= end; ++i)
-                    yield return i;
-                ++currentRange;
-            }
+        public bool IsFinitePenaltyCoord(double coord)
+        {
+            return this.IsCoordInRange(coord, this.finitePenaltyRanges);
+        }
+
+        public void ResetInterestRange()
+        {
+            this.interestRanges.Clear();
+        }
+
+        public void AddInterestRange(Range range)
+        {
+            AddRange(range, this.interestRanges);
+        }
+
+        public IEnumerable<int> EnumerateInterestGridIndices()
+        {
+            return EnumerateRangeIndices(this.interestRanges);
+        }
+
+        public bool IsCoordOfInterest(double coord)
+        {
+            return this.IsCoordInRange(coord, this.interestRanges);
+        }
+
+        public bool IsGridIndexComputed(int gridIndex)
+        {
+            return this.timeStamps[gridIndex] == this.currentTimeStamp;
+        }
+
+        public bool IsCoordComputed(double coord)
+        {
+            return IsGridIndexComputed(CoordToGridIndex(coord));
         }
 
         public double GetValueByGridIndex(int gridIndex)
         {
             if (!this.IsComputed)
                 throw new InvalidOperationException("You should calculate transform first.");
+            if (!this.IsGridIndexComputed(gridIndex))
+                throw new ArgumentException("Given coord was out of interest during last computation.");
 
             return this.values[gridIndex];
         }
@@ -101,7 +120,7 @@ namespace Research.GraphBasedShapePrior
         {
             if (!this.IsComputed)
                 throw new InvalidOperationException("You should calculate transform first.");
-            
+
             return this.bestIndices[gridIndex];
         }
 
@@ -130,6 +149,15 @@ namespace Research.GraphBasedShapePrior
             if (penaltyFunc == null)
                 throw new ArgumentNullException("penaltyFunc");
 
+            ++this.currentTimeStamp;
+
+            // Sort ranges by left end
+            if (!this.TryEstablishRangeOrdering(this.finitePenaltyRanges))
+                throw new InvalidOperationException("Given finite penalty ranges ovelap.");
+            if (!this.TryEstablishRangeOrdering(this.interestRanges))
+                throw new InvalidOperationException("Given interest ranges ovelap.");
+
+            // Calculate penalty (where it's finite)
             int left = -1;
             foreach (int i in EnumerateFinitePenaltyGridIndices())
             {
@@ -138,6 +166,7 @@ namespace Research.GraphBasedShapePrior
                     left = i;
             }
 
+            // Find lower envelope
             int envelopeSize = 1;
             envelope[0] = left;
             parabolaRange[0] = Double.NegativeInfinity;
@@ -147,7 +176,7 @@ namespace Research.GraphBasedShapePrior
             {
                 if (i == left)
                     continue;
-                
+
                 bool inserted = false;
                 while (!inserted)
                 {
@@ -164,12 +193,13 @@ namespace Research.GraphBasedShapePrior
                         inserted = true;
                     }
                     else
-                        envelopeSize -= 1;    
-                }      
+                        envelopeSize -= 1;
+                }
             }
 
+            // Find parabola from envelope for each index of interest
             int currentParabola = 0;
-            for (int i = 0; i < this.GridSize; ++i)
+            foreach (int i in this.EnumerateInterestGridIndices())
             {
                 while (parabolaRange[currentParabola + 1] < i)
                     currentParabola += 1;
@@ -177,9 +207,64 @@ namespace Research.GraphBasedShapePrior
                 double diff = (i - envelope[currentParabola]) * this.gridStepSize;
                 this.values[i] = functionValues[envelope[currentParabola]] + diff * diff * distanceScale;
                 this.bestIndices[i] = envelope[currentParabola];
+                this.timeStamps[i] = currentTimeStamp;
             }
 
             this.IsComputed = true;
+        }
+
+        private void AddRange(Range range, IList<Range> rangeCollection)
+        {
+            if (range.Outside)
+                throw new ArgumentException("Outside ranges are not supported.", "range");
+            if (!this.Range.Contains(range.Left) || !this.Range.Contains(range.Right))
+                throw new ArgumentException("Given range is outside range of this distance tranform.", "range");
+
+            rangeCollection.Add(range);
+            this.IsComputed = false;
+        }
+
+        private bool TryEstablishRangeOrdering(List<Range> rangeCollection)
+        {
+            rangeCollection.Sort((r1, r2) => Comparer<double>.Default.Compare(r1.Left, r2.Left));
+            const double eps = 1e-10;
+            for (int i = 1; i < rangeCollection.Count; ++i)
+            {
+                if (rangeCollection[i - 1].Right > rangeCollection[i].Left + eps)
+                    return false;
+            }
+
+            return true;
+        }
+
+        private IEnumerable<int> EnumerateRangeIndices(IList<Range> rangeCollection)
+        {
+            if (rangeCollection.Count == 0)
+            {
+                for (int i = 0; i < this.GridSize; ++i)
+                    yield return i;
+                yield break;
+            }
+
+            int currentRange = 0;
+            int prevIndex = -1;
+            while (currentRange < rangeCollection.Count)
+            {
+                int start = this.CoordToGridIndex(rangeCollection[currentRange].Left);
+                int end = this.CoordToGridIndex(rangeCollection[currentRange].Right);
+                for (int i = start; i <= end; ++i)
+                {
+                    if (i != prevIndex) // In case two ranges almost overlap
+                        yield return i;
+                    prevIndex = i;
+                }
+                ++currentRange;
+            }
+        }
+
+        private bool IsCoordInRange(double coord, IEnumerable<Range> rangeCollection)
+        {
+            return rangeCollection.Any(r => r.Contains(coord));
         }
     }
 }

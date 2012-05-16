@@ -204,7 +204,6 @@ namespace Segmentator
 
             // Customize lower bound calculators
             ShapeEnergyLowerBoundCalculator shapeEnergyCalculator = new ShapeEnergyLowerBoundCalculator(201, 201);
-            shapeEnergyCalculator.SkipEarlyCalculations = true;
             segmentator.ShapeEnergyLowerBoundCalculator = shapeEnergyCalculator;
 
             // Load what has to be segmented

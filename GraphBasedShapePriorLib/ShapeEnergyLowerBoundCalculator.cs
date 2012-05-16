@@ -8,37 +8,27 @@ namespace Research.GraphBasedShapePrior
 {
     public class ShapeEnergyLowerBoundCalculator : IShapeEnergyLowerBoundCalculator
     {
-        private readonly LinkedList<GeneralizedDistanceTransform2D> usedDistanceTransforms =
-            new LinkedList<GeneralizedDistanceTransform2D>();
+        private readonly List<GeneralizedDistanceTransform2D> transformPool =
+            new List<GeneralizedDistanceTransform2D>();
 
-        private readonly LinkedList<GeneralizedDistanceTransform2D> freeDistanceTransforms =
-            new LinkedList<GeneralizedDistanceTransform2D>();
+        private int firstFreeTranform;
 
-        private double currentMaxScaledLength;
+        private double currentMaxScaledLength = Double.NegativeInfinity;
         
         public ShapeEnergyLowerBoundCalculator(int lengthGridSize, int angleGridSize)
         {
             this.LengthGridSize = lengthGridSize;
             this.AngleGridSize = angleGridSize;
-            this.SkipEarlyCalculations = false;
         }
 
         public int LengthGridSize { get; private set; }
 
         public int AngleGridSize { get; private set; }
 
-        public bool SkipEarlyCalculations { get; set; }
-
         public double CalculateLowerBound(Size imageSize, ShapeConstraints shapeConstraints)
         {
             if (shapeConstraints == null)
                 throw new ArgumentNullException("shapeConstraints");
-
-            // If constraints have a lot of freedom, bound will be zero anyway. Let's not calculate it.
-            if (this.SkipEarlyCalculations && TooEarlyForCalculations(imageSize, shapeConstraints))
-                return 0;
-            
-            this.FreeAllDistanceTransforms();
 
             List<Range> lengthRanges, angleRanges;
             CalculateLengthAngleRanges(shapeConstraints, out lengthRanges, out angleRanges);
@@ -57,50 +47,33 @@ namespace Research.GraphBasedShapePrior
                                 select 1.0 / shapeConstraints.ShapeModel.GetEdgePairParams(edgePair.Item1, edgePair.Item2).LengthRatio).Max();
             double maxRatio = Math.Max(maxRatio1, maxRatio2);
             double maxEdgeLength = (new Vector(imageSize.Width, imageSize.Height)).Length;
-            this.currentMaxScaledLength = maxEdgeLength * maxRatio;
+            double maxScaledLength = maxEdgeLength * maxRatio;
+
+            if (maxScaledLength != this.currentMaxScaledLength)
+            {
+                this.currentMaxScaledLength = maxScaledLength;
+                this.transformPool.Clear();
+            }
+
+            this.FreeAllDistanceTransforms();
 
             // Calculate distance transforms for all the child edges
             List<GeneralizedDistanceTransform2D> childTransforms = new List<GeneralizedDistanceTransform2D>();
             foreach (int edgeIndex in shapeConstraints.ShapeModel.IterateNeighboringEdgeIndices(0))
-                childTransforms.Add(CalculateMinEnergiesForAllParentEdges(shapeConstraints, 0, edgeIndex));
+                childTransforms.Add(CalculateMinEnergiesForAllParentEdges(shapeConstraints, 0, edgeIndex, lengthRanges, angleRanges));
 
             // Find best overall solution
             double minEnergySum = Double.PositiveInfinity;
             GeneralizedDistanceTransform2D transform = childTransforms[0];
-            for (int lengthGridIndex = transform.CoordToGridIndexX(lengthRanges[0].Left);
-                 lengthGridIndex <= transform.CoordToGridIndexX(lengthRanges[0].Right);
-                 ++lengthGridIndex)
+            foreach (int lengthGridIndex in transform.EnumerateInterestGridIndicesX())
             {
                 double length = transform.GridIndexToCoordX(lengthGridIndex);
                 double currentMinEnergySum = Double.PositiveInfinity;
 
-                if (angleRanges[0].Outside)
+                foreach (int angleGridIndex in transform.EnumerateInterestGridIndicesY())
                 {
-                    for (int angleGridIndex = transform.CoordToGridIndexY(angleRanges[0].Right);
-                         angleGridIndex <= transform.CoordToGridIndexY(Math.PI);
-                         ++angleGridIndex)
-                    {
-                        double angle = transform.GridIndexToCoordY(angleGridIndex);
-                        currentMinEnergySum = Math.Min(currentMinEnergySum, CalculateMinPairwiseEdgeEnergy(length, angle, childTransforms));
-                    }
-
-                    for (int angleGridIndex = transform.CoordToGridIndexY(-Math.PI);
-                         angleGridIndex <= transform.CoordToGridIndexY(angleRanges[0].Left);
-                         ++angleGridIndex)
-                    {
-                        double angle = transform.GridIndexToCoordY(angleGridIndex);
-                        currentMinEnergySum = Math.Min(currentMinEnergySum, CalculateMinPairwiseEdgeEnergy(length, angle, childTransforms));
-                    }
-                }
-                else
-                {
-                    for (int angleGridIndex = transform.CoordToGridIndexY(angleRanges[0].Left);
-                         angleGridIndex <= transform.CoordToGridIndexY(angleRanges[0].Right);
-                         ++angleGridIndex)
-                    {
-                        double angle = transform.GridIndexToCoordY(angleGridIndex);
-                        currentMinEnergySum = Math.Min(currentMinEnergySum, CalculateMinPairwiseEdgeEnergy(length, angle, childTransforms));
-                    }
+                    double angle = transform.GridIndexToCoordY(angleGridIndex);
+                    currentMinEnergySum = Math.Min(currentMinEnergySum, CalculateMinPairwiseEdgeEnergy(length, angle, childTransforms));
                 }
 
                 double unaryEdgeEnergy = CalculateMinUnaryEdgeEnergy(0, shapeConstraints, length);
@@ -109,26 +82,6 @@ namespace Research.GraphBasedShapePrior
 
             Debug.Assert(minEnergySum >= 0);
             return minEnergySum;
-        }
-
-        private bool TooEarlyForCalculations(Size imageSize, ShapeConstraints shapeConstraints)
-        {
-            return false;
-
-            // TODO: think more about conditions here, make it work
-            //Vector maxFreedom = new Vector(imageSize.Width * 0.3, imageSize.Height * 0.3);
-            //int notTooFreeCount = 0;
-            //for (int i = 0; i < shapeConstraints.VertexConstraints.Count; ++i)
-            //{
-            //    if (shapeConstraints.VertexConstraints[i].XRange.Length <= maxFreedom.X &&
-            //        shapeConstraints.VertexConstraints[i].YRange.Length <= maxFreedom.Y)
-            //    {
-            //        ++notTooFreeCount;
-            //    }
-            //}
-
-            //const double threshold = 0.8;
-            //return (double) notTooFreeCount / shapeConstraints.VertexConstraints.Count < threshold;
         }
 
         private static double CalculateSingleEdgeLowerBound(ShapeConstraints shapeConstraints, List<Range> lengthRanges, List<Range> angleRanges)
@@ -178,24 +131,9 @@ namespace Research.GraphBasedShapePrior
             double energySum = 0;
             foreach (GeneralizedDistanceTransform2D childTransform in transforms)
             {
-                double energy = childTransform.GetValueByCoords(length, angle);
-
-                // Check other possible angle representations
-                bool angleIsZero = childTransform.CoordToGridIndexY(angle) == childTransform.CoordToGridIndexY(0);
-                if (angleIsZero)
-                {
-                    // Zero has two representations
-                    energy = Math.Min(childTransform.GetValueByCoords(length, -Math.PI * 2), energy);
-                    energy = Math.Min(childTransform.GetValueByCoords(length, Math.PI * 2), energy);
-                }
-                else
-                {
-                    // Other angles have single representation
-                    double otherAngle = angle > 0 ? angle - Math.PI * 2 : angle + Math.PI * 2;
-                    energy = Math.Min(childTransform.GetValueByCoords(length, otherAngle), energy);
-                }
-
-                energySum += energy;
+                if (!childTransform.AreCoordsComputed(length, angle)) // Sometimes required length wasn't computed due to grid misalignment
+                    return 1e+20;
+                energySum += childTransform.GetValueByCoords(length, angle);
             }
 
             return energySum;
@@ -204,10 +142,11 @@ namespace Research.GraphBasedShapePrior
         private GeneralizedDistanceTransform2D AllocateDistanceTransform()
         {
             GeneralizedDistanceTransform2D result;
-            if (this.freeDistanceTransforms.Count > 0)
+            if (this.firstFreeTranform < this.transformPool.Count)
             {
-                result = this.freeDistanceTransforms.First.Value;
-                this.freeDistanceTransforms.RemoveFirst();
+                result = this.transformPool[this.firstFreeTranform++];
+                result.ResetFinitePenaltyRange();
+                result.ResetInterestRange();
             }
             else
             {
@@ -215,19 +154,16 @@ namespace Research.GraphBasedShapePrior
                     new Range(0, this.currentMaxScaledLength), 
                     new Range(-Math.PI * 2, Math.PI * 2), 
                     new Size(this.LengthGridSize, this.AngleGridSize));
+                this.firstFreeTranform++;
+                this.transformPool.Add(result);
             }
 
-            this.usedDistanceTransforms.AddFirst(result);
             return result;
         }
 
         private void FreeAllDistanceTransforms()
         {
-            foreach (GeneralizedDistanceTransform2D transform in this.usedDistanceTransforms)
-                this.freeDistanceTransforms.AddFirst(transform);
-            foreach (GeneralizedDistanceTransform2D transform in freeDistanceTransforms)
-                transform.ResetFinitePenaltyRange();
-            this.usedDistanceTransforms.Clear();
+            this.firstFreeTranform = 0;
         }
 
         private static double CalculateMinUnaryEdgeEnergy(int edgeIndex, ShapeConstraints shapeConstraints, double edgeLength)
@@ -241,8 +177,11 @@ namespace Research.GraphBasedShapePrior
         private GeneralizedDistanceTransform2D CalculateMinEnergiesForAllParentEdges(
             ShapeConstraints shapeConstraints,
             int parentEdgeIndex,
-            int currentEdgeIndex)
+            int currentEdgeIndex,
+            List<Range> lengthRanges,
+            List<Range> angleRanges)
         {
+            // Calculate child transforms
             List<GeneralizedDistanceTransform2D> childDistanceTransforms = new List<GeneralizedDistanceTransform2D>();
             foreach (int neighborEdgeIndex in shapeConstraints.ShapeModel.IterateNeighboringEdgeIndices(currentEdgeIndex))
             {
@@ -251,34 +190,17 @@ namespace Research.GraphBasedShapePrior
                     continue;
 
                 GeneralizedDistanceTransform2D childTransform = CalculateMinEnergiesForAllParentEdges(
-                    shapeConstraints, currentEdgeIndex, neighborEdgeIndex);
+                    shapeConstraints, currentEdgeIndex, neighborEdgeIndex, lengthRanges, angleRanges);
                 Debug.Assert(childTransform.IsComputed);
                 childDistanceTransforms.Add(childTransform);
             }
 
-            // Boundaries for possible lengths and angles of the current edge
-            Range lengthRange, angleRange;
-            shapeConstraints.DetermineEdgeLimits(currentEdgeIndex, out lengthRange, out angleRange);
-
-            // (parent, current) edge pair parameters
             ShapeEdgePairParams pairParams = shapeConstraints.ShapeModel.GetEdgePairParams(parentEdgeIndex, currentEdgeIndex);
-
-            // Create GDT with finite penalties only in the allowed area
-            GeneralizedDistanceTransform2D transform = this.AllocateDistanceTransform();
-            transform.AddFinitePenaltyRangeX(
-                new Range(lengthRange.Left * pairParams.LengthRatio, lengthRange.Right * pairParams.LengthRatio));
-            if (!angleRange.Outside)
-            {
-                transform.AddFinitePenaltyRangeY(
-                    new Range(angleRange.Left - pairParams.MeanAngle, angleRange.Right - pairParams.MeanAngle));
-            }
-            else
-            {
-                transform.AddFinitePenaltyRangeY(
-                    new Range(-Math.PI - pairParams.MeanAngle, angleRange.Left - pairParams.MeanAngle));
-                transform.AddFinitePenaltyRangeY(
-                    new Range(angleRange.Right - pairParams.MeanAngle, Math.PI - pairParams.MeanAngle));
-            }
+            GeneralizedDistanceTransform2D transform = this.AllocateDistanceTransform();            
+            SetupTransformFinitePenaltyRanges(
+                transform, pairParams, lengthRanges[currentEdgeIndex], angleRanges[currentEdgeIndex]);
+            SetupTransformInterestRanges(
+                transform, lengthRanges[parentEdgeIndex], angleRanges[parentEdgeIndex]);
 
             Func<double, double, double, double, double> penaltyFunction =
                 (scaledLength, shiftedAngle, scaledLengthRadius, shiftedAngleRadius) =>
@@ -297,6 +219,76 @@ namespace Research.GraphBasedShapePrior
                 penaltyFunction);
 
             return transform;
+        }
+
+        private void SetupTransformInterestRanges(GeneralizedDistanceTransform2D transform, Range lengthRange, Range angleRange)
+        {
+            transform.AddInterestRangeX(lengthRange);
+
+            if (!angleRange.Outside)
+            {
+                transform.AddInterestRangeY(angleRange);
+
+                if (angleRange.Right > 0)
+                {
+                    if (angleRange.Left > 0)
+                        transform.AddInterestRangeY(new Range(angleRange.Left - Math.PI * 2, angleRange.Right - Math.PI * 2));
+                    else
+                    {
+                        transform.AddInterestRangeY(new Range(-Math.PI * 2, angleRange.Right - Math.PI * 2));
+                        transform.AddInterestRangeY(new Range(angleRange.Left + Math.PI * 2, Math.PI * 2));
+                    }
+                }
+                else
+                    transform.AddInterestRangeY(new Range(angleRange.Left + Math.PI * 2, angleRange.Right + Math.PI * 2));
+            }
+            else
+            {
+                transform.AddInterestRangeY(new Range(-Math.PI, angleRange.Left));
+                transform.AddInterestRangeY(new Range(angleRange.Right, Math.PI));
+
+                if (angleRange.Right > 0)
+                    transform.AddInterestRangeY(new Range(angleRange.Right - Math.PI * 2, -Math.PI));
+                else
+                {
+                    transform.AddInterestRangeY(new Range(-Math.PI * 2, -Math.PI));
+                    transform.AddInterestRangeY(new Range(angleRange.Right + Math.PI * 2, Math.PI * 2));
+                }
+
+                if (angleRange.Left < 0)
+                    transform.AddInterestRangeY(new Range(Math.PI, angleRange.Left + Math.PI * 2));
+                else
+                {
+                    transform.AddInterestRangeY(new Range(Math.PI, Math.PI * 2));
+                    transform.AddInterestRangeY(new Range(-Math.PI * 2, angleRange.Left - Math.PI * 2));
+                }
+            }
+
+            // Always add all the representations of zero (for simplicity)
+            if (angleRange.Contains(0))
+            {
+                if (!transform.IsCoordYOfInterest(-Math.PI * 2))
+                    transform.AddInterestRangeY(new Range(-Math.PI * 2, -Math.PI * 2));
+                if (!transform.IsCoordYOfInterest(0))
+                    transform.AddInterestRangeY(new Range(0, 0));
+                if (!transform.IsCoordYOfInterest(Math.PI * 2))
+                    transform.AddInterestRangeY(new Range(Math.PI * 2, Math.PI * 2));    
+            }
+        }
+
+        private void SetupTransformFinitePenaltyRanges(
+            GeneralizedDistanceTransform2D transform, ShapeEdgePairParams pairParams, Range lengthRange, Range angleRange)
+        {
+            transform.AddFinitePenaltyRangeX(
+                new Range(lengthRange.Left * pairParams.LengthRatio, lengthRange.Right * pairParams.LengthRatio));
+            
+            if (!angleRange.Outside)
+                transform.AddFinitePenaltyRangeY(new Range(angleRange.Left - pairParams.MeanAngle, angleRange.Right - pairParams.MeanAngle));
+            else
+            {
+                transform.AddFinitePenaltyRangeY(new Range(-Math.PI - pairParams.MeanAngle, angleRange.Left - pairParams.MeanAngle));
+                transform.AddFinitePenaltyRangeY(new Range(angleRange.Right - pairParams.MeanAngle, Math.PI - pairParams.MeanAngle));
+            }
         }
     }
 }
