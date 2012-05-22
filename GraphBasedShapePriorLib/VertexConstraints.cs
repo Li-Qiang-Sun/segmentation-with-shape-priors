@@ -112,33 +112,9 @@ namespace Research.GraphBasedShapePrior
             get { return this.cornersReadOnly; }
         }
 
-        public Vector? GetClosestPoint(Vector point)
-        {
-            if (point.X >= MinCoord.X && point.X <= MaxCoord.X)
-            {
-                if (point.Y <= MinCoord.Y)
-                    return new Vector(point.X, MinCoord.Y);
-                if (point.Y >= MaxCoord.Y)
-                    return new Vector(point.X, MaxCoord.Y);
-            }
-
-            if (point.Y >= MinCoord.Y && point.Y <= MaxCoord.Y)
-            {
-                if (point.X <= MinCoord.X)
-                    return new Vector(MinCoord.X, point.Y);
-                if (point.X >= MaxCoord.X)
-                    return new Vector(MaxCoord.X, point.Y);
-            }
-
-            return null;
-        }
-
         public double Area
         {
-            get
-            {
-                return (this.MaxCoord.X - this.MinCoord.X) * (this.MaxCoord.Y - this.MinCoord.Y);
-            }
+            get { return (this.MaxCoord.X - this.MinCoord.X) * (this.MaxCoord.Y - this.MinCoord.Y); }
         }
 
         public override string ToString()

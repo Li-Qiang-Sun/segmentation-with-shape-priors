@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Threading.Tasks;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -48,28 +49,30 @@ namespace Research.GraphBasedShapePrior
 
                     Polygon convexHull = constraintsSet.GetConvexHullForVertexPair(edge.Index1, edge.Index2);
 
-                    for (int x = 0; x < imageSize.Width; ++x)
-                    {
-                        for (int y = 0; y < imageSize.Height; ++y)
+                    Parallel.For(
+                        0,
+                        imageSize.Width,
+                        x =>
                         {
-                            Vector pointAsVec = new Vector(x, y);
-                            double minDistanceSqr, maxDistanceSqr;
-                            MinDistanceForEdge(
-                                pointAsVec,
-                                vertexConstraints1,
-                                vertexConstraints2,
-                                out minDistanceSqr,
-                                out maxDistanceSqr);
+                            for (int y = 0; y < imageSize.Height; ++y)
+                            {
+                                Vector pointAsVec = new Vector(x, y);
+                                double minDistanceSqr, maxDistanceSqr;
+                                MinMaxDistanceForEdge(
+                                    pointAsVec,
+                                    convexHull,
+                                    vertexConstraints1,
+                                    vertexConstraints2,
+                                    out minDistanceSqr,
+                                    out maxDistanceSqr);
 
-                            // If point is inside convex hull than min distance is 0
-                            if (convexHull.IsPointInside(pointAsVec))
-                                minDistanceSqr = 0;
-
-                            edgeTerms[x, y] = new ObjectBackgroundTerm(
-                                constraintsSet.ShapeModel.CalculateObjectPenaltyForEdge(minDistanceSqr, edgeConstraints.MaxWidth),
-                                constraintsSet.ShapeModel.CalculateBackgroundPenaltyForEdge(maxDistanceSqr, edgeConstraints.MinWidth));
-                        }
-                    }
+                                edgeTerms[x, y] = new ObjectBackgroundTerm(
+                                    constraintsSet.ShapeModel.CalculateObjectPenaltyForEdge(
+                                        minDistanceSqr, edgeConstraints.MaxWidth),
+                                    constraintsSet.ShapeModel.CalculateBackgroundPenaltyForEdge(
+                                        maxDistanceSqr, edgeConstraints.MinWidth));
+                            }
+                        });
                 }
 
                 for (int x = 0; x < imageSize.Width; ++x)
@@ -113,32 +116,36 @@ namespace Research.GraphBasedShapePrior
             freeTermImages.AddLast(image);
         }
 
-        private static void MinDistanceForEdge(Vector point, VertexConstraints constraints1, VertexConstraints constraints2, out double minDistanceSqr, out double maxDistanceSqr)
+        private static void MinMaxDistanceForEdge(
+            Vector point,
+            Polygon convexHull,
+            VertexConstraints constraints1,
+            VertexConstraints constraints2,
+            out double minDistanceSqr,
+            out double maxDistanceSqr)
         {
-            minDistanceSqr = Double.PositiveInfinity;
+            if (convexHull.IsPointInside(point))
+                minDistanceSqr = 0;
+            else
+            {
+                minDistanceSqr = Double.PositiveInfinity;
+                for (int i = 0; i < convexHull.Vertices.Count; ++i)
+                {
+                    double distanceSqr = point.DistanceToSegmentSquared(
+                        convexHull.Vertices[i],
+                        convexHull.Vertices[(i + 1) % convexHull.Vertices.Count]);
+                    minDistanceSqr = Math.Min(minDistanceSqr, distanceSqr);
+                }
+            }
+            
             maxDistanceSqr = 0;
             foreach (Vector vertex1 in constraints1.Corners)
             {
                 foreach (Vector vertex2 in constraints2.Corners)
                 {
                     double distanceSqr = point.DistanceToSegmentSquared(vertex1, vertex2);
-                    minDistanceSqr = Math.Min(minDistanceSqr, distanceSqr);
                     maxDistanceSqr = Math.Max(maxDistanceSqr, distanceSqr);
                 }
-            }
-
-            Vector? projection1 = constraints1.GetClosestPoint(point);
-            if (projection1.HasValue)
-            {
-                foreach (Vector vertex2 in constraints2.Corners)
-                    minDistanceSqr = Math.Min(minDistanceSqr, point.DistanceToSegmentSquared(projection1.Value, vertex2));
-            }
-
-            Vector? projection2 = constraints2.GetClosestPoint(point);
-            if (projection2.HasValue)
-            {
-                foreach (Vector vertex1 in constraints1.Corners)
-                    minDistanceSqr = Math.Min(minDistanceSqr, point.DistanceToSegmentSquared(vertex1, projection2.Value));
             }
         }
 

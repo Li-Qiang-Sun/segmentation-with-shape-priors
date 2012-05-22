@@ -146,26 +146,36 @@ namespace Segmentator
 
         private void LoadModel(out ShapeModel model, out Image2D<Color> image, out Rectangle rectangle)
         {
-            const double scale = 0.2;
+            double scale;
             Rectangle bigLocation;
 
             if (this.segmentationProperties.Model == Model.OneEdge)
             {
                 model = CreateSimpleShapeModel1();
+                scale = 0.2;
                 image = Image2D.LoadFromFile("./simple_1.png", scale);
                 bigLocation = new Rectangle(153, 124, 796, 480);
             }
             else if (this.segmentationProperties.Model == Model.TwoEdges)
             {
                 model = CreateSimpleShapeModel2();
+                scale = 0.2;
                 image = Image2D.LoadFromFile("./simple_3.png", scale);
                 bigLocation = new Rectangle(249, 22, 391, 495);
             }
-            else /*if (this.segmentationProperties.Model == Model.Letter)*/
+            else if (this.segmentationProperties.Model == Model.Letter1)
             {
                 model = CreateLetterShapeModel();
+                scale = 0.2;
                 image = Image2D.LoadFromFile("./letter_1.jpg", scale);
                 bigLocation = new Rectangle(68, 70, 203, 359);
+            }
+            else /*if (this.segmentationProperties.Model == Model.Letter2)*/
+            {
+                model = CreateLetterShapeModel();
+                scale = 0.5;
+                image = Image2D.LoadFromFile("./letter_2.jpg", scale);
+                bigLocation = new Rectangle(126, 35, 148, 188);
             }
 
             rectangle = new Rectangle(

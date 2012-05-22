@@ -10,7 +10,8 @@ namespace Segmentator
     {
         OneEdge,
         TwoEdges,
-        Letter
+        Letter1,
+        Letter2,
     }
     
     class SegmentationProperties

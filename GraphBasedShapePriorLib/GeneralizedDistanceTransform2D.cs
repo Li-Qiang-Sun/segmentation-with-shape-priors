@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
+using System.Threading.Tasks;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -13,9 +13,9 @@ namespace Research.GraphBasedShapePrior
 
         private readonly Tuple<int, int>[,] bestIndices;
 
-        private readonly GeneralizedDistanceTransform1D tranformForFixedGridX;
-
         private readonly GeneralizedDistanceTransform1D infiniteTransformX;
+
+        private readonly GeneralizedDistanceTransform1D[] transformsForFixedGridX;
         
         private readonly GeneralizedDistanceTransform1D[] transformsForFixedGridY;
 
@@ -28,7 +28,7 @@ namespace Research.GraphBasedShapePrior
         {
             if (rangeX.Outside || rangeY.Outside)
                 throw new ArgumentException("Outside ranges are not allowed.");
-            
+
             this.RangeX = rangeX;
             this.RangeY = rangeY;
             this.GridSize = gridSize;
@@ -37,8 +37,10 @@ namespace Research.GraphBasedShapePrior
             this.bestIndices = new Tuple<int, int>[this.GridSize.Width, this.GridSize.Height];
             this.timeStamps = new int[this.GridSize.Width, this.GridSize.Height];
 
-            this.tranformForFixedGridX = new GeneralizedDistanceTransform1D(
-                rangeY, this.GridSize.Height);
+            this.transformsForFixedGridX = new GeneralizedDistanceTransform1D[this.GridSize.Width];
+            for (int x = 0; x < this.GridSize.Width; ++x)
+                this.transformsForFixedGridX[x] = new GeneralizedDistanceTransform1D(rangeY, this.GridSize.Height);
+            
             this.transformsForFixedGridY = new GeneralizedDistanceTransform1D[this.GridSize.Height];
             this.usedTransformsForFixedGridY = new GeneralizedDistanceTransform1D[this.GridSize.Height];
             for (int y = 0; y < this.GridSize.Height; ++y)
@@ -59,7 +61,8 @@ namespace Research.GraphBasedShapePrior
         public void ResetFinitePenaltyRange()
         {
             this.IsComputed = false;
-            this.tranformForFixedGridX.ResetFinitePenaltyRange();
+            foreach (GeneralizedDistanceTransform1D transform in transformsForFixedGridX)
+                transform.ResetFinitePenaltyRange();
             foreach (GeneralizedDistanceTransform1D transform in transformsForFixedGridY)
                 transform.ResetFinitePenaltyRange();
         }
@@ -74,13 +77,15 @@ namespace Research.GraphBasedShapePrior
         public void AddFinitePenaltyRangeY(Range rangeY)
         {
             this.IsComputed = false;
-            this.tranformForFixedGridX.AddFinitePenaltyRange(rangeY);
+            foreach (GeneralizedDistanceTransform1D transform in transformsForFixedGridX)
+                transform.AddFinitePenaltyRange(rangeY);
         }
 
         public void ResetInterestRange()
         {
             this.IsComputed = false;
-            this.tranformForFixedGridX.ResetInterestRange();
+            foreach (GeneralizedDistanceTransform1D transform in transformsForFixedGridX)
+                transform.ResetInterestRange();
             foreach (GeneralizedDistanceTransform1D transform in transformsForFixedGridY)
                 transform.ResetInterestRange();
         }
@@ -95,7 +100,8 @@ namespace Research.GraphBasedShapePrior
         public void AddInterestRangeY(Range rangeY)
         {
             this.IsComputed = false;
-            this.tranformForFixedGridX.AddInterestRange(rangeY);
+            foreach (GeneralizedDistanceTransform1D transform in transformsForFixedGridX)
+                transform.AddInterestRange(rangeY);
         }
 
         public bool IsCoordXOfInterest(double coordX)
@@ -105,7 +111,7 @@ namespace Research.GraphBasedShapePrior
 
         public bool IsCoordYOfInterest(double coordY)
         {
-            return this.tranformForFixedGridX.IsCoordOfInterest(coordY);
+            return this.transformsForFixedGridX[0].IsCoordOfInterest(coordY);
         }
 
         public bool AreGridIndicesComputed(int gridX, int gridY)
@@ -125,7 +131,7 @@ namespace Research.GraphBasedShapePrior
 
         public IEnumerable<int> EnumerateInterestGridIndicesY()
         {
-            return this.tranformForFixedGridX.EnumerateInterestGridIndices();
+            return this.transformsForFixedGridX[0].EnumerateInterestGridIndices();
         }
 
         public double GetValueByGridIndices(int gridX, int gridY)
@@ -163,7 +169,7 @@ namespace Research.GraphBasedShapePrior
 
         public int CoordToGridIndexY(double coord)
         {
-            return this.tranformForFixedGridX.CoordToGridIndex(coord);
+            return this.transformsForFixedGridX[0].CoordToGridIndex(coord);
         }
 
         public double GridIndexToCoordX(int gridIndex)
@@ -173,7 +179,7 @@ namespace Research.GraphBasedShapePrior
 
         public double GridIndexToCoordY(int gridIndex)
         {
-            return this.tranformForFixedGridX.GridIndexToCoord(gridIndex);
+            return this.transformsForFixedGridX[0].GridIndexToCoord(gridIndex);
         }
 
         public void Compute(double distanceScaleX, double distanceScaleY, Func<double, double, double, double, double> penaltyFunc)
@@ -185,33 +191,35 @@ namespace Research.GraphBasedShapePrior
 
             for (int y = 0; y < this.GridSize.Height; ++y)
                 this.usedTransformsForFixedGridY[y] = this.infiniteTransformX;
-            
+
             double yRadius = 0.5 * this.RangeY.Length / (this.GridSize.Height - 1);
-            foreach (int y in this.tranformForFixedGridX.EnumerateFinitePenaltyGridIndices())
-            {
-                int yCopy = y;   
-                Func<double, double, double> xPenaltyFunc =
-                    (x, xRadius) => penaltyFunc(x, GridIndexToCoordY(yCopy), xRadius, yRadius);
-                transformsForFixedGridY[y].Compute(distanceScaleX, xPenaltyFunc);
-                this.usedTransformsForFixedGridY[y] = this.transformsForFixedGridY[y];
-            }
-
-            foreach (int x in this.transformsForFixedGridY[0].EnumerateInterestGridIndices())
-            {
-                int xCopy = x;
-                Func<double, double, double> yPenaltyFunc =
-                    (y, _) => this.usedTransformsForFixedGridY[CoordToGridIndexY(y)].GetValueByGridIndex(xCopy);
-                this.tranformForFixedGridX.Compute(distanceScaleY, yPenaltyFunc);
-
-                foreach (int y in this.tranformForFixedGridX.EnumerateInterestGridIndices())
+            Parallel.ForEach(
+                this.transformsForFixedGridX[0].EnumerateFinitePenaltyGridIndices(),
+                y =>
                 {
-                    this.values[x, y] = this.tranformForFixedGridX.GetValueByGridIndex(y);
-                    int bestY = this.tranformForFixedGridX.GetBestIndexByGridIndex(y);
-                    int bestX = this.usedTransformsForFixedGridY[bestY].GetBestIndexByGridIndex(x);
-                    this.bestIndices[x, y] = new Tuple<int, int>(bestX, bestY);
-                    this.timeStamps[x, y] = this.currentTimeStamp;
-                }
-            }
+                    Func<double, double, double> xPenaltyFunc =
+                        (x, xRadius) => penaltyFunc(x, GridIndexToCoordY(y), xRadius, yRadius);
+                    transformsForFixedGridY[y].Compute(distanceScaleX, xPenaltyFunc);
+                    this.usedTransformsForFixedGridY[y] = this.transformsForFixedGridY[y];
+                });
+
+            Parallel.ForEach(
+                this.transformsForFixedGridY[0].EnumerateInterestGridIndices(),
+                x =>
+                {
+                    Func<double, double, double> yPenaltyFunc =
+                        (y, _) => this.usedTransformsForFixedGridY[CoordToGridIndexY(y)].GetValueByGridIndex(x);
+                    this.transformsForFixedGridX[x].Compute(distanceScaleY, yPenaltyFunc);
+
+                    foreach (int y in this.transformsForFixedGridX[x].EnumerateInterestGridIndices())
+                    {
+                        this.values[x, y] = this.transformsForFixedGridX[x].GetValueByGridIndex(y);
+                        int bestY = this.transformsForFixedGridX[x].GetBestIndexByGridIndex(y);
+                        int bestX = this.usedTransformsForFixedGridY[bestY].GetBestIndexByGridIndex(x);
+                        this.bestIndices[x, y] = new Tuple<int, int>(bestX, bestY);
+                        this.timeStamps[x, y] = this.currentTimeStamp;
+                    }
+                });
 
             this.IsComputed = true;
         }

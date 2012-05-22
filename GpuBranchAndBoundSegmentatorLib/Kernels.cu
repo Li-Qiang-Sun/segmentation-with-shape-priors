@@ -11,12 +11,6 @@ __device__ float DistanceSqrToBackgroundPenalty(float distanceSqr, float edgeWid
 	return max(0.25 * edgeWidthSqr * (1 + backgroundDistanceCoeff) - backgroundDistanceCoeff * distanceSqr, 0.f);
 }
 
-// Clockwise order from bottom left (min) corner assumed
-__device__ float2 ProjectToConstraints(float2 point, float2 corners[4])
-{
-	return trunc(point, corners[0], corners[2]);
-}
-
 #define BLOCK_DIM 16
 #define INFINITY 1e+20f
 
@@ -40,30 +34,29 @@ __global__ void CalcMinPenaltiesForEdgeKernel(
     int index = pointInt.x + pointInt.y * imageSize.x;
     float2 point = make_float2(pointInt.x, pointInt.y);
 
-    float minDistanceSqr = INFINITY;
-	float maxDistanceSqr = 0;
-
-    if (PointInConvexHull(point, EdgeConvexHull, edgeConvexHullSize))
+	float minDistanceSqr;
+	if (PointInConvexHull(point, EdgeConvexHull, edgeConvexHullSize))
         minDistanceSqr = 0;
+	else
+	{
+		minDistanceSqr = INFINITY;
+		for (int i = 0; i < edgeConvexHullSize; ++i)
+		{
+			float distanceSqr = DistanceToSegmentSqr(point, EdgeConvexHull[i], EdgeConvexHull[(i + 1) % edgeConvexHullSize]);
+			minDistanceSqr = min(minDistanceSqr, distanceSqr);
+		}
+	}
 	
+	float maxDistanceSqr = 0;
 	for (int i = 0; i < 4; ++i)
 	{
 		for (int j = 0; j < 4; ++j)
 		{
 			float distanceSqr = DistanceToSegmentSqr(point, Corners1[i], Corners2[j]);
-			minDistanceSqr = min(minDistanceSqr, distanceSqr);
 			maxDistanceSqr = max(maxDistanceSqr, distanceSqr);
 		}
 	}
 	
-	float2 projection1 = ProjectToConstraints(point, Corners1);
-	for (int i = 0; i < 4; ++i)
-		minDistanceSqr = min(minDistanceSqr, DistanceToSegmentSqr(point, projection1, Corners2[i]));
-
-	float2 projection2 = ProjectToConstraints(point, Corners2);
-	for (int i = 0; i < 4; ++i)
-		minDistanceSqr = min(minDistanceSqr, DistanceToSegmentSqr(point, Corners1[i], projection2));
-
 	float minObjectPenalty = DistanceSqrToObjectPenalty(minDistanceSqr, minMaxWidthSqr.y, backgroundDistanceCoeff);
 	float minBackgroundPenalty = DistanceSqrToBackgroundPenalty(maxDistanceSqr, minMaxWidthSqr.x, backgroundDistanceCoeff);
 

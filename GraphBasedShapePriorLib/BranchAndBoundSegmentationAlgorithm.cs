@@ -44,6 +44,8 @@ namespace Research.GraphBasedShapePrior
 
         private IShapeTermsLowerBoundCalculator shapeTermsCalculator = new CpuShapeTermsLowerBoundCalculator();
 
+        private DateTime startTime;
+
         public event EventHandler<BreadthFirstBranchAndBoundStatusEventArgs> BreadthFirstBranchAndBoundStatus;
 
         public event EventHandler<DepthFirstBranchAndBoundStatusEventArgs> DepthFirstBranchAndBoundStatus;
@@ -255,39 +257,39 @@ namespace Research.GraphBasedShapePrior
 
         private Image2D<bool> BreadthFirstBranchAndBound()
         {
-            DateTime startTime = DateTime.Now;
+            this.startTime = DateTime.Now;
             DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound started.");
 
             SortedSet<EnergyBound> front = this.BreadthFirstBranchAndBoundTraverse(Int32.MaxValue);
 
             if (front.Min.Constraints.CheckIfSatisfied())
             {
-                DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound finished in {0}.", DateTime.Now - startTime);
+                DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound finished in {0}.", DateTime.Now - this.startTime);
                 DebugConfiguration.WriteImportantDebugText("Min energy value is {0}", front.Min.Bound);
                 return this.SegmentImageWithConstraints(front.Min.Constraints.GuessSolution());
             }
 
-            DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound forced to stop after {0}.", DateTime.Now - startTime);
+            DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound forced to stop after {0}.", DateTime.Now - this.startTime);
             DebugConfiguration.WriteImportantDebugText("Min energy value achieved is {0}", front.Min.Bound);
             return null;
         }
 
         private Image2D<bool> CombinedBranchAndBound()
         {
-            DateTime startTime = DateTime.Now;
+            this.startTime = DateTime.Now;
             DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound started.");
 
             SortedSet<EnergyBound> front = this.BreadthFirstBranchAndBoundTraverse(this.MaxBfsIterationsInCombinedMode);
 
             if (this.shouldStop)
             {
-                DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound forced to stop after {0}.", DateTime.Now - startTime);
+                DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound forced to stop after {0}.", DateTime.Now - this.startTime);
                 DebugConfiguration.WriteImportantDebugText("Min energy value achieved is {0}", front.Min.Bound);
                 DebugConfiguration.WriteImportantDebugText("Combined branch-and-bound interrupted.");
                 return null;
             }
 
-            DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound finished in {0}.", DateTime.Now - startTime);
+            DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound finished in {0}.", DateTime.Now - this.startTime);
             DebugConfiguration.WriteImportantDebugText("Best lower bound is {0}", front.Min.Bound);
 
             if (front.Min.Constraints.CheckIfSatisfied())
@@ -297,7 +299,6 @@ namespace Research.GraphBasedShapePrior
             List<EnergyBound> sortedFront = new List<EnergyBound>(front);
             sortedFront.Sort((item1, item2) => Math.Sign(item1.Constraints.GetFreedomSum() - item2.Constraints.GetFreedomSum()));
 
-            startTime = DateTime.Now;
             DebugConfiguration.WriteImportantDebugText("Switching to depth-first branch-and-bound.");
 
             if (this.SwitchToDfsBranchAndBound != null)
@@ -325,7 +326,7 @@ namespace Research.GraphBasedShapePrior
                 currentBound += 1;
             }
 
-            DebugConfiguration.WriteImportantDebugText(String.Format("Depth-first branch-and-bound finished in {0}.", DateTime.Now - startTime));
+            DebugConfiguration.WriteImportantDebugText(String.Format("Depth-first branch-and-bound finished in {0}.", DateTime.Now - this.startTime));
 
             Debug.Assert(bestUpperBound != null);
             return this.SegmentImageWithConstraints(bestUpperBound.Constraints.GuessSolution());
@@ -342,7 +343,7 @@ namespace Research.GraphBasedShapePrior
                 this.maxCoordFreedom,
                 this.maxWidthFreedom);
 
-            DateTime startTime = DateTime.Now;
+            this.startTime = DateTime.Now;
             DebugConfiguration.WriteImportantDebugText("Depth-first branch-and-bound started.");
 
             EnergyBound bestUpperBound = this.MakeMeanShapeBasedSolutionGuess();
@@ -359,7 +360,7 @@ namespace Research.GraphBasedShapePrior
                 ref branchesTruncated,
                 ref iteration);
 
-            DebugConfiguration.WriteImportantDebugText(String.Format("Depth-first branch-and-bound finished in {0}.", DateTime.Now - startTime));
+            DebugConfiguration.WriteImportantDebugText(String.Format("Depth-first branch-and-bound finished in {0}.", DateTime.Now - this.startTime));
             return this.SegmentImageWithConstraints(bestUpperBound.Constraints.GuessSolution());
         }
 
@@ -377,7 +378,6 @@ namespace Research.GraphBasedShapePrior
             front.Add(this.CalculateEnergyBound(initialConstraints));
 
             int currentIteration = 1;
-            DateTime startTime = DateTime.Now;
             DateTime lastOutputTime = startTime;
             int processedConstraintSets = 0;
             while (!front.Min.Constraints.CheckIfSatisfied() && currentIteration <= maxIterations && !this.shouldStop && !this.shouldSwitchToDfs)
@@ -449,6 +449,8 @@ namespace Research.GraphBasedShapePrior
                         "Max vertex freedom: {0:0.00}, max edge freedom: {1:0.00}",
                         maxVertexConstraintsFreedom,
                         maxEdgeConstraintsFreedom);
+
+                    DebugConfiguration.WriteDebugText("Elapsed time: {0}", DateTime.Now - this.startTime);
 
                     DebugConfiguration.WriteDebugText();
 
