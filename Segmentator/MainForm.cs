@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Text;
@@ -22,61 +23,6 @@ namespace Segmentator
 
         private bool switchedToDfs;
 
-        private static ShapeModel CreateSimpleShapeModel1()
-        {
-            List<ShapeEdge> edges = new List<ShapeEdge>();
-            edges.Add(new ShapeEdge(0, 1));
-
-            List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
-            edgeParams.Add(new ShapeEdgeParams(0.1, 0.1));
-
-            Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
-                new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
-
-            return ShapeModel.Create(edges, edgeParams, edgePairParams);
-        }
-
-        private static ShapeModel CreateSimpleShapeModel2()
-        {
-            List<ShapeEdge> edges = new List<ShapeEdge>();
-            edges.Add(new ShapeEdge(0, 1));
-            edges.Add(new ShapeEdge(1, 2));
-
-            List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
-            edgeParams.Add(new ShapeEdgeParams(0.1, 0.1));
-            edgeParams.Add(new ShapeEdgeParams(0.1, 0.1));
-
-            Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
-                new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
-            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.5, 1, Math.PI * 0.1, 5)); // TODO: we need edge length deviations to be relative
-
-            return ShapeModel.Create(edges, edgeParams, edgePairParams);
-        }
-
-        private static ShapeModel CreateLetterShapeModel()
-        {
-            List<ShapeEdge> edges = new List<ShapeEdge>();
-            edges.Add(new ShapeEdge(0, 1));
-            edges.Add(new ShapeEdge(0, 2));
-            edges.Add(new ShapeEdge(2, 3));
-            edges.Add(new ShapeEdge(2, 4));
-            edges.Add(new ShapeEdge(4, 5));
-
-            List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
-            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
-            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
-            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
-            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
-            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
-
-            Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams = new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
-            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(-Math.PI * 0.5, 1.3, Math.PI * 0.01, 1)); // TODO: we need edge length deviations to be relative
-            edgePairParams.Add(new Tuple<int, int>(1, 2), new ShapeEdgePairParams(Math.PI * 0.5, 1, Math.PI * 0.01, 1));
-            edgePairParams.Add(new Tuple<int, int>(2, 3), new ShapeEdgePairParams(-Math.PI * 0.5, 1, Math.PI * 0.01, 1));
-            edgePairParams.Add(new Tuple<int, int>(3, 4), new ShapeEdgePairParams(Math.PI * 0.5, 0.77, Math.PI * 0.01, 1));
-
-            return ShapeModel.Create(edges, edgeParams, edgePairParams);
-        }
 
         public MainForm()
         {
@@ -144,45 +90,23 @@ namespace Segmentator
             }
         }
 
-        private void LoadModel(out ShapeModel model, out Image2D<Color> image, out Rectangle rectangle)
+        private static Model CreateModel(ModelType modelType)
         {
-            double scale;
-            Rectangle bigLocation;
-
-            if (this.segmentationProperties.Model == Model.OneEdge)
+            switch (modelType)
             {
-                model = CreateSimpleShapeModel1();
-                scale = 0.2;
-                image = Image2D.LoadFromFile("./simple_1.png", scale);
-                bigLocation = new Rectangle(153, 124, 796, 480);
+                case ModelType.OneEdge:
+                    return Model.CreateOneEdge();
+                case ModelType.TwoEdges:
+                    return Model.CreateTwoEdges();
+                case ModelType.Letter1:
+                    return Model.CreateLetter1();
+                case ModelType.Letter2:
+                    return Model.CreateLetter2();
+                case ModelType.Letter3:
+                    return Model.CreateLetter3();
+                default:
+                    throw new NotSupportedException("Model type is not supported.");
             }
-            else if (this.segmentationProperties.Model == Model.TwoEdges)
-            {
-                model = CreateSimpleShapeModel2();
-                scale = 0.2;
-                image = Image2D.LoadFromFile("./simple_3.png", scale);
-                bigLocation = new Rectangle(249, 22, 391, 495);
-            }
-            else if (this.segmentationProperties.Model == Model.Letter1)
-            {
-                model = CreateLetterShapeModel();
-                scale = 0.2;
-                image = Image2D.LoadFromFile("./letter_1.jpg", scale);
-                bigLocation = new Rectangle(68, 70, 203, 359);
-            }
-            else /*if (this.segmentationProperties.Model == Model.Letter2)*/
-            {
-                model = CreateLetterShapeModel();
-                scale = 0.5;
-                image = Image2D.LoadFromFile("./letter_2.jpg", scale);
-                bigLocation = new Rectangle(126, 35, 148, 188);
-            }
-
-            rectangle = new Rectangle(
-                (int)(bigLocation.X * scale),
-                (int)(bigLocation.Y * scale),
-                (int)(bigLocation.Width * scale),
-                (int)(bigLocation.Height * scale));
         }
 
         private void DoSegmentation(object sender, DoWorkEventArgs e)
@@ -202,6 +126,7 @@ namespace Segmentator
             segmentator.MaxBfsIterationsInCombinedMode = this.segmentationProperties.BfsIterations;
             segmentator.StatusReportRate = this.segmentationProperties.ReportRate;
             segmentator.BfsFrontSaveRate = this.segmentationProperties.FrontSaveRate;
+            segmentator.BfsUpperBoundEstimateUpdateRate = this.segmentationProperties.BfsUpperBoundEstimateUpdateRate;
             segmentator.UnaryTermWeight = this.segmentationProperties.UnaryTermWeight;
             segmentator.ShapeUnaryTermWeight = regularSegmentation ? 0 : this.segmentationProperties.ShapeTermWeight;
             segmentator.ShapeEnergyWeight = this.segmentationProperties.ShapeEnergyWeight;
@@ -217,20 +142,17 @@ namespace Segmentator
             segmentator.ShapeEnergyLowerBoundCalculator = shapeEnergyCalculator;
 
             // Load what has to be segmented
-            ShapeModel model;
-            Image2D<Color> image;
-            Rectangle objectRect;
-            this.LoadModel(out model, out image, out objectRect);
-            model.BackgroundDistanceCoeff = this.segmentationProperties.BackgroundDistanceCoeff;
+            Model model = CreateModel(this.segmentationProperties.Model);
+            model.ShapeModel.BackgroundDistanceCoeff = this.segmentationProperties.BackgroundDistanceCoeff;
             
             // Setup shape model
-            this.segmentator.ShapeModel = model;
+            this.segmentator.ShapeModel = model.ShapeModel;
 
             // Show original image in status window);
-            this.currentImage.Image = Image2D.ToRegularImage(image);
+            this.currentImage.Image = Image2D.ToRegularImage(model.ImageToSegment);
 
             // Run segmentation
-            Image2D<bool> mask = segmentator.SegmentImage(image, objectRect);
+            Image2D<bool> mask = segmentator.SegmentImage(model.ImageToSegment, model.ObjectRectangle);
             
             // Save mask as worker result
             e.Result = mask;
@@ -290,6 +212,10 @@ namespace Segmentator
                     if (this.shapeTermsImage.Image != null)
                         this.shapeTermsImage.Image.Dispose();
                     this.shapeTermsImage.Image = e.ShapeTermsImage;
+
+                    if (this.bestSegmentationMaskImage.Image != null)
+                        this.bestSegmentationMaskImage.Image.Dispose();
+                    this.bestSegmentationMaskImage.Image = e.BestMaskEstimate;
                 }));
         }
 

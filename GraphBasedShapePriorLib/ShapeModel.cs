@@ -140,7 +140,7 @@ namespace Research.GraphBasedShapePrior
         {
             ShapeEdgeParams @params = this.edgeParams[edgeIndex];
             double diff = edgeLength * @params.WidthToEdgeLengthRatio - width;
-            double stddev = @params.RelativeWidthDeviation * edgeLength;
+            double stddev = @params.RelativeWidthDeviation * edgeLength + 1e-20;
             return diff * diff / (stddev * stddev);
         }
 

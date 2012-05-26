@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using MicrosoftResearch.Infer.Maths;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -43,6 +44,11 @@ namespace Research.GraphBasedShapePrior
         public EdgeConstraints Collapse()
         {
             return new EdgeConstraints(this.MiddleWidth);
+        }
+
+        public EdgeConstraints CollapseRandomly()
+        {
+            return new EdgeConstraints(this.MinWidth + this.Freedom * Rand.Double());
         }
 
         public List<EdgeConstraints> Split()

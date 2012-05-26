@@ -11,8 +11,15 @@ namespace Research.GraphBasedShapePrior
         public double FrontItemsPerSecond { get; private set; }
 
         public BreadthFirstBranchAndBoundStatusEventArgs(
-            double lowerBound, int frontSize, double frontItemsPerSecond, Image statusImage, Image segmentationMask, Image unaryTermsImage, Image shapeTermsImage)
-            : base(statusImage, segmentationMask, unaryTermsImage, shapeTermsImage)
+            double lowerBound,
+            int frontSize,
+            double frontItemsPerSecond,
+            Image statusImage,
+            Image segmentationMask,
+            Image unaryTermsImage,
+            Image shapeTermsImage,
+            Image bestMaskEstimate)
+            : base(statusImage, segmentationMask, unaryTermsImage, shapeTermsImage, bestMaskEstimate)
         {
             this.LowerBound = lowerBound;
             this.FrontSize = frontSize;

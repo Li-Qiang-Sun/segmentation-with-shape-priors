@@ -326,10 +326,17 @@ namespace Research.GraphBasedShapePrior
             }
         }
 
-        public ShapeConstraints GuessSolution()
+        public ShapeConstraints Collapse()
         {
             List<VertexConstraints> collapsedVertexConstraints = this.vertexConstraints.Select(c => c.Collapse()).ToList();
             List<EdgeConstraints> collapsedEdgeConstraints = this.edgeConstraints.Select(c => c.Collapse()).ToList();
+            return CreateFromConstraints(this.ShapeModel, collapsedVertexConstraints, collapsedEdgeConstraints, 1e-6, 1e-6);
+        }
+
+        public ShapeConstraints CollapseRandomly()
+        {
+            List<VertexConstraints> collapsedVertexConstraints = this.vertexConstraints.Select(c => c.CollapseRandomly()).ToList();
+            List<EdgeConstraints> collapsedEdgeConstraints = this.edgeConstraints.Select(c => c.CollapseRandomly()).ToList();
             return CreateFromConstraints(this.ShapeModel, collapsedVertexConstraints, collapsedEdgeConstraints, 1e-6, 1e-6);
         }
     }

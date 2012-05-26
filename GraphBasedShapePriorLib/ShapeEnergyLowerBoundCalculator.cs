@@ -207,10 +207,10 @@ namespace Research.GraphBasedShapePrior
                 {
                     double length = scaledLength / pairParams.LengthRatio;
                     double angle = shiftedAngle + pairParams.MeanAngle;
-
-                    return
+                    double penalty =
                         CalculateMinUnaryEdgeEnergy(currentEdgeIndex, shapeConstraints, length) +
                         CalculateMinPairwiseEdgeEnergy(length, angle, childDistanceTransforms);
+                    return penalty;
                 };
 
             transform.Compute(

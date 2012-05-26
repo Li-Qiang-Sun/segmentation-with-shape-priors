@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Drawing;
+using MicrosoftResearch.Infer.Maths;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -76,6 +77,13 @@ namespace Research.GraphBasedShapePrior
         public VertexConstraints Collapse()
         {
             return new VertexConstraints(this.MiddleCoord);
+        }
+
+        public VertexConstraints CollapseRandomly()
+        {
+            return new VertexConstraints(new Vector(
+                this.MinCoord.X + (this.MaxCoord.X - this.MinCoord.X) * Rand.Double(),
+                this.MinCoord.Y + (this.MaxCoord.Y - this.MinCoord.Y) * Rand.Double()));
         }
 
         public List<VertexConstraints> Split()

@@ -6,12 +6,13 @@ using System.Text;
 
 namespace Segmentator
 {
-    enum Model
+    enum ModelType
     {
         OneEdge,
         TwoEdges,
         Letter1,
         Letter2,
+        Letter3,
     }
     
     class SegmentationProperties
@@ -50,18 +51,21 @@ namespace Segmentator
         public int FrontSaveRate { get; set; }
 
         [Category("Algorithm")]
+        public int BfsUpperBoundEstimateUpdateRate { get; set; }
+
+        [Category("Algorithm")]
         public double MaxCoordFreedom { get; set; }
 
         [Category("Algorithm")]
         public double MaxWidthFreedom { get; set; }
 
         [Category("Algorithm")]
-        public Model Model { get; set; }
+        public ModelType Model { get; set; }
 
         public SegmentationProperties()
         {
-            this.ShapeTermWeight = 0.05;
-            this.UnaryTermWeight = 1;
+            this.ShapeTermWeight = 0.3;
+            this.UnaryTermWeight = 0.5;
             this.ConstantBinaryTermWeight = 0;
             this.BrightnessBinaryTermCutoff = 0.01;
 
@@ -71,11 +75,12 @@ namespace Segmentator
             this.BackgroundDistanceCoeff = 1;
 
             this.BfsIterations = 1000000;
+            this.BfsUpperBoundEstimateUpdateRate = 100;
             this.ReportRate = 50;
             this.FrontSaveRate = 100000;
             this.MaxCoordFreedom = 3;
             this.MaxWidthFreedom = 3;
-            this.Model = Model.OneEdge;
+            this.Model = ModelType.OneEdge;
         }
     }
 }

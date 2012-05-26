@@ -108,6 +108,11 @@ namespace Research.GraphBasedShapePrior
                 this.ShapeUnaryTermWeight,
                 this.MixtureComponentCount);
 
+            DebugConfiguration.WriteImportantDebugText(
+                "Truncated image size is {0}x{1}.",
+                this.ImageSegmentator.ImageSize.Width,
+                this.ImageSegmentator.ImageSize.Height);
+            
             Image2D<bool> mask;
             if (this.ShapeUnaryTermWeight > 0)
             {
