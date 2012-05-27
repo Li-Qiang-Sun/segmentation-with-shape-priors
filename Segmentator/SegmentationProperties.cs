@@ -13,6 +13,9 @@ namespace Segmentator
         Letter1,
         Letter2,
         Letter3,
+        Letter4Type1,
+        Letter4Type2,
+        Letter4Type3,
     }
     
     class SegmentationProperties
@@ -59,8 +62,11 @@ namespace Segmentator
         [Category("Algorithm")]
         public double MaxWidthFreedom { get; set; }
 
-        [Category("Algorithm")]
-        public ModelType Model { get; set; }
+        [Category("Model")]
+        public ModelType ModelType { get; set; }
+
+        [Category("Model")]
+        public int MixtureComponents { get; set; }
 
         public SegmentationProperties()
         {
@@ -80,7 +86,9 @@ namespace Segmentator
             this.FrontSaveRate = 100000;
             this.MaxCoordFreedom = 3;
             this.MaxWidthFreedom = 3;
-            this.Model = ModelType.OneEdge;
+
+            this.ModelType = ModelType.OneEdge;
+            this.MixtureComponents = 3;
         }
     }
 }

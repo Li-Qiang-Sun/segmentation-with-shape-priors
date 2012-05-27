@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 
 namespace Research.GraphBasedShapePrior
 {
     public abstract class SegmentationAlgorithmBase
     {
-        private int mixtureComponentCount;
         private double brightnessBinaryTermCutoff;
         private double constantBinaryTermWeight;
         private double unaryTermWeight;
@@ -14,7 +15,6 @@ namespace Research.GraphBasedShapePrior
 
         protected SegmentationAlgorithmBase()
         {
-            this.MixtureComponentCount = 3;
             this.BrightnessBinaryTermCutoff = 1.2;
             this.ConstantBinaryTermWeight = 1;
             this.UnaryTermWeight = 0.15;
@@ -23,17 +23,6 @@ namespace Research.GraphBasedShapePrior
         }
 
         public ShapeModel ShapeModel { get; set; }
-
-        public int MixtureComponentCount
-        {
-            get { return mixtureComponentCount; }
-            set
-            {
-                if (value < 2)
-                    throw new ArgumentOutOfRangeException("value", "Property value should be 2 or more.");
-                mixtureComponentCount = value;
-            }
-        }
 
         public double BrightnessBinaryTermCutoff
         {
@@ -92,24 +81,28 @@ namespace Research.GraphBasedShapePrior
 
         public ImageSegmentator ImageSegmentator { get; private set; }
 
-        public Image2D<bool> SegmentImage(Image2D<Color> image, Rectangle estimatedObjectLocation)
+        public Image2D<bool> SegmentImage(Image2D<Color> image, IColorModel objectColorModel, IColorModel backgroundColorModel)
         {
             if (image == null)
                 throw new ArgumentNullException("image");
+            if (objectColorModel == null)
+                throw new ArgumentNullException("objectColorModel");
+            if (backgroundColorModel == null)
+                throw new ArgumentNullException("backgroundColorModel");
             if (this.ShapeModel == null)
                 throw new InvalidOperationException("Shape model must be specified before segmenting image.");
 
             this.ImageSegmentator = new ImageSegmentator(
                 image,
-                estimatedObjectLocation,
+                objectColorModel,
+                backgroundColorModel,
                 this.BrightnessBinaryTermCutoff,
                 this.ConstantBinaryTermWeight,
                 this.UnaryTermWeight,
-                this.ShapeUnaryTermWeight,
-                this.MixtureComponentCount);
+                this.ShapeUnaryTermWeight);
 
             DebugConfiguration.WriteImportantDebugText(
-                "Truncated image size is {0}x{1}.",
+                "Segmented image size is {0}x{1}.",
                 this.ImageSegmentator.ImageSize.Width,
                 this.ImageSegmentator.ImageSize.Height);
             
@@ -129,6 +122,57 @@ namespace Research.GraphBasedShapePrior
             DebugConfiguration.WriteImportantDebugText("Finished");
 
             return mask;
+        }
+
+        public void LearnColorModels(
+            Image2D<Color> image,
+            Rectangle estimatedObjectLocation,
+            int mixtureComponentCount,
+            out GaussianMixtureModel objectColorModel,
+            out GaussianMixtureModel backgroundColorModel)
+        {            
+            if (image == null)
+                throw new ArgumentNullException("image");
+            if (!image.Rectangle.Contains(estimatedObjectLocation))
+                throw new ArgumentException("Object location should be inside given image");
+            if (estimatedObjectLocation.Width == image.Width && estimatedObjectLocation.Height == image.Height)
+                throw new ArgumentException("Estimated object location should be strictly inside an image.");
+
+            const double stopTolerance = 1;
+            const double mixtureFittingThreshold = 0.2;
+
+            // Extract background pixels (yeah, it can be done faster)
+            List<Color> backgroundPixels = new List<Color>();
+            for (int i = 0; i < image.Width; ++i)
+                for (int j = 0; j < image.Height; ++j)
+                    if (!estimatedObjectLocation.Contains(i, j))
+                        backgroundPixels.Add(image[i, j]);
+
+            // Fit GMM for background
+            backgroundColorModel = GaussianMixtureModel.Fit(backgroundPixels, mixtureComponentCount, stopTolerance);
+
+            // Find most unprobable background pixels in bbox
+            List<Tuple<Color, double>> innerPixelsWithProb = new List<Tuple<Color, double>>();
+            for (int i = estimatedObjectLocation.Left; i < estimatedObjectLocation.Right; ++i)
+                for (int j = estimatedObjectLocation.Top; j < estimatedObjectLocation.Bottom; ++j)
+                {
+                    Color color = image[i, j];
+                    double logProb = backgroundColorModel.LogProb(color);
+                    innerPixelsWithProb.Add(new Tuple<Color, double>(color, logProb));
+                }
+            innerPixelsWithProb.Sort(
+                (t1, t2) => Comparer<double>.Default.Compare(t1.Item2, t2.Item2));
+
+            // Fit GMM for foreground
+            List<Color> objectPixels =
+                innerPixelsWithProb.Take((int)(innerPixelsWithProb.Count * mixtureFittingThreshold)).Select(t => t.Item1).ToList();
+            objectColorModel = GaussianMixtureModel.Fit(objectPixels, mixtureComponentCount, stopTolerance);
+
+            // Re-learn GMM for background with some new data
+            List<Color> moreBackgroundPixels =
+                innerPixelsWithProb.Skip((int)(innerPixelsWithProb.Count * (1 - mixtureFittingThreshold))).Select(t => t.Item1).ToList();
+            backgroundPixels.AddRange(moreBackgroundPixels);
+            backgroundColorModel = GaussianMixtureModel.Fit(backgroundPixels, mixtureComponentCount, stopTolerance);
         }
 
         protected abstract Image2D<bool> SegmentCurrentImage();

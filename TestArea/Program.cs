@@ -371,27 +371,27 @@ namespace TestArea
             Shape shape = shapeModel.FitMeanShape(new Size(100, 200));
         }
 
-        private static void MainForDualDecomposition()
-        {
-            ShapeModel shapeModel = CreateSimpleShapeModel1();
-            ShapeConstraints constraints = ShapeConstraints.CreateFromConstraints(
-                shapeModel,
-                new[] { new VertexConstraints(new Vector(3, 0), new Vector(40, 40)), new VertexConstraints(new Vector(60, 10), new Vector(100, 50)) },
-                new[] { new EdgeConstraints(10, 20) },
-                1,
-                1);
-            Image2D<Color> image = Image2D.LoadFromFile("../../../images/simple_1.png", 0.2);
-            Rectangle objectLocation = new Rectangle(30, 24, 159, 96);
-            ImageSegmentator segmentator = new ImageSegmentator(image, objectLocation, 0.01, 0, 1, 0.05, 3);
-            LowerBoundCalculator lowerBoundCalculator = new LowerBoundCalculator(segmentator);
-            lowerBoundCalculator.CalculateLowerBound(constraints);
-        }
+        //private static void MainForDualDecomposition()
+        //{
+        //    ShapeModel shapeModel = CreateSimpleShapeModel1();
+        //    ShapeConstraints constraints = ShapeConstraints.CreateFromConstraints(
+        //        shapeModel,
+        //        new[] { new VertexConstraints(new Vector(3, 0), new Vector(40, 40)), new VertexConstraints(new Vector(60, 10), new Vector(100, 50)) },
+        //        new[] { new EdgeConstraints(10, 20) },
+        //        1,
+        //        1);
+        //    Image2D<Color> image = Image2D.LoadFromFile("../../../images/simple_1.png", 0.2);
+        //    Rectangle objectLocation = new Rectangle(30, 24, 159, 96);
+        //    ImageSegmentator segmentator = new ImageSegmentator(image, objectLocation, 0.01, 0, 1, 0.05, 3);
+        //    LowerBoundCalculator lowerBoundCalculator = new LowerBoundCalculator(segmentator);
+        //    lowerBoundCalculator.CalculateLowerBound(constraints);
+        //}
 
         static void Main()
         {
             Rand.Restart(666);
 
-            MainForDualDecomposition();
+            //MainForDualDecomposition();
             //MainForPointIsClosestExperiment();
             //MainForLengthAngleDependenceExperiment();
             //GenerateMeanShape();

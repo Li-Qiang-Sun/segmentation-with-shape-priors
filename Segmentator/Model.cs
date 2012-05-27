@@ -22,7 +22,7 @@ namespace Segmentator
             const double scale = 0.2;
             Model model = new Model();
             model.ObjectRectangle = ScaleRectangle(new Rectangle(153, 124, 796, 480), scale);
-            model.ShapeModel = CreateSimpleShapeModel1();
+            model.ShapeModel = CreateOneEdgeShapeModel();
             model.ImageToSegment = model.ImageToLearnColors = Image2D.LoadFromFile("./images/simple_1.png", scale);
             return model;
         }
@@ -32,7 +32,7 @@ namespace Segmentator
             const double scale = 0.2;
             Model model = new Model();
             model.ObjectRectangle = ScaleRectangle(new Rectangle(249, 22, 391, 495), scale);
-            model.ShapeModel = CreateSimpleShapeModel2();
+            model.ShapeModel = CreateTwoEdgesShapeModel();
             model.ImageToSegment = model.ImageToLearnColors = Image2D.LoadFromFile("./images/simple_3.png", scale);
             return model;
         }
@@ -61,10 +61,43 @@ namespace Segmentator
         {
             const double scale = 1;
             Model model = new Model();
-            model.ObjectRectangle = ScaleRectangle(new Rectangle(9, 34, 114, 70), scale);
+            model.ObjectRectangle = ScaleRectangle(new Rectangle(9, 32, 114, 76), scale);
             model.ShapeModel = CreateLetterShapeModel();
             model.ImageToSegment = Image2D.LoadFromFile("./images/letter_3.png", scale);
             model.ImageToLearnColors = Image2D.LoadFromFile("./images/letter_3_original.png", scale);
+            return model;
+        }
+
+        public static Model CreateLetter4Type1()
+        {
+            const double scale = 1;
+            Model model = new Model();
+            model.ObjectRectangle = ScaleRectangle(new Rectangle(20, 6, 59, 84), scale);
+            model.ShapeModel = CreateLetterShapeModel();
+            model.ImageToSegment = Image2D.LoadFromFile("./images/letter_4_1.png", scale);
+            model.ImageToLearnColors = Image2D.LoadFromFile("./images/letter_4_original.png", scale);
+            return model;
+        }
+
+        public static Model CreateLetter4Type2()
+        {
+            const double scale = 1;
+            Model model = new Model();
+            model.ObjectRectangle = ScaleRectangle(new Rectangle(20, 6, 59, 84), scale);
+            model.ShapeModel = CreateLetterShapeModel();
+            model.ImageToSegment = Image2D.LoadFromFile("./images/letter_4_2.png", scale);
+            model.ImageToLearnColors = Image2D.LoadFromFile("./images/letter_4_original.png", scale);
+            return model;
+        }
+
+        public static Model CreateLetter4Type3()
+        {
+            const double scale = 1;
+            Model model = new Model();
+            model.ObjectRectangle = ScaleRectangle(new Rectangle(20, 6, 59, 84), scale);
+            model.ShapeModel = CreateLetterShapeModel();
+            model.ImageToSegment = Image2D.LoadFromFile("./images/letter_4_3.png", scale);
+            model.ImageToLearnColors = Image2D.LoadFromFile("./images/letter_4_original.png", scale);
             return model;
         }
 
@@ -77,7 +110,7 @@ namespace Segmentator
                 (int)(rectangle.Height * scale));
         }
         
-        private static ShapeModel CreateSimpleShapeModel1()
+        private static ShapeModel CreateOneEdgeShapeModel()
         {
             List<ShapeEdge> edges = new List<ShapeEdge>();
             edges.Add(new ShapeEdge(0, 1));
@@ -91,7 +124,7 @@ namespace Segmentator
             return ShapeModel.Create(edges, edgeParams, edgePairParams);
         }
 
-        private static ShapeModel CreateSimpleShapeModel2()
+        private static ShapeModel CreateTwoEdgesShapeModel()
         {
             List<ShapeEdge> edges = new List<ShapeEdge>();
             edges.Add(new ShapeEdge(0, 1));

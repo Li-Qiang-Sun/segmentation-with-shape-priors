@@ -86,6 +86,8 @@
     <Compile Include="AllowedLengthAngleChecker.cs" />
     <Compile Include="BranchAndBoundSegmentationAlgorithm.cs" />
     <Compile Include="BreadthFirstBranchAndBoundStatusEventArgs.cs" />
+    <Compile Include="GaussianMixtureModel.cs" />
+    <Compile Include="IColorModel.cs" />
     <Compile Include="LruCacheItemDiscardedEventArgs.cs" />
     <Compile Include="CpuShapeTermsLowerBoundCalculator.cs" />
     <Compile Include="BranchAndBoundStatusEventArgs.cs" />

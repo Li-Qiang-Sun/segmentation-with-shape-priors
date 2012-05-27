@@ -104,6 +104,12 @@ namespace Segmentator
                     return Model.CreateLetter2();
                 case ModelType.Letter3:
                     return Model.CreateLetter3();
+                case ModelType.Letter4Type1:
+                    return Model.CreateLetter4Type1();
+                case ModelType.Letter4Type2:
+                    return Model.CreateLetter4Type2();
+                case ModelType.Letter4Type3:
+                    return Model.CreateLetter4Type3();
                 default:
                     throw new NotSupportedException("Model type is not supported.");
             }
@@ -142,17 +148,23 @@ namespace Segmentator
             segmentator.ShapeEnergyLowerBoundCalculator = shapeEnergyCalculator;
 
             // Load what has to be segmented
-            Model model = CreateModel(this.segmentationProperties.Model);
-            model.ShapeModel.BackgroundDistanceCoeff = this.segmentationProperties.BackgroundDistanceCoeff;
+            Model model = CreateModel(this.segmentationProperties.ModelType);            
             
             // Setup shape model
             this.segmentator.ShapeModel = model.ShapeModel;
+            this.segmentator.ShapeModel.BackgroundDistanceCoeff = this.segmentationProperties.BackgroundDistanceCoeff;
 
-            // Show original image in status window);
-            this.currentImage.Image = Image2D.ToRegularImage(model.ImageToSegment);
+            // Learn color models
+            GaussianMixtureModel objectColorModel, backgroundColorModel;
+            segmentator.LearnColorModels(
+                model.ImageToLearnColors, model.ObjectRectangle, segmentationProperties.MixtureComponents, out objectColorModel, out backgroundColorModel);
+            Image2D<Color> shrinkedImage = model.ImageToSegment.Shrink(model.ObjectRectangle);
+
+            // Show original image in status window)
+            this.currentImage.Image = Image2D.ToRegularImage(model.ImageToSegment.Shrink(model.ObjectRectangle));
 
             // Run segmentation
-            Image2D<bool> mask = segmentator.SegmentImage(model.ImageToSegment, model.ObjectRectangle);
+            Image2D<bool> mask = segmentator.SegmentImage(shrinkedImage, objectColorModel, backgroundColorModel);
             
             // Save mask as worker result
             e.Result = mask;
