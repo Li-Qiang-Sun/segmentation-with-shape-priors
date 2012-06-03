@@ -52,17 +52,14 @@ namespace Research.GraphBasedShapePrior.Tests
         private static void TestEdgeLimitsCommonImpl(
             VertexConstraints constraint1, VertexConstraints constraint2, out Range lengthRange, out Range angleRange)
         {
-            ShapeConstraints constraintSet = ShapeConstraints.CreateFromConstraints(
-                TestHelper.CreateTestShapeModelWith1Edge(),
-                new[] { constraint1, constraint2 },
-                new[] { new EdgeConstraints(1, 10) },
-                1,
-                1);
-            constraintSet.DetermineEdgeLimits(0, out lengthRange, out angleRange);
-
+            BoxSetLengthAngleConstraints lengthAngleConstraints =
+                BoxSetLengthAngleConstraints.FromVertexConstraints(constraint1, constraint2, 3, 0);
             GeneralizedDistanceTransform2D transform = new GeneralizedDistanceTransform2D(
                 new Range(0, 35), new Range(-Math.PI * 2, Math.PI * 2), new Size(2000, 2000));
             AllowedLengthAngleChecker allowedLengthAngleChecker = new AllowedLengthAngleChecker(constraint1, constraint2, transform, 1, 0);
+
+            lengthRange = lengthAngleConstraints.LengthBoundary;
+            angleRange = lengthAngleConstraints.AngleBoundary;
 
             Random random = new Random(666);
 
@@ -84,8 +81,9 @@ namespace Research.GraphBasedShapePrior.Tests
                 double length = vec.Length;
                 double angle = Vector.AngleBetween(Vector.UnitX, vec);
 
-                Assert.IsTrue(lengthRange.Contains(length));
-                Assert.IsTrue(angleRange.Contains(angle));
+                const double tolerance = 1e-10;
+                Assert.IsTrue(lengthAngleConstraints.InRange(length, tolerance, angle, tolerance));
+                Assert.IsTrue(lengthAngleConstraints.OverallRange.InRange(length, tolerance, angle, tolerance));
                 Assert.IsTrue(allowedLengthAngleChecker.IsAllowed(length, angle));
             }
 
@@ -107,13 +105,13 @@ namespace Research.GraphBasedShapePrior.Tests
                 double length = vec.Length;
                 double angle = Vector.AngleBetween(Vector.UnitX, vec);
 
-                // We've generated too large edge
+                // We've generated too long edge
                 if (length > transform.RangeX.Right)
                     continue;
 
-                bool definitelyOutside = !lengthRange.Contains(length) || !angleRange.Contains(angle);
-                bool outside = !allowedLengthAngleChecker.IsAllowed(length, angle);
-                Assert.IsTrue(!definitelyOutside || outside);
+                bool definitelyOutside = !lengthAngleConstraints.OverallRange.InRange(length, 1e-6, angle, 1e-6);
+                Assert.IsTrue(!definitelyOutside || !allowedLengthAngleChecker.IsAllowed(length, angle));
+                Assert.IsTrue(!definitelyOutside || !lengthAngleConstraints.InRange(length, 1e-6, angle, 1e-6));
             }
         }
 

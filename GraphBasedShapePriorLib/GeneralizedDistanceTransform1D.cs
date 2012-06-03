@@ -32,7 +32,7 @@ namespace Research.GraphBasedShapePrior
             this.Range = range;
             this.GridSize = gridSize;
             // Our grid covers all the evenly distributed points from min to max in a way that each point is the center of its cell
-            this.gridStepSize = range.Length / (this.GridSize - 1);
+            this.GridStepSize = range.Length / (this.GridSize - 1);
 
             // Allocate all the necessary things
             this.envelope = new int[this.GridSize];
@@ -47,7 +47,7 @@ namespace Research.GraphBasedShapePrior
 
         public int GridSize { get; private set; }
 
-        private readonly double gridStepSize;
+        public double GridStepSize { get; private set; }
 
         public bool IsComputed { get; private set; }
 
@@ -133,18 +133,18 @@ namespace Research.GraphBasedShapePrior
         {
             if (gridIndex < 0 || gridIndex >= this.GridSize)
                 throw new ArgumentOutOfRangeException("gridIndex");
-            return this.Range.Left + gridIndex * this.gridStepSize;
+            return this.Range.Left + gridIndex * this.GridStepSize;
         }
 
         public int CoordToGridIndex(double coord)
         {
-            int gridIndex = (int)((coord - this.Range.Left) / this.gridStepSize + 0.5);
+            int gridIndex = (int)((coord - this.Range.Left) / this.GridStepSize + 0.5);
             if (gridIndex < 0 || gridIndex >= this.GridSize)
                 throw new ArgumentOutOfRangeException("coord");
             return gridIndex;
         }
 
-        public void Compute(double distanceScale, Func<double, double, double> penaltyFunc)
+        public void Compute(double distanceScale, Func<double, double> penaltyFunc)
         {
             if (penaltyFunc == null)
                 throw new ArgumentNullException("penaltyFunc");
@@ -161,7 +161,7 @@ namespace Research.GraphBasedShapePrior
             int left = -1;
             foreach (int i in EnumerateFinitePenaltyGridIndices())
             {
-                functionValues[i] = penaltyFunc(GridIndexToCoord(i), 0.5 * this.gridStepSize);
+                functionValues[i] = penaltyFunc(GridIndexToCoord(i));
                 if (left == -1)
                     left = i;
             }
@@ -171,7 +171,7 @@ namespace Research.GraphBasedShapePrior
             envelope[0] = left;
             parabolaRange[0] = Double.NegativeInfinity;
             parabolaRange[1] = Double.PositiveInfinity;
-            double intersectionCoeff = 1.0 / (distanceScale * this.gridStepSize * this.gridStepSize);
+            double intersectionCoeff = 1.0 / (distanceScale * this.GridStepSize * this.GridStepSize);
             foreach (int i in EnumerateFinitePenaltyGridIndices())
             {
                 if (i == left)
@@ -204,7 +204,7 @@ namespace Research.GraphBasedShapePrior
                 while (parabolaRange[currentParabola + 1] < i)
                     currentParabola += 1;
 
-                double diff = (i - envelope[currentParabola]) * this.gridStepSize;
+                double diff = (i - envelope[currentParabola]) * this.GridStepSize;
                 this.values[i] = functionValues[envelope[currentParabola]] + diff * diff * distanceScale;
                 this.bestIndices[i] = envelope[currentParabola];
                 this.timeStamps[i] = currentTimeStamp;

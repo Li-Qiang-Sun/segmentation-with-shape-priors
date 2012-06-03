@@ -5,6 +5,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using MicrosoftResearch.Infer.Maths;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -20,7 +21,7 @@ namespace Research.GraphBasedShapePrior
 
         private int bfsFrontSaveRate = Int32.MaxValue;
 
-        private int bfsUpperBoundEstimateUpdateRate = 100;
+        private double maxBfsUpperBoundEstimateProbability = 0.5;
 
         private BranchAndBoundType branchAndBoundType = BranchAndBoundType.Combined;
 
@@ -82,16 +83,16 @@ namespace Research.GraphBasedShapePrior
             }
         }
 
-        public int BfsUpperBoundEstimateUpdateRate
+        public double MaxBfsUpperBoundEstimateProbability
         {
-            get { return this.bfsUpperBoundEstimateUpdateRate; }
+            get { return this.maxBfsUpperBoundEstimateProbability; }
             set
             {
                 if (this.isRunning)
                     throw new InvalidOperationException("You can't change the value of this property while segmentation is running.");
-                if (value < 1)
-                    throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
-                this.bfsUpperBoundEstimateUpdateRate = value;
+                if (value < 0 || value > 1)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be in [0, 1] range.");
+                this.maxBfsUpperBoundEstimateProbability = value;
             }
         }
 
@@ -394,7 +395,7 @@ namespace Research.GraphBasedShapePrior
 
             int currentIteration = 1;
             DateTime lastOutputTime = startTime;
-            int processedConstraintSets = 0;
+            int processedConstraintSets = 0, upperBoundGuesses = 0;
             EnergyBound bestUpperBoundGuess = null;
             while (!front.Min.Constraints.CheckIfSatisfied() && currentIteration <= maxIterations && !this.shouldStop && !this.shouldSwitchToDfs)
             {
@@ -435,11 +436,12 @@ namespace Research.GraphBasedShapePrior
                     //this.CalculateEnergyBound(parentLowerBound.Constraints);
 
                     // Try to guess solution sometimes, always remember our best guess
-                    if (processedConstraintSets % this.BfsUpperBoundEstimateUpdateRate == 0)
+                    if (Rand.Double() < this.GetBfsUpperBoundEstimateProbability(constraintsSet))
                     {
                         EnergyBound upperBoundGuess = this.CalculateEnergyBound(constraintsSet.CollapseRandomly());
                         if (bestUpperBoundGuess == null || upperBoundGuess.Bound < bestUpperBoundGuess.Bound)
                             bestUpperBoundGuess = upperBoundGuess;
+                        ++upperBoundGuesses;
                     }
 
                     ++processedConstraintSets;
@@ -465,7 +467,7 @@ namespace Research.GraphBasedShapePrior
                         currentMin.SegmentationEnergy,
                         currentMin.ShapeEnergy * this.ShapeEnergyWeight);
                     if (bestUpperBoundGuess != null)
-                        DebugConfiguration.WriteDebugText("Best known upper bound is {0:0.0000}", bestUpperBoundGuess.Bound);
+                        DebugConfiguration.WriteDebugText("Best known upper bound is {0:0.0000}, {1} guesses total", bestUpperBoundGuess.Bound, upperBoundGuesses);
                     double processingSpeed = processedConstraintSets / (currentTime - lastOutputTime).TotalSeconds;
                     DebugConfiguration.WriteDebugText("Processing speed is {0:0.000} items per sec", processingSpeed);
 
@@ -493,6 +495,18 @@ namespace Research.GraphBasedShapePrior
             this.ReportBreadthFirstSearchStatus(front, 0, bestUpperBoundGuess);
 
             return front;
+        }
+
+        private double GetBfsUpperBoundEstimateProbability(ShapeConstraints constraintsSet)
+        {
+            double maxVertexConstraintsFreedom = constraintsSet.VertexConstraints.Max(c => c.Freedom);
+            double maxEdgeConstraintsFreedom = constraintsSet.EdgeConstraints.Max(c => c.Freedom);
+            double prob = 1;
+            prob *= Math.Min(1, this.MaxCoordFreedom / maxVertexConstraintsFreedom);
+            prob *= Math.Min(1, this.MaxWidthFreedom / maxEdgeConstraintsFreedom);
+            prob *= this.maxBfsUpperBoundEstimateProbability;
+            prob = Math.Pow(prob, 1.3);
+            return prob;
         }
 
         private void DepthFirstBranchAndBoundTraverse(

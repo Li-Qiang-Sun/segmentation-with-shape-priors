@@ -270,95 +270,102 @@ namespace TestArea
                 maxLength = Math.Max(maxLength, length);
             }
 
-            ShapeConstraints constraintSet = ShapeConstraints.CreateFromConstraints(
-                CreateSimpleShapeModel1(),
-                new[] { constraint1, constraint2 },
-                new[] { new EdgeConstraints(1) },
-                1,
-                1);
-            Range lengthRange, angleRange;
-            constraintSet.DetermineEdgeLimits(0, out lengthRange, out angleRange);
+            //ShapeConstraints constraintSet = ShapeConstraints.CreateFromConstraints(
+            //    CreateSimpleShapeModel1(),
+            //    new[] { constraint1, constraint2 },
+            //    new[] { new EdgeConstraints(1) },
+            //    1,
+            //    1);
+            BoxSetLengthAngleConstraints lengthAngleConstraints =
+                BoxSetLengthAngleConstraints.FromVertexConstraints(constraint1, constraint2, 2, 0);
 
             const int lengthImageSize = 360;
             const int angleImageSize = 360;
             double lengthScale = (lengthImageSize - 20) / maxLength;
 
-            Image2D<bool> myAwesomeMask = new Image2D<bool>(lengthImageSize, angleImageSize);
-            LengthAngleSpaceSeparatorSet myAwesomeSeparator = new LengthAngleSpaceSeparatorSet(constraint1, constraint2);
-            for (int i = 0; i < lengthImageSize; ++i)
-                for (int j = 0; j < angleImageSize; ++j)
-                {
-                    double length = i / lengthScale;
-                    double angle = MathHelper.ToRadians(j - 180.0);
-                    if (myAwesomeSeparator.IsInside(length, angle))
-                        myAwesomeMask[i, j] = true;
-                }
+            //Image2D<bool> myAwesomeMask = new Image2D<bool>(lengthImageSize, angleImageSize);
+            //LengthAngleSpaceSeparatorSet myAwesomeSeparator = new LengthAngleSpaceSeparatorSet(constraint1, constraint2);
+            //for (int i = 0; i < lengthImageSize; ++i)
+            //    for (int j = 0; j < angleImageSize; ++j)
+            //    {
+            //        double length = i / lengthScale;
+            //        double angle = MathHelper.ToRadians(j - 180.0);
+            //        if (myAwesomeSeparator.IsInside(length, angle))
+            //            myAwesomeMask[i, j] = true;
+            //    }
 
             using (Bitmap image = new Bitmap(lengthImageSize, angleImageSize))
             using (Graphics graphics = Graphics.FromImage(image))
             {
                 graphics.Clear(Color.White);
 
-                // Draw generated points);
+                // Draw generated points
                 for (int i = 0; i < lengthAnglePoints.Count; ++i)
-                    DrawLengthAngle(lengthAnglePoints[i].X, lengthAnglePoints[i].Y, lengthScale, 1, graphics, Pens.Black);
+                    DrawLengthAngle(graphics, Pens.Black, lengthAnglePoints[i].X, lengthAnglePoints[i].Y, lengthScale, 1);
 
                 // Draw estimated ranges
-                if (angleRange.Outside)
-                {
-                    graphics.DrawRectangle(
-                        Pens.Red,
-                        (float)(lengthRange.Left * lengthScale),
-                        0,
-                        (float)((lengthRange.Right - lengthRange.Left) * lengthScale),
-                        (float)(MathHelper.ToDegrees(angleRange.Left) + 180));
-                    graphics.DrawRectangle(
-                        Pens.Red,
-                        (float)(lengthRange.Left * lengthScale),
-                        (float)(MathHelper.ToDegrees(angleRange.Right) + 180),
-                        (float)((lengthRange.Right - lengthRange.Left) * lengthScale),
-                        (float)(180 - MathHelper.ToDegrees(angleRange.Right)));
-                }
-                else
-                {
-                    graphics.DrawRectangle(
-                        Pens.Red,
-                        (float)(lengthRange.Left * lengthScale),
-                        (float)(MathHelper.ToDegrees(angleRange.Left) + 180),
-                        (float)((lengthRange.Right - lengthRange.Left) * lengthScale),
-                        (float)(MathHelper.ToDegrees(angleRange.Right) - MathHelper.ToDegrees(angleRange.Left)));
-                }
+                foreach (BoxLengthAngleConstraints child in lengthAngleConstraints.ChildConstraints)
+                    DrawLengthAngleConstraintBox(graphics, Pens.Green, child, lengthScale);
+                DrawLengthAngleConstraintBox(graphics, new Pen(Color.Red, 2), lengthAngleConstraints.OverallRange, lengthScale);
 
                 // Draw constraint corners
-                for (int i = 0; i < 4; ++i)
-                {
-                    for (int j = 0; j < 4; ++j)
-                    {
-                        Vector diff = constraint2.Corners[j] - constraint1.Corners[i];
-                        DrawLengthAngle(diff.Length, Vector.AngleBetween(Vector.UnitX, diff), lengthScale, 5, graphics, Pens.Blue);
-                    }
-                }
+                //for (int i = 0; i < 4; ++i)
+                //{
+                //    for (int j = 0; j < 4; ++j)
+                //    {
+                //        Vector diff = constraint2.Corners[j] - constraint1.Corners[i];
+                //        DrawLengthAngle(diff.Length, Vector.AngleBetween(Vector.UnitX, diff), lengthScale, 5, graphics, Pens.Blue);
+                //    }
+                //}
 
                 // Draw my awesome separation lines
-                for (int i = 0; i < lengthImageSize - 1; ++i)
-                    for (int j = 0; j < lengthImageSize - 1; ++j)
-                    {
-                        bool border = false;
-                        border |= myAwesomeMask[i, j] != myAwesomeMask[i + 1, j];
-                        border |= myAwesomeMask[i, j] != myAwesomeMask[i, j + 1];
-                        border |= myAwesomeMask[i, j] != myAwesomeMask[i + 1, j + 1];
-                        if (border)
-                            image.SetPixel(i, j, Color.Orange);
-                    }
+                //for (int i = 0; i < lengthImageSize - 1; ++i)
+                //    for (int j = 0; j < lengthImageSize - 1; ++j)
+                //    {
+                //        bool border = false;
+                //        border |= myAwesomeMask[i, j] != myAwesomeMask[i + 1, j];
+                //        border |= myAwesomeMask[i, j] != myAwesomeMask[i, j + 1];
+                //        border |= myAwesomeMask[i, j] != myAwesomeMask[i + 1, j + 1];
+                //        if (border)
+                //            image.SetPixel(i, j, Color.Orange);
+                //    }
 
-                graphics.DrawString(
-                    String.Format("Max length is {0:0.0}", maxLength), SystemFonts.DefaultFont, Brushes.Green, 5, 5);
+                //graphics.DrawString(
+                //    String.Format("Max length is {0:0.0}", maxLength), SystemFonts.DefaultFont, Brushes.Green, 5, 5);
 
                 image.Save(fileName);
             }
         }
 
-        private static void DrawLengthAngle(double length, double angle, double lengthScale, double radius, Graphics graphics, Pen pen)
+        private static void DrawLengthAngleConstraintBox(Graphics graphics, Pen pen, BoxLengthAngleConstraints constraints, double lengthScale)
+        {
+            if (constraints.AngleBoundary.Outside)
+            {
+                graphics.DrawRectangle(
+                    pen,
+                    (float)(constraints.LengthBoundary.Left * lengthScale),
+                    0,
+                    (float)(constraints.LengthBoundary.Length * lengthScale),
+                    (float)(MathHelper.ToDegrees(constraints.AngleBoundary.Left) + 180));
+                graphics.DrawRectangle(
+                    pen,
+                    (float)(constraints.LengthBoundary.Left * lengthScale),
+                    (float)(MathHelper.ToDegrees(constraints.AngleBoundary.Right) + 180),
+                    (float)(constraints.LengthBoundary.Length * lengthScale),
+                    (float)(180 - MathHelper.ToDegrees(constraints.AngleBoundary.Right)));
+            }
+            else
+            {
+                graphics.DrawRectangle(
+                    pen,
+                    (float)(constraints.LengthBoundary.Left * lengthScale),
+                    (float)(MathHelper.ToDegrees(constraints.AngleBoundary.Left) + 180),
+                    (float)(constraints.LengthBoundary.Length * lengthScale),
+                    (float)(MathHelper.ToDegrees(constraints.AngleBoundary.Right) - MathHelper.ToDegrees(constraints.AngleBoundary.Left)));
+            }
+        }
+
+        private static void DrawLengthAngle( Graphics graphics, Pen pen, double length, double angle, double lengthScale, double radius)
         {
             float x = (float)(length * lengthScale);
             float y = (float)MathHelper.ToDegrees(angle) + 180;
@@ -393,7 +400,7 @@ namespace TestArea
 
             //MainForDualDecomposition();
             //MainForPointIsClosestExperiment();
-            //MainForLengthAngleDependenceExperiment();
+            MainForLengthAngleDependenceExperiment();
             //GenerateMeanShape();
             //DrawLengthAngleDependence();
             //MainForUnaryPotentialsCheck();

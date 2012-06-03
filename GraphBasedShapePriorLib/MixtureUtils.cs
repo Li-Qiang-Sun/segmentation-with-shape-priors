@@ -82,7 +82,8 @@ namespace Research.GraphBasedShapePrior
             // EM algorithm for GMM
             double[,] expectations = new double[data.Length, componentCount];
             double lastEstimate;
-            double currentEstimate = Double.NegativeInfinity;
+            const double negativeInfinity = -1e+20;
+            double currentEstimate = negativeInfinity;
             do
             {
                 lastEstimate = currentEstimate;
@@ -147,7 +148,7 @@ namespace Research.GraphBasedShapePrior
 
                 if (convergenceDetected)
                 {
-                    currentEstimate = Double.NegativeInfinity;
+                    lastEstimate = negativeInfinity;
                     continue;
                 }
 

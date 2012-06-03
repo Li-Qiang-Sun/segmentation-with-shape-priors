@@ -54,7 +54,7 @@ namespace Segmentator
         public int FrontSaveRate { get; set; }
 
         [Category("Algorithm")]
-        public int BfsUpperBoundEstimateUpdateRate { get; set; }
+        public double MaxBfsUpperBoundEstimateProbability { get; set; }
 
         [Category("Algorithm")]
         public double MaxCoordFreedom { get; set; }
@@ -81,7 +81,7 @@ namespace Segmentator
             this.BackgroundDistanceCoeff = 1;
 
             this.BfsIterations = 1000000;
-            this.BfsUpperBoundEstimateUpdateRate = 100;
+            this.MaxBfsUpperBoundEstimateProbability = 1;
             this.ReportRate = 50;
             this.FrontSaveRate = 100000;
             this.MaxCoordFreedom = 3;

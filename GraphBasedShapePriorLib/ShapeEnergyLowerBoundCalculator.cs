@@ -30,12 +30,10 @@ namespace Research.GraphBasedShapePrior
             if (shapeConstraints == null)
                 throw new ArgumentNullException("shapeConstraints");
 
-            List<Range> lengthRanges, angleRanges;
-            CalculateLengthAngleRanges(shapeConstraints, out lengthRanges, out angleRanges);
-
+            List<ILengthAngleConstraints> lengthAngleConstraints = CalculateLengthAngleConstraints(shapeConstraints);
             if (shapeConstraints.ShapeModel.PairwiseEdgeConstraintCount == 0)
             {
-                double lowerBound = CalculateSingleEdgeLowerBound(shapeConstraints, lengthRanges, angleRanges);
+                double lowerBound = CalculateSingleEdgeLowerBound(shapeConstraints, lengthAngleConstraints);
                 Debug.Assert(lowerBound >= 0);
                 return lowerBound;
             }
@@ -60,7 +58,7 @@ namespace Research.GraphBasedShapePrior
             // Calculate distance transforms for all the child edges
             List<GeneralizedDistanceTransform2D> childTransforms = new List<GeneralizedDistanceTransform2D>();
             foreach (int edgeIndex in shapeConstraints.ShapeModel.IterateNeighboringEdgeIndices(0))
-                childTransforms.Add(CalculateMinEnergiesForAllParentEdges(shapeConstraints, 0, edgeIndex, lengthRanges, angleRanges));
+                childTransforms.Add(CalculateMinEnergiesForAllParentEdges(shapeConstraints, 0, edgeIndex, lengthAngleConstraints));
 
             // Find best overall solution
             double minEnergySum = Double.PositiveInfinity;
@@ -88,12 +86,11 @@ namespace Research.GraphBasedShapePrior
             return minEnergySum;
         }
 
-        private static double CalculateSingleEdgeLowerBound(ShapeConstraints shapeConstraints, List<Range> lengthRanges, List<Range> angleRanges)
+        private static double CalculateSingleEdgeLowerBound(ShapeConstraints shapeConstraints, IList<ILengthAngleConstraints> lengthAngleConstraints)
         {
             // Shape is forced to be a fully-connected tree, so this |E|=1 is the only case possible
             Debug.Assert(shapeConstraints.ShapeModel.Edges.Count == 1);
-            Debug.Assert(lengthRanges.Count == 1);
-            Debug.Assert(angleRanges.Count == 1);
+            Debug.Assert(lengthAngleConstraints.Count == 1);
 
             double result;
 
@@ -101,8 +98,8 @@ namespace Research.GraphBasedShapePrior
             EdgeConstraints edgeConstraints = shapeConstraints.EdgeConstraints[0];
             ShapeEdgeParams edgeParams = shapeConstraints.ShapeModel.GetEdgeParams(0);
             Range scaledLengthRange = new Range(
-                lengthRanges[0].Left * edgeParams.WidthToEdgeLengthRatio,
-                lengthRanges[0].Right * edgeParams.WidthToEdgeLengthRatio);
+                lengthAngleConstraints[0].LengthBoundary.Left * edgeParams.WidthToEdgeLengthRatio,
+                lengthAngleConstraints[0].LengthBoundary.Right * edgeParams.WidthToEdgeLengthRatio);
             Range widthRange = new Range(edgeConstraints.MinWidth, edgeConstraints.MaxWidth);
             if (scaledLengthRange.IntersectsWith(widthRange))
                 result = 0;
@@ -114,20 +111,20 @@ namespace Research.GraphBasedShapePrior
             return result;
         }
 
-        private static void CalculateLengthAngleRanges(ShapeConstraints shapeConstraints, out List<Range> lengthRanges, out List<Range> angleRanges)
+        private static List<ILengthAngleConstraints> CalculateLengthAngleConstraints(ShapeConstraints shapeConstraints)
         {
-            lengthRanges = new List<Range>();
-            angleRanges = new List<Range>();
+            List<ILengthAngleConstraints> result = new List<ILengthAngleConstraints>();
 
             for (int i = 0; i < shapeConstraints.ShapeModel.Edges.Count; ++i)
             {
-                Range lengthRange, angleRange;
-                shapeConstraints.DetermineEdgeLimits(i, out lengthRange, out angleRange);
-                Debug.Assert(!lengthRange.Outside);
-
-                lengthRanges.Add(lengthRange);
-                angleRanges.Add(angleRange);
+                ShapeEdge edge = shapeConstraints.ShapeModel.Edges[i];
+                VertexConstraints vertex1Constraints = shapeConstraints.VertexConstraints[edge.Index1];
+                VertexConstraints vertex2Constraints = shapeConstraints.VertexConstraints[edge.Index2];
+                //result.Add(BoxLengthAngleConstraints.FromVertexConstraints(vertex1Constraints, vertex2Constraints));
+                result.Add(BoxSetLengthAngleConstraints.FromVertexConstraints(vertex1Constraints, vertex2Constraints, 1, 16));
             }
+
+            return result;
         }
 
         private static double CalculateMinPairwiseEdgeEnergy(
@@ -203,8 +200,7 @@ namespace Research.GraphBasedShapePrior
             ShapeConstraints shapeConstraints,
             int parentEdgeIndex,
             int currentEdgeIndex,
-            List<Range> lengthRanges,
-            List<Range> angleRanges)
+            IList<ILengthAngleConstraints> lengthAngleConstraints)
         {
             // Calculate child transforms
             List<GeneralizedDistanceTransform2D> childDistanceTransforms = new List<GeneralizedDistanceTransform2D>();
@@ -215,23 +211,27 @@ namespace Research.GraphBasedShapePrior
                     continue;
 
                 GeneralizedDistanceTransform2D childTransform = CalculateMinEnergiesForAllParentEdges(
-                    shapeConstraints, currentEdgeIndex, neighborEdgeIndex, lengthRanges, angleRanges);
+                    shapeConstraints, currentEdgeIndex, neighborEdgeIndex, lengthAngleConstraints);
                 Debug.Assert(childTransform.IsComputed);
                 childDistanceTransforms.Add(childTransform);
             }
 
             ShapeEdgePairParams pairParams = shapeConstraints.ShapeModel.GetEdgePairParams(parentEdgeIndex, currentEdgeIndex);
             GeneralizedDistanceTransform2D transform = this.AllocateDistanceTransform();
-            SetupTransformFinitePenaltyRanges(
-                transform, pairParams, lengthRanges[currentEdgeIndex], angleRanges[currentEdgeIndex]);
-            SetupTransformInterestRanges(
-                transform, lengthRanges[parentEdgeIndex], angleRanges[parentEdgeIndex]);
+            SetupTransformFinitePenaltyRanges(transform, pairParams, lengthAngleConstraints[currentEdgeIndex]);
+            SetupTransformInterestRanges(transform, lengthAngleConstraints[parentEdgeIndex]);
 
-            Func<double, double, double, double, double> penaltyFunction =
-                (scaledLength, shiftedAngle, scaledLengthRadius, shiftedAngleRadius) =>
+            Func<double, double, double> penaltyFunction =
+                (scaledLength, shiftedAngle) =>
                 {
                     double length = scaledLength / pairParams.LengthRatio;
                     double angle = shiftedAngle + pairParams.MeanAngle;
+                    
+                    double lengthTolerance = transform.GridStepSizeX / pairParams.LengthRatio;
+                    double angleTolerance = transform.GridStepSizeY;
+                    if (!lengthAngleConstraints[currentEdgeIndex].InRange(length, lengthTolerance, angle, angleTolerance))
+                        return 1e+20;
+
                     double penalty =
                         CalculateMinUnaryEdgeEnergy(currentEdgeIndex, shapeConstraints, length) +
                         CalculateMinPairwiseEdgeEnergy(length, angle, childDistanceTransforms);
@@ -246,8 +246,11 @@ namespace Research.GraphBasedShapePrior
             return transform;
         }
 
-        private void SetupTransformInterestRanges(GeneralizedDistanceTransform2D transform, Range lengthRange, Range angleRange)
+        private void SetupTransformInterestRanges(GeneralizedDistanceTransform2D transform, ILengthAngleConstraints lengthAngleConstraints)
         {
+            Range lengthRange = lengthAngleConstraints.LengthBoundary;
+            Range angleRange = lengthAngleConstraints.AngleBoundary;
+            
             transform.AddInterestRangeX(lengthRange);
 
             if (!angleRange.Outside)
@@ -289,18 +292,24 @@ namespace Research.GraphBasedShapePrior
                 }
             }
 
-            // Always add all the representations of zero (for simplicity)
-            if (!transform.IsCoordYOfInterest(-Math.PI * 2))
-                transform.AddInterestRangeY(new Range(-Math.PI * 2, -Math.PI * 2));
-            if (!transform.IsCoordYOfInterest(0))
-                transform.AddInterestRangeY(new Range(0, 0));
-            if (!transform.IsCoordYOfInterest(Math.PI * 2))
-                transform.AddInterestRangeY(new Range(Math.PI * 2, Math.PI * 2));
+            // Add all the representations of zero angle
+            if (angleRange.IntersectsWith(new Range(-transform.GridStepSizeY * 0.5, transform.GridStepSizeY * 0.5)))
+            {
+                if (!transform.IsCoordYOfInterest(-Math.PI * 2))
+                    transform.AddInterestRangeY(new Range(-Math.PI * 2, -Math.PI * 2));
+                if (!transform.IsCoordYOfInterest(0))
+                    transform.AddInterestRangeY(new Range(0, 0));
+                if (!transform.IsCoordYOfInterest(Math.PI * 2))
+                    transform.AddInterestRangeY(new Range(Math.PI * 2, Math.PI * 2));    
+            }
         }
 
         private void SetupTransformFinitePenaltyRanges(
-            GeneralizedDistanceTransform2D transform, ShapeEdgePairParams pairParams, Range lengthRange, Range angleRange)
+            GeneralizedDistanceTransform2D transform, ShapeEdgePairParams pairParams, ILengthAngleConstraints lengthAngleConstraints)
         {
+            Range lengthRange = lengthAngleConstraints.LengthBoundary;
+            Range angleRange = lengthAngleConstraints.AngleBoundary;
+            
             transform.AddFinitePenaltyRangeX(
                 new Range(lengthRange.Left * pairParams.LengthRatio, lengthRange.Right * pairParams.LengthRatio));
 

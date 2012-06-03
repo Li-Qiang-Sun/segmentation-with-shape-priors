@@ -44,7 +44,7 @@ namespace Research.GraphBasedShapePrior.Tests
 
             GeneralizedDistanceTransform1D transform = new GeneralizedDistanceTransform1D(new Range(left, right), gridSize);
             double[] penalties = { 0, 3, 1.1 };
-            transform.Compute(1, (x, r) => penalties[transform.CoordToGridIndex(x)]);
+            transform.Compute(1, x => penalties[transform.CoordToGridIndex(x)]);
 
             for (int i = 0; i < 3; ++i) // To test reentrancy
             {
@@ -72,7 +72,7 @@ namespace Research.GraphBasedShapePrior.Tests
 
             for (int i = 0; i < 3; ++i) // To test reentrancy
             {
-                transform.Compute(1, (x, r) => penalties[transform.CoordToGridIndex(x)]);
+                transform.Compute(1, x => penalties[transform.CoordToGridIndex(x)]);
 
                 Assert.AreEqual(5, transform.GetValueByCoord(-3));
                 Assert.AreEqual(4, transform.GetValueByCoord(-2));

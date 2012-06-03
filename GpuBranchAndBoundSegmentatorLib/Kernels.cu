@@ -15,7 +15,7 @@ __device__ float DistanceSqrToBackgroundPenalty(float distanceSqr, float edgeWid
 #define INFINITY 1e+20f
 
 __device__ __constant__ float2 EdgeConvexHull[8];
-__device__ __constant__ float2 Corners1[4];
+__device__ __constant__ float2 Corners1[4]; 
 __device__ __constant__ float2 Corners2[4];
 
 __global__ void CalcMinPenaltiesForEdgeKernel(

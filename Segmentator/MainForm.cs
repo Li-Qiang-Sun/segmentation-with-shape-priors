@@ -132,7 +132,7 @@ namespace Segmentator
             segmentator.MaxBfsIterationsInCombinedMode = this.segmentationProperties.BfsIterations;
             segmentator.StatusReportRate = this.segmentationProperties.ReportRate;
             segmentator.BfsFrontSaveRate = this.segmentationProperties.FrontSaveRate;
-            segmentator.BfsUpperBoundEstimateUpdateRate = this.segmentationProperties.BfsUpperBoundEstimateUpdateRate;
+            segmentator.MaxBfsUpperBoundEstimateProbability = this.segmentationProperties.MaxBfsUpperBoundEstimateProbability;
             segmentator.UnaryTermWeight = this.segmentationProperties.UnaryTermWeight;
             segmentator.ShapeUnaryTermWeight = regularSegmentation ? 0 : this.segmentationProperties.ShapeTermWeight;
             segmentator.ShapeEnergyWeight = this.segmentationProperties.ShapeEnergyWeight;
