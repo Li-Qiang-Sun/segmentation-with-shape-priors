@@ -11,3 +11,5 @@ ReleaseGPU
 GpuBranchAndBoundSegmentatorLib/vc90.pdb
 GraphBasedShapePrior.sdf
 GraphBasedShapePrior.opensdf
+syntax: regexp
+.*\.DotSettings.user

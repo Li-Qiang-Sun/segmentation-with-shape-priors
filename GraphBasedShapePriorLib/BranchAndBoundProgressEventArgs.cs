@@ -3,25 +3,25 @@ using System.Drawing;
 
 namespace Research.GraphBasedShapePrior
 {
-    public class BranchAndBoundStatusEventArgs : EventArgs
+    public class BranchAndBoundProgressEventArgs : EventArgs
     {
-        public Image StatusImage { get; private set; }
-
         public Image SegmentationMask { get; private set; }
 
         public Image UnaryTermsImage { get; private set; }
 
         public Image ShapeTermsImage { get; private set; }
 
+        public ShapeConstraints Constraints { get; private set; }
+
         public Image BestMaskEstimate { get; private set; }
 
-        public BranchAndBoundStatusEventArgs(
-            Image statusImage, Image segmentationMask, Image unaryTermsImage, Image shapeTermsImage, Image bestMaskEstimate)
+        public BranchAndBoundProgressEventArgs(
+            Image segmentationMask, Image unaryTermsImage, Image shapeTermsImage, ShapeConstraints constraints, Image bestMaskEstimate)
         {
-            this.StatusImage = statusImage;
             this.SegmentationMask = segmentationMask;
             this.UnaryTermsImage = unaryTermsImage;
             this.ShapeTermsImage = shapeTermsImage;
+            this.Constraints = constraints;
             this.BestMaskEstimate = bestMaskEstimate;
         }
     }

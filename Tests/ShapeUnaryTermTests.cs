@@ -10,7 +10,7 @@ namespace Research.GraphBasedShapePrior.Tests
     {
         private static void TestShapeTermsImpl(string testName, ShapeModel shapeModel, IEnumerable<VertexConstraints> vertexConstraints, IEnumerable<EdgeConstraints> edgeConstraints, Size imageSize)
         {
-            ShapeConstraints constraintSet = ShapeConstraints.CreateFromConstraints(shapeModel, vertexConstraints, edgeConstraints, 1, 1);
+            ShapeConstraints constraintSet = ShapeConstraints.CreateFromConstraints(shapeModel, vertexConstraints, edgeConstraints);
 
             // Get CPU results
             Image2D<ObjectBackgroundTerm> shapeTermsCpu = new Image2D<ObjectBackgroundTerm>(imageSize.Width, imageSize.Height);

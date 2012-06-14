@@ -77,24 +77,6 @@ void CalculateShapeUnaryTerms(
     float *objectPenalties,
     float *backgroundPenalties)
 {
-	int totalImageSize = imageWidth * imageHeight;
-    
-    // Prepare GPU storage
-    float *objectPenaltiesGPU;
-	float *backgroundPenaltiesGPU;
-	int totalStorageSize = totalImageSize * sizeof(float);
-    cudaMalloc((void**) &objectPenaltiesGPU, totalStorageSize);
-	cudaMalloc((void**) &backgroundPenaltiesGPU, totalStorageSize);
-    
-    // Cleanup storage
-	for (int i = 0; i < totalImageSize; ++i)
-    {
-		objectPenalties[i] = INFINITY;
-		backgroundPenalties[i] = -INFINITY;
-    }
-    cudaMemcpy(objectPenaltiesGPU, objectPenalties, totalStorageSize, cudaMemcpyHostToDevice);
-	cudaMemcpy(backgroundPenaltiesGPU, backgroundPenalties, totalStorageSize, cudaMemcpyHostToDevice);
-
     for (int i = 0; i < edgeCount; ++i)
     {
         // Setup convex hull for the current edge
@@ -112,16 +94,9 @@ void CalculateShapeUnaryTerms(
             convexHullSizes[i],
 			backgroundDistanceCoeff,
             make_float2(edgeWidthLimits[i].x * edgeWidthLimits[i].x, edgeWidthLimits[i].y * edgeWidthLimits[i].y),
-            objectPenaltiesGPU,
-			backgroundPenaltiesGPU);
+            objectPenalties,
+			backgroundPenalties);
 
 		cudaThreadSynchronize();
     }
-
-	// Save results
-    cudaMemcpy(objectPenalties, objectPenaltiesGPU, totalStorageSize, cudaMemcpyDeviceToHost);
-	cudaMemcpy(backgroundPenalties, backgroundPenaltiesGPU, totalStorageSize, cudaMemcpyDeviceToHost);
-    
-    cudaFree(objectPenaltiesGPU);
-	cudaFree(backgroundPenaltiesGPU);
 }

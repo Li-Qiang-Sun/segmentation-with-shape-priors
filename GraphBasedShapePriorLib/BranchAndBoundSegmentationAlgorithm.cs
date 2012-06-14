@@ -17,9 +17,7 @@ namespace Research.GraphBasedShapePrior
 
         private IShapeEnergyLowerBoundCalculator shapeEnergyLowerBoundCalculator = new ShapeEnergyLowerBoundCalculator(DefaultLengthGridSize, DefaultAngleGridSize);
 
-        private int statusReportRate = 50;
-
-        private int bfsFrontSaveRate = Int32.MaxValue;
+        private int pregressReportRate = 50;
 
         private double maxBfsUpperBoundEstimateProbability = 0.5;
 
@@ -34,7 +32,7 @@ namespace Research.GraphBasedShapePrior
         private double maxCoordFreedom = 1;
 
         private double maxWidthFreedom = 1;
-        
+
         private bool shouldSwitchToDfs;
 
         private bool shouldStop;
@@ -49,37 +47,28 @@ namespace Research.GraphBasedShapePrior
 
         private DateTime startTime;
 
-        public event EventHandler<BreadthFirstBranchAndBoundStatusEventArgs> BreadthFirstBranchAndBoundStatus;
+        private ShapeConstraints startConstraints;
 
-        public event EventHandler<DepthFirstBranchAndBoundStatusEventArgs> DepthFirstBranchAndBoundStatus;
+        public event EventHandler<BreadthFirstBranchAndBoundProgressEventArgs> BreadthFirstBranchAndBoundProgress;
+
+        public event EventHandler<DepthFirstBranchAndBoundProgressEventArgs> DepthFirstBranchAndBoundProgress;
 
         public event EventHandler BranchAndBoundStarted;
 
+        public event EventHandler<BranchAndBoundCompletedEventArgs> BranchAndBoundCompleted;
+
         public event EventHandler SwitchToDfsBranchAndBound;
 
-        public int StatusReportRate
+        public int ProgressReportRate
         {
-            get { return this.statusReportRate; }
+            get { return this.pregressReportRate; }
             set
             {
                 if (this.isRunning)
                     throw new InvalidOperationException("You can't change the value of this property while segmentation is running.");
                 if (value < 1)
                     throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
-                this.statusReportRate = value;
-            }
-        }
-
-        public int BfsFrontSaveRate
-        {
-            get { return this.bfsFrontSaveRate; }
-            set
-            {
-                if (this.isRunning)
-                    throw new InvalidOperationException("You can't change the value of this property while segmentation is running.");
-                if (value < 1)
-                    throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
-                this.bfsFrontSaveRate = value;
+                this.pregressReportRate = value;
             }
         }
 
@@ -194,6 +183,17 @@ namespace Research.GraphBasedShapePrior
             }
         }
 
+        public ShapeConstraints StartConstraints
+        {
+            get { return this.startConstraints; }
+            set
+            {
+                if (this.isRunning)
+                    throw new InvalidOperationException("You can't change the value of this property while segmentation is running.");
+                this.startConstraints = value;
+            }
+        }
+
         public bool IsPaused
         {
             get { return this.isPaused; }
@@ -245,6 +245,19 @@ namespace Research.GraphBasedShapePrior
         {
             if (this.minEdgeWidth >= this.maxEdgeWidth)
                 throw new InvalidOperationException("Min edge width should be less than max edge width.");
+            if (this.startConstraints != null)
+            {
+                if (this.startConstraints.ShapeModel != this.ShapeModel)
+                    throw new InvalidOperationException("Given start constraints belong to another shape model.");
+                // TODO: make this check work
+                //foreach (VertexConstraints vertexConstraints in this.startConstraints.VertexConstraints)
+                //{
+                //    RectangleF imageRectangle =
+                //        new RectangleF(0, 0, this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height);
+                //    if (!imageRectangle.Contains(vertexConstraints.CoordRectangle))
+                //        throw new InvalidOperationException("Given start constraints are not fully inside the segmented image.");
+                //}
+            }
 
             this.isRunning = true;
             this.shouldSwitchToDfs = false;
@@ -254,62 +267,103 @@ namespace Research.GraphBasedShapePrior
             this.shapeUnaryTerms = new Image2D<ObjectBackgroundTerm>(
                 this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height);
 
+            ShapeConstraints constraints = this.startConstraints;
+            if (constraints == null)
+            {
+                constraints = ShapeConstraints.CreateFromBounds(
+                    this.ShapeModel,
+                    Vector.Zero,
+                    new Vector(this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height),
+                    this.minEdgeWidth,
+                    this.maxEdgeWidth);
+            }
+
             if (this.BranchAndBoundStarted != null)
                 this.BranchAndBoundStarted(this, EventArgs.Empty);
 
+            Image2D<bool> result = null;
             switch (BranchAndBoundType)
             {
                 case BranchAndBoundType.DepthFirst:
-                    return this.DepthFirstBranchAndBound();
+                    result = this.DepthFirstBranchAndBound(constraints);
+                    break;
                 case BranchAndBoundType.BreadthFirst:
-                    return this.BreadthFirstBranchAndBound();
+                    result = this.BreadthFirstBranchAndBound(constraints);
+                    break;
                 case BranchAndBoundType.Combined:
-                    return this.CombinedBranchAndBound();
+                    result = this.CombinedBranchAndBound(constraints);
+                    break;
+                default:
+                    Debug.Fail("We should never get there");
+                    break;
             }
 
-            Debug.Fail("We should never get there");
-            return null;
+            this.isRunning = false;
+            return result;
         }
 
-        private Image2D<bool> BreadthFirstBranchAndBound()
+        private Image2D<bool> BreadthFirstBranchAndBound(ShapeConstraints constraints)
         {
             this.startTime = DateTime.Now;
             DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound started.");
 
-            SortedSet<EnergyBound> front = this.BreadthFirstBranchAndBoundTraverse(Int32.MaxValue);
+            SortedSet<EnergyBound> front = this.BreadthFirstBranchAndBoundTraverse(constraints, Int32.MaxValue);
+            ReportBranchAndBoundCompletion(front.Min);
 
-            if (front.Min.Constraints.CheckIfSatisfied())
+            if (front.Min.Constraints.CheckIfSatisfied(this.maxCoordFreedom, this.maxWidthFreedom))
             {
                 DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound finished in {0}.", DateTime.Now - this.startTime);
-                DebugConfiguration.WriteImportantDebugText("Min energy value is {0}", front.Min.Bound);
-                return this.SegmentImageWithConstraints(front.Min.Constraints.Collapse());
+                DebugConfiguration.WriteImportantDebugText("Best lower bound is {0:0.0000}", front.Min.Bound);
+                
+                EnergyBound collapsedBfsSolution = this.CalculateEnergyBound(front.Min.Constraints.Collapse());
+                DebugConfiguration.WriteImportantDebugText(
+                    "Collapsed solution energy value is {0:0.0000} ({1:0.0000} + {2:0.0000})",
+                    collapsedBfsSolution.Bound,
+                    collapsedBfsSolution.SegmentationEnergy,
+                    collapsedBfsSolution.ShapeEnergy * this.ShapeEnergyWeight);
+                return this.ImageSegmentator.GetLastSegmentationMask();
             }
 
             DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound forced to stop after {0}.", DateTime.Now - this.startTime);
-            DebugConfiguration.WriteImportantDebugText("Min energy value achieved is {0}", front.Min.Bound);
+            DebugConfiguration.WriteImportantDebugText("Min energy value achieved is {0:0.0000}", front.Min.Bound);
             return null;
         }
 
-        private Image2D<bool> CombinedBranchAndBound()
+        private Image2D<bool> CombinedBranchAndBound(ShapeConstraints constraints)
         {
             this.startTime = DateTime.Now;
             DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound started.");
 
-            SortedSet<EnergyBound> front = this.BreadthFirstBranchAndBoundTraverse(this.MaxBfsIterationsInCombinedMode);
+            SortedSet<EnergyBound> front = this.BreadthFirstBranchAndBoundTraverse(constraints, this.MaxBfsIterationsInCombinedMode);
 
             if (this.shouldStop)
             {
+                ReportBranchAndBoundCompletion(front.Min);
+
                 DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound forced to stop after {0}.", DateTime.Now - this.startTime);
-                DebugConfiguration.WriteImportantDebugText("Min energy value achieved is {0}", front.Min.Bound);
+                DebugConfiguration.WriteImportantDebugText("Min energy value achieved is {0:0.0000}", front.Min.Bound);
                 DebugConfiguration.WriteImportantDebugText("Combined branch-and-bound interrupted.");
                 return null;
             }
 
             DebugConfiguration.WriteImportantDebugText("Breadth-first branch-and-bound finished in {0}.", DateTime.Now - this.startTime);
-            DebugConfiguration.WriteImportantDebugText("Best lower bound is {0}", front.Min.Bound);
+            DebugConfiguration.WriteImportantDebugText(
+                "Best lower bound is {0:0.0000} ({1:0.0000} + {2:0.0000})",
+                front.Min.Bound,
+                front.Min.SegmentationEnergy,
+                front.Min.ShapeEnergy * this.ShapeEnergyWeight);
 
-            if (front.Min.Constraints.CheckIfSatisfied())
-                return this.SegmentImageWithConstraints(front.Min.Constraints.Collapse());
+            if (front.Min.Constraints.CheckIfSatisfied(this.maxCoordFreedom, this.maxWidthFreedom))
+            {
+                ReportBranchAndBoundCompletion(front.Min);
+                EnergyBound collapsedBfsSolution = this.CalculateEnergyBound(front.Min.Constraints.Collapse());
+                DebugConfiguration.WriteImportantDebugText(
+                    "Collapsed solution energy value is {0:0.0000} ({1:0.0000} + {2:0.0000})",
+                    collapsedBfsSolution.Bound,
+                    collapsedBfsSolution.SegmentationEnergy,
+                    collapsedBfsSolution.ShapeEnergy * this.ShapeEnergyWeight);
+                return this.ImageSegmentator.GetLastSegmentationMask();
+            }
 
             // Sort front by depth
             List<EnergyBound> sortedFront = new List<EnergyBound>(front);
@@ -326,7 +380,7 @@ namespace Research.GraphBasedShapePrior
             int iteration = 1;
             int currentBound = 1;
             EnergyBound bestUpperBound = MakeMeanShapeBasedSolutionGuess();
-            DebugConfiguration.WriteImportantDebugText("Upper bound from mean shape is {0}", bestUpperBound.Bound);
+            DebugConfiguration.WriteImportantDebugText("Upper bound from mean shape is {0:0.0000}", bestUpperBound.Bound);
             foreach (EnergyBound energyBound in sortedFront)
             {
                 this.DepthFirstBranchAndBoundTraverse(
@@ -345,20 +399,19 @@ namespace Research.GraphBasedShapePrior
             DebugConfiguration.WriteImportantDebugText(String.Format("Depth-first branch-and-bound finished in {0}.", DateTime.Now - this.startTime));
 
             Debug.Assert(bestUpperBound != null);
-            return this.SegmentImageWithConstraints(bestUpperBound.Constraints.Collapse());
+            ReportBranchAndBoundCompletion(bestUpperBound);
+
+            EnergyBound collapsedDfsSolution = this.CalculateEnergyBound(bestUpperBound.Constraints.Collapse());
+            DebugConfiguration.WriteImportantDebugText(
+                    "Collapsed solution energy value is {0:0.0000} ({1:0.0000} + {2:0.0000})",
+                    collapsedDfsSolution.Bound,
+                    collapsedDfsSolution.SegmentationEnergy,
+                    collapsedDfsSolution.ShapeEnergy * this.ShapeEnergyWeight);
+            return this.ImageSegmentator.GetLastSegmentationMask();
         }
 
-        private Image2D<bool> DepthFirstBranchAndBound()
+        private Image2D<bool> DepthFirstBranchAndBound(ShapeConstraints constraints)
         {
-            ShapeConstraints initialConstraints = ShapeConstraints.CreateFromBounds(
-                this.ShapeModel,
-                Vector.Zero,
-                new Vector(this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height),
-                this.minEdgeWidth,
-                this.maxEdgeWidth,
-                this.maxCoordFreedom,
-                this.maxWidthFreedom);
-
             this.startTime = DateTime.Now;
             DebugConfiguration.WriteImportantDebugText("Depth-first branch-and-bound started.");
 
@@ -368,7 +421,7 @@ namespace Research.GraphBasedShapePrior
             int branchesTruncated = 0;
             int iteration = 1;
             this.DepthFirstBranchAndBoundTraverse(
-                initialConstraints,
+                constraints,
                 null,
                 ref bestUpperBound,
                 ref lowerBoundsCalculated,
@@ -376,35 +429,38 @@ namespace Research.GraphBasedShapePrior
                 ref branchesTruncated,
                 ref iteration);
 
+            ReportBranchAndBoundCompletion(bestUpperBound);
             DebugConfiguration.WriteImportantDebugText(String.Format("Depth-first branch-and-bound finished in {0}.", DateTime.Now - this.startTime));
-            return this.SegmentImageWithConstraints(bestUpperBound.Constraints.Collapse());
+
+            EnergyBound collapsedDfsSolution = this.CalculateEnergyBound(bestUpperBound.Constraints.Collapse());
+            DebugConfiguration.WriteImportantDebugText(
+                    "Collapsed solution energy value is {0:0.0000} ({1:0.0000} + {2:0.0000})",
+                    collapsedDfsSolution.Bound,
+                    collapsedDfsSolution.SegmentationEnergy,
+                    collapsedDfsSolution.ShapeEnergy * this.ShapeEnergyWeight);
+            return this.ImageSegmentator.GetLastSegmentationMask();
         }
 
-        private SortedSet<EnergyBound> BreadthFirstBranchAndBoundTraverse(int maxIterations)
+        private SortedSet<EnergyBound> BreadthFirstBranchAndBoundTraverse(ShapeConstraints constraints, int maxIterations)
         {
-            ShapeConstraints initialConstraints = ShapeConstraints.CreateFromBounds(
-                this.ShapeModel,
-                Vector.Zero,
-                new Vector(this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height),
-                this.minEdgeWidth,
-                this.maxEdgeWidth,
-                this.maxCoordFreedom,
-                this.maxWidthFreedom);
             SortedSet<EnergyBound> front = new SortedSet<EnergyBound>();
-            front.Add(this.CalculateEnergyBound(initialConstraints));
+            front.Add(this.CalculateEnergyBound(constraints));
 
             int currentIteration = 1;
             DateTime lastOutputTime = startTime;
             int processedConstraintSets = 0, upperBoundGuesses = 0;
             EnergyBound bestUpperBoundGuess = null;
-            while (!front.Min.Constraints.CheckIfSatisfied() && currentIteration <= maxIterations && !this.shouldStop && !this.shouldSwitchToDfs)
+            while (!front.Min.Constraints.CheckIfSatisfied(this.maxCoordFreedom, this.maxWidthFreedom) &&
+                   currentIteration <= maxIterations &&
+                   !this.shouldStop &&
+                   !this.shouldSwitchToDfs)
             {
                 this.WaitIfPaused();
 
                 EnergyBound parentLowerBound = front.Min;
                 front.Remove(parentLowerBound);
 
-                List<ShapeConstraints> expandedConstraints = parentLowerBound.Constraints.SplitMostFree();
+                List<ShapeConstraints> expandedConstraints = parentLowerBound.Constraints.SplitMostFree(this.maxCoordFreedom, this.maxWidthFreedom);
                 foreach (ShapeConstraints constraintsSet in expandedConstraints)
                 {
                     EnergyBound lowerBound = this.CalculateEnergyBound(constraintsSet);
@@ -447,14 +503,8 @@ namespace Research.GraphBasedShapePrior
                     ++processedConstraintSets;
                 }
 
-                if (currentIteration % this.BfsFrontSaveRate == 0)
-                {
-                    string directory = string.Format("front_{0:00000}", currentIteration);
-                    SaveEnergyBounds(front, directory);
-                }
-
                 // Some debug output
-                if (currentIteration % this.StatusReportRate == 0)
+                if (currentIteration % this.ProgressReportRate == 0)
                 {
                     DateTime currentTime = DateTime.Now;
                     EnergyBound currentMin = front.Min;
@@ -491,22 +541,7 @@ namespace Research.GraphBasedShapePrior
                 currentIteration += 1;
             }
 
-            // Always report status in the end
-            this.ReportBreadthFirstSearchStatus(front, 0, bestUpperBoundGuess);
-
             return front;
-        }
-
-        private double GetBfsUpperBoundEstimateProbability(ShapeConstraints constraintsSet)
-        {
-            double maxVertexConstraintsFreedom = constraintsSet.VertexConstraints.Max(c => c.Freedom);
-            double maxEdgeConstraintsFreedom = constraintsSet.EdgeConstraints.Max(c => c.Freedom);
-            double prob = 1;
-            prob *= Math.Min(1, this.MaxCoordFreedom / maxVertexConstraintsFreedom);
-            prob *= Math.Min(1, this.MaxWidthFreedom / maxEdgeConstraintsFreedom);
-            prob *= this.maxBfsUpperBoundEstimateProbability;
-            prob = Math.Pow(prob, 1.3);
-            return prob;
         }
 
         private void DepthFirstBranchAndBoundTraverse(
@@ -518,11 +553,11 @@ namespace Research.GraphBasedShapePrior
             ref int branchesTruncated,
             ref int iteration)
         {
-            Debug.Assert(!currentNode.CheckIfSatisfied());
+            Debug.Assert(!currentNode.CheckIfSatisfied(this.maxCoordFreedom, this.maxWidthFreedom));
 
             this.WaitIfPaused();
 
-            if (iteration % this.StatusReportRate == 0)
+            if (iteration % this.ProgressReportRate == 0)
             {
                 // Write some text
                 DebugConfiguration.WriteDebugText(
@@ -548,7 +583,7 @@ namespace Research.GraphBasedShapePrior
                 this.ReportDepthFirstSearchStatus(currentNode, bestUpperBound);
             }
 
-            List<ShapeConstraints> children = currentNode.SplitMostFree();
+            List<ShapeConstraints> children = currentNode.SplitMostFree(this.maxCoordFreedom, this.maxWidthFreedom);
 
             // Traverse only subtrees with good lower bounds
             for (int i = 0; i < children.Count; ++i)
@@ -563,7 +598,7 @@ namespace Research.GraphBasedShapePrior
                     continue;
                 }
 
-                if (children[i].CheckIfSatisfied())
+                if (children[i].CheckIfSatisfied(this.maxCoordFreedom, this.maxWidthFreedom))
                 {
                     // This lower bound is exact and, so, it's upper bound
                     if (lowerBound.Bound < bestUpperBound.Bound)
@@ -585,6 +620,18 @@ namespace Research.GraphBasedShapePrior
                     ref branchesTruncated,
                     ref iteration);
             }
+        }
+
+        private double GetBfsUpperBoundEstimateProbability(ShapeConstraints constraintsSet)
+        {
+            double maxVertexConstraintsFreedom = constraintsSet.VertexConstraints.Max(c => c.Freedom);
+            double maxEdgeConstraintsFreedom = constraintsSet.EdgeConstraints.Max(c => c.Freedom);
+            double prob = 1;
+            prob *= Math.Min(1, this.MaxCoordFreedom / maxVertexConstraintsFreedom);
+            prob *= Math.Min(1, this.MaxWidthFreedom / maxEdgeConstraintsFreedom);
+            prob *= this.maxBfsUpperBoundEstimateProbability;
+            prob = Math.Pow(prob, 1.3);
+            return prob;
         }
 
         private EnergyBound MakeMeanShapeBasedSolutionGuess()
@@ -609,11 +656,6 @@ namespace Research.GraphBasedShapePrior
 
         private void ReportDepthFirstSearchStatus(ShapeConstraints currentNode, EnergyBound upperBound)
         {
-            // Draw current constraints on top of an image
-            Image statusImage = Image2D.ToRegularImage(this.ImageSegmentator.GetSegmentedImage());
-            using (Graphics graphics = Graphics.FromImage(statusImage))
-                currentNode.Draw(graphics);
-
             // In order to report various masks we need to segment images again
             Image currentMask, currentUnaryTermsImage, currentShapeTermsImage;
             this.GetUnaryTermMasks(currentNode, out currentMask, out currentUnaryTermsImage, out currentShapeTermsImage);
@@ -621,10 +663,10 @@ namespace Research.GraphBasedShapePrior
             this.GetUnaryTermMasks(upperBound.Constraints, out upperBoundMask, out upperBoundUnaryTermsImage, out upperBoundShapeTermsImage);
 
             // Raise status report event
-            DepthFirstBranchAndBoundStatusEventArgs args = new DepthFirstBranchAndBoundStatusEventArgs(
-                upperBound.Bound, statusImage, currentMask, currentUnaryTermsImage, currentShapeTermsImage, upperBoundMask);
-            if (this.DepthFirstBranchAndBoundStatus != null)
-                this.DepthFirstBranchAndBoundStatus.Invoke(this, args);
+            DepthFirstBranchAndBoundProgressEventArgs args = new DepthFirstBranchAndBoundProgressEventArgs(
+                upperBound.Bound, currentMask, currentUnaryTermsImage, currentShapeTermsImage, currentNode, upperBoundMask);
+            if (this.DepthFirstBranchAndBoundProgress != null)
+                this.DepthFirstBranchAndBoundProgress.Invoke(this, args);
         }
 
         // TODO: remove code duplication here
@@ -635,46 +677,33 @@ namespace Research.GraphBasedShapePrior
         {
             EnergyBound currentMin = front.Min;
 
-            // Draw current constraints on top of an image
-            Image statusImage = Image2D.ToRegularImage(this.ImageSegmentator.GetSegmentedImage());
-            using (Graphics graphics = Graphics.FromImage(statusImage))
-                currentMin.Constraints.Draw(graphics);
-
             // In order to report various masks we need to segment image again
             Image currentMask, currentUnaryTermsImage, currentShapeTermsImage;
             this.GetUnaryTermMasks(currentMin.Constraints, out currentMask, out currentUnaryTermsImage, out currentShapeTermsImage);
-            Image upperBoundMask, upperBoundUnaryTermsImage, upperBoundShapeTermsImage;
-            this.GetUnaryTermMasks(bestUpperBoundGuess.Constraints, out upperBoundMask, out upperBoundUnaryTermsImage, out upperBoundShapeTermsImage);
-            
+            Image upperBoundMask = null;
+            if (bestUpperBoundGuess != null)
+            {
+                Image upperBoundUnaryTermsImage, upperBoundShapeTermsImage;
+                this.GetUnaryTermMasks(bestUpperBoundGuess.Constraints, out upperBoundMask, out upperBoundUnaryTermsImage, out upperBoundShapeTermsImage);
+            }
+
             // Raise status report event
-            BreadthFirstBranchAndBoundStatusEventArgs args = new BreadthFirstBranchAndBoundStatusEventArgs(
-                front.Min.Bound, front.Count, processingSpeed, statusImage, currentMask, currentUnaryTermsImage, currentShapeTermsImage, upperBoundMask);
-            if (this.BreadthFirstBranchAndBoundStatus != null)
-                this.BreadthFirstBranchAndBoundStatus.Invoke(this, args);
+            BreadthFirstBranchAndBoundProgressEventArgs args = new BreadthFirstBranchAndBoundProgressEventArgs(
+                front.Min.Bound, front.Count, processingSpeed, currentMask, currentUnaryTermsImage, currentShapeTermsImage, currentMin.Constraints, upperBoundMask);
+            if (this.BreadthFirstBranchAndBoundProgress != null)
+                this.BreadthFirstBranchAndBoundProgress.Invoke(this, args);
         }
 
-        private void SaveEnergyBounds(IEnumerable<EnergyBound> bounds, string dir)
+        private void ReportBranchAndBoundCompletion(EnergyBound result)
         {
-            int index = 0;
-            Directory.CreateDirectory(dir);
-            using (StreamWriter writer = new StreamWriter(Path.Combine(dir, "stats.txt")))
-            {
-                Image2D<Color> segmentedImage = this.ImageSegmentator.GetSegmentedImage();
-                foreach (EnergyBound energyBound in bounds)
-                {
-                    Image image = Image2D.ToRegularImage(segmentedImage);
-                    using (Graphics graphics = Graphics.FromImage(image))
-                        energyBound.Constraints.Draw(graphics);
-                    image.Save(Path.Combine(dir, string.Format("{0:00}.png", index)));
+            // In order to report various masks we need to segment image again
+            Image collapsedMask, collapsedUnaryTermsImage, collapsedShapeTermsImage;
+            this.GetUnaryTermMasks(result.Constraints.Collapse(), out collapsedMask, out collapsedUnaryTermsImage, out collapsedShapeTermsImage);
 
-                    writer.WriteLine("{0}\t{1}\t{2}", index, energyBound.Bound, energyBound.Constraints.GetFreedomSum());
-                    index += 1;
-
-                    // Save only first 50 items
-                    if (index >= 50)
-                        break;
-                }
-            }
+            BranchAndBoundCompletedEventArgs args = new BranchAndBoundCompletedEventArgs(
+                collapsedMask, collapsedUnaryTermsImage, collapsedShapeTermsImage, result.Constraints, result.Bound);
+            if (this.BranchAndBoundCompleted != null)
+                this.BranchAndBoundCompleted.Invoke(this, args);
         }
 
         private EnergyBound CalculateEnergyBound(ShapeConstraints constraintsSet)

@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Text;
@@ -16,13 +14,18 @@ namespace Segmentator
         private BranchAndBoundSegmentationAlgorithm segmentator;
 
         private readonly BackgroundWorker segmentationWorker = new BackgroundWorker();
-        
+
         private readonly SegmentationProperties segmentationProperties = new SegmentationProperties();
 
         private bool stopReporting;
 
         private bool switchedToDfs;
 
+        private bool regularSegmentation;
+
+        private ShapeConstraints bestConstraints;
+
+        private Image segmentedImage;
 
         public MainForm()
         {
@@ -36,10 +39,12 @@ namespace Segmentator
             this.segmentationWorker.RunWorkerCompleted += OnSegmentationCompleted;
         }
 
-        private void RunSegmentation(bool regularSegmentation)
+        private void RunSegmentation(bool regular)
         {
             File.Delete("./lower_bound.txt");
-            
+
+            this.regularSegmentation = regular;
+
             this.justSegmentButton.Enabled = false;
             this.startGpuButton.Enabled = false;
             this.startCpuButton.Enabled = false;
@@ -48,7 +53,7 @@ namespace Segmentator
 
             this.consoleContents.Clear();
 
-            this.segmentationWorker.RunWorkerAsync(regularSegmentation);
+            this.segmentationWorker.RunWorkerAsync();
         }
 
         private class ConsoleCapture : TextWriter
@@ -104,12 +109,6 @@ namespace Segmentator
                     return Model.CreateLetter2();
                 case ModelType.Letter3:
                     return Model.CreateLetter3();
-                case ModelType.Letter4Type1:
-                    return Model.CreateLetter4Type1();
-                case ModelType.Letter4Type2:
-                    return Model.CreateLetter4Type2();
-                case ModelType.Letter4Type3:
-                    return Model.CreateLetter4Type3();
                 default:
                     throw new NotSupportedException("Model type is not supported.");
             }
@@ -119,19 +118,17 @@ namespace Segmentator
         {
             Rand.Restart(666);
 
-            bool regularSegmentation = (bool) e.Argument;
-
             // Register handlers
-            segmentator.BreadthFirstBranchAndBoundStatus += OnBfsStatusUpdate;
-            segmentator.DepthFirstBranchAndBoundStatus += OnDfsStatusUpdate;
+            segmentator.BreadthFirstBranchAndBoundProgress += OnBfsStatusUpdate;
+            segmentator.DepthFirstBranchAndBoundProgress += OnDfsStatusUpdate;
             segmentator.BranchAndBoundStarted += OnBranchAndBoundStarted;
+            segmentator.BranchAndBoundCompleted += OnBranchAndBoundCompleted;
             segmentator.SwitchToDfsBranchAndBound += OnSwitchToDfsBranchAndBound;
 
             // Setup params
             segmentator.BranchAndBoundType = BranchAndBoundType.Combined;
             segmentator.MaxBfsIterationsInCombinedMode = this.segmentationProperties.BfsIterations;
-            segmentator.StatusReportRate = this.segmentationProperties.ReportRate;
-            segmentator.BfsFrontSaveRate = this.segmentationProperties.FrontSaveRate;
+            segmentator.ProgressReportRate = this.segmentationProperties.ReportRate;
             segmentator.MaxBfsUpperBoundEstimateProbability = this.segmentationProperties.MaxBfsUpperBoundEstimateProbability;
             segmentator.UnaryTermWeight = this.segmentationProperties.UnaryTermWeight;
             segmentator.ShapeUnaryTermWeight = regularSegmentation ? 0 : this.segmentationProperties.ShapeTermWeight;
@@ -140,16 +137,26 @@ namespace Segmentator
             segmentator.ConstantBinaryTermWeight = this.segmentationProperties.ConstantBinaryTermWeight;
             segmentator.MinEdgeWidth = this.segmentationProperties.MinEdgeWidth;
             segmentator.MaxEdgeWidth = this.segmentationProperties.MaxEdgeWidth;
-            segmentator.MaxCoordFreedom = this.segmentationProperties.MaxCoordFreedom;
-            segmentator.MaxWidthFreedom = this.segmentationProperties.MaxWidthFreedom;
+
+
+            if (this.segmentationProperties.UseTwoStepApproach)
+            {
+                segmentator.MaxCoordFreedom = this.segmentationProperties.MaxCoordFreedomPre;
+                segmentator.MaxWidthFreedom = this.segmentationProperties.MaxWidthFreedomPre;
+            }
+            else
+            {
+                segmentator.MaxCoordFreedom = this.segmentationProperties.MaxCoordFreedom;
+                segmentator.MaxWidthFreedom = this.segmentationProperties.MaxWidthFreedom;
+            }
 
             // Customize lower bound calculators
             ShapeEnergyLowerBoundCalculator shapeEnergyCalculator = new ShapeEnergyLowerBoundCalculator(201, 201);
             segmentator.ShapeEnergyLowerBoundCalculator = shapeEnergyCalculator;
 
             // Load what has to be segmented
-            Model model = CreateModel(this.segmentationProperties.ModelType);            
-            
+            Model model = CreateModel(this.segmentationProperties.ModelType);
+
             // Setup shape model
             this.segmentator.ShapeModel = model.ShapeModel;
             this.segmentator.ShapeModel.BackgroundDistanceCoeff = this.segmentationProperties.BackgroundDistanceCoeff;
@@ -159,13 +166,25 @@ namespace Segmentator
             segmentator.LearnColorModels(
                 model.ImageToLearnColors, model.ObjectRectangle, segmentationProperties.MixtureComponents, out objectColorModel, out backgroundColorModel);
             Image2D<Color> shrinkedImage = model.ImageToSegment.Shrink(model.ObjectRectangle);
+            this.segmentedImage = Image2D.ToRegularImage(shrinkedImage);
 
             // Show original image in status window)
-            this.currentImage.Image = Image2D.ToRegularImage(model.ImageToSegment.Shrink(model.ObjectRectangle));
+            this.currentImage.Image = (Image)this.segmentedImage.Clone();
 
             // Run segmentation
             Image2D<bool> mask = segmentator.SegmentImage(shrinkedImage, objectColorModel, backgroundColorModel);
-            
+
+            // Re-run segmentation with reduced constraints in two-step mode
+            if (!this.regularSegmentation && mask != null && this.segmentationProperties.UseTwoStepApproach)
+            {
+                segmentator.MaxCoordFreedom = this.segmentationProperties.MaxCoordFreedom;
+                segmentator.MaxWidthFreedom = this.segmentationProperties.MaxWidthFreedom;
+                segmentator.StartConstraints = this.bestConstraints;
+
+                Console.WriteLine("Performing second pass...");
+                mask = segmentator.SegmentImage(shrinkedImage, objectColorModel, backgroundColorModel);
+            }
+
             // Save mask as worker result
             e.Result = mask;
         }
@@ -189,19 +208,39 @@ namespace Segmentator
                 });
         }
 
-        void OnBfsStatusUpdate(object sender, BreadthFirstBranchAndBoundStatusEventArgs e)
+        private void OnBranchAndBoundCompleted(object sender, BranchAndBoundCompletedEventArgs e)
+        {
+            this.bestConstraints = e.ResultConstraints;
+
+            this.Invoke(new MethodInvoker(
+                delegate
+                {
+                    this.DisposeStatusImages();
+
+                    Image statusImage = (Image)this.segmentedImage.Clone();
+                    using (Graphics g = Graphics.FromImage(statusImage))
+                        e.ResultConstraints.Draw(g);
+
+                    this.currentImage.Image = statusImage;
+                    this.segmentationMaskImage.Image = e.CollapsedSolutionSegmentationMask;
+                    this.unaryTermsImage.Image = e.CollapsedSolutionUnaryTermsImage;
+                    this.shapeTermsImage.Image = e.CollapsedSolutionShapeTermsImage;
+                }));
+        }
+
+        void OnBfsStatusUpdate(object sender, BreadthFirstBranchAndBoundProgressEventArgs e)
         {
             File.AppendAllText("./lower_bound.txt", e.LowerBound + Environment.NewLine);
-            
+
             this.UpdateBranchAndBoundStatusImages(e);
         }
 
-        void OnDfsStatusUpdate(object sender, DepthFirstBranchAndBoundStatusEventArgs e)
+        void OnDfsStatusUpdate(object sender, DepthFirstBranchAndBoundProgressEventArgs e)
         {
             this.UpdateBranchAndBoundStatusImages(e);
         }
 
-        private void UpdateBranchAndBoundStatusImages(BranchAndBoundStatusEventArgs e)
+        private void UpdateBranchAndBoundStatusImages(BranchAndBoundProgressEventArgs e)
         {
             if (this.stopReporting)
                 return;
@@ -209,34 +248,64 @@ namespace Segmentator
             this.Invoke(new MethodInvoker(
                 delegate
                 {
-                    if (this.currentImage.Image != null)
-                        this.currentImage.Image.Dispose();
-                    this.currentImage.Image = e.StatusImage;
+                    this.DisposeStatusImages();
 
-                    if (this.segmentationMaskImage.Image != null)
-                        this.segmentationMaskImage.Image.Dispose();
+                    Image statusImage = (Image)this.segmentedImage.Clone();
+                    using (Graphics g = Graphics.FromImage(statusImage))
+                        e.Constraints.Draw(g);
+
+                    this.currentImage.Image = statusImage;
                     this.segmentationMaskImage.Image = e.SegmentationMask;
-
-                    if (this.unaryTermsImage.Image != null)
-                        this.unaryTermsImage.Image.Dispose();
                     this.unaryTermsImage.Image = e.UnaryTermsImage;
-
-                    if (this.shapeTermsImage.Image != null)
-                        this.shapeTermsImage.Image.Dispose();
                     this.shapeTermsImage.Image = e.ShapeTermsImage;
-
-                    if (this.bestSegmentationMaskImage.Image != null)
-                        this.bestSegmentationMaskImage.Image.Dispose();
                     this.bestSegmentationMaskImage.Image = e.BestMaskEstimate;
                 }));
         }
 
+        private void DisposeStatusImages()
+        {
+            if (this.currentImage.Image != null)
+            {
+                this.currentImage.Image.Dispose();
+                this.currentImage.Image = null;
+            }
+
+            if (this.segmentationMaskImage.Image != null)
+            {
+                this.segmentationMaskImage.Image.Dispose();
+                this.segmentationMaskImage.Image = null;
+            }
+
+            if (this.unaryTermsImage.Image != null)
+            {
+                this.unaryTermsImage.Image.Dispose();
+                this.unaryTermsImage.Image = null;
+            }
+
+            if (this.shapeTermsImage.Image != null)
+            {
+                this.shapeTermsImage.Image.Dispose();
+                this.shapeTermsImage.Image = null;
+            }
+
+            if (this.bestSegmentationMaskImage.Image != null)
+            {
+                this.bestSegmentationMaskImage.Image.Dispose();
+                this.bestSegmentationMaskImage.Image.Dispose();
+            }
+        }
+
         private void OnSegmentationCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            Image2D<bool> mask = (Image2D<bool>)e.Result;
-            if (mask != null)
+            if (this.regularSegmentation)
+            {
+                // No BranchAndBoundFinished event in this case
+                this.DisposeStatusImages();
+                this.currentImage.Image = this.segmentedImage;
+                Image2D<bool> mask = (Image2D<bool>) e.Result;
                 this.segmentationMaskImage.Image = Image2D.ToRegularImage(mask);
-
+            }
+            
             this.justSegmentButton.Enabled = true;
             this.startGpuButton.Enabled = true;
             this.startCpuButton.Enabled = true;

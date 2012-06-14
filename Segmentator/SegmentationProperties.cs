@@ -13,9 +13,6 @@ namespace Segmentator
         Letter1,
         Letter2,
         Letter3,
-        Letter4Type1,
-        Letter4Type2,
-        Letter4Type3,
     }
     
     class SegmentationProperties
@@ -45,19 +42,25 @@ namespace Segmentator
         public double BackgroundDistanceCoeff { get; set; }
 
         [Category("Algorithm")]
+        public bool UseTwoStepApproach { get; set; }
+
+        [Category("Algorithm")]
         public int BfsIterations { get; set; }
 
         [Category("Algorithm")]
         public int ReportRate { get; set; }
 
         [Category("Algorithm")]
-        public int FrontSaveRate { get; set; }
-
-        [Category("Algorithm")]
         public double MaxBfsUpperBoundEstimateProbability { get; set; }
 
         [Category("Algorithm")]
+        public double MaxCoordFreedomPre { get; set; }
+
+        [Category("Algorithm")]
         public double MaxCoordFreedom { get; set; }
+
+        [Category("Algorithm")]
+        public double MaxWidthFreedomPre { get; set; }
 
         [Category("Algorithm")]
         public double MaxWidthFreedom { get; set; }
@@ -70,7 +73,7 @@ namespace Segmentator
 
         public SegmentationProperties()
         {
-            this.ShapeTermWeight = 0.3;
+            this.ShapeTermWeight = 0.5;
             this.UnaryTermWeight = 0.5;
             this.ConstantBinaryTermWeight = 0;
             this.BrightnessBinaryTermCutoff = 0.01;
@@ -80,12 +83,14 @@ namespace Segmentator
             this.MaxEdgeWidth = 20;
             this.BackgroundDistanceCoeff = 1;
 
+            this.UseTwoStepApproach = false;
             this.BfsIterations = 1000000;
             this.MaxBfsUpperBoundEstimateProbability = 1;
             this.ReportRate = 50;
-            this.FrontSaveRate = 100000;
             this.MaxCoordFreedom = 3;
+            this.MaxCoordFreedomPre = 20;
             this.MaxWidthFreedom = 3;
+            this.MaxWidthFreedomPre = 20;
 
             this.ModelType = ModelType.OneEdge;
             this.MixtureComponents = 3;

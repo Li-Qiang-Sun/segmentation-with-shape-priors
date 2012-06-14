@@ -23,7 +23,7 @@ namespace Research.GraphBasedShapePrior.Tests
 
             // Calculate energy via generalized distance transforms
             ShapeConstraints constraints = ShapeConstraints.CreateFromConstraints(
-                model, TestHelper.VerticesToConstraints(vertices), TestHelper.EdgeWidthsToConstraints(edgeWidths), 1, 1);
+                model, TestHelper.VerticesToConstraints(vertices), TestHelper.EdgeWidthsToConstraints(edgeWidths));
             ShapeEnergyLowerBoundCalculator calculator = new ShapeEnergyLowerBoundCalculator(lengthGridSize, angleGridSize);
             double energy2 = calculator.CalculateLowerBound(imageSize, constraints);
 

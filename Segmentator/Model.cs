@@ -49,55 +49,21 @@ namespace Segmentator
 
         public static Model CreateLetter2()
         {
-            const double scale = 0.4;
+            const double scale = 0.3;
             Model model = new Model();
-            model.ObjectRectangle = ScaleRectangle(new Rectangle(126, 35, 148, 188), scale);
+            model.ObjectRectangle = ScaleRectangle(new Rectangle(21, 47, 325, 265), scale);
             model.ShapeModel = CreateLetterShapeModel();
-            model.ImageToSegment = model.ImageToLearnColors = Image2D.LoadFromFile("./images/letter_2.jpg", scale);
+            model.ImageToSegment = model.ImageToLearnColors = Image2D.LoadFromFile("./images/letter_2.png", scale);
             return model;
         }
 
         public static Model CreateLetter3()
         {
-            const double scale = 1;
+            const double scale = 0.3;
             Model model = new Model();
-            model.ObjectRectangle = ScaleRectangle(new Rectangle(9, 32, 114, 76), scale);
+            model.ObjectRectangle = ScaleRectangle(new Rectangle(30, 71, 289, 176), scale);
             model.ShapeModel = CreateLetterShapeModel();
-            model.ImageToSegment = Image2D.LoadFromFile("./images/letter_3.png", scale);
-            model.ImageToLearnColors = Image2D.LoadFromFile("./images/letter_3_original.png", scale);
-            return model;
-        }
-
-        public static Model CreateLetter4Type1()
-        {
-            const double scale = 1;
-            Model model = new Model();
-            model.ObjectRectangle = ScaleRectangle(new Rectangle(20, 6, 59, 84), scale);
-            model.ShapeModel = CreateLetterShapeModel();
-            model.ImageToSegment = Image2D.LoadFromFile("./images/letter_4_1.png", scale);
-            model.ImageToLearnColors = Image2D.LoadFromFile("./images/letter_4_original.png", scale);
-            return model;
-        }
-
-        public static Model CreateLetter4Type2()
-        {
-            const double scale = 1;
-            Model model = new Model();
-            model.ObjectRectangle = ScaleRectangle(new Rectangle(20, 6, 59, 84), scale);
-            model.ShapeModel = CreateLetterShapeModel();
-            model.ImageToSegment = Image2D.LoadFromFile("./images/letter_4_2.png", scale);
-            model.ImageToLearnColors = Image2D.LoadFromFile("./images/letter_4_original.png", scale);
-            return model;
-        }
-
-        public static Model CreateLetter4Type3()
-        {
-            const double scale = 1;
-            Model model = new Model();
-            model.ObjectRectangle = ScaleRectangle(new Rectangle(20, 6, 59, 84), scale);
-            model.ShapeModel = CreateLetterShapeModel();
-            model.ImageToSegment = Image2D.LoadFromFile("./images/letter_4_3.png", scale);
-            model.ImageToLearnColors = Image2D.LoadFromFile("./images/letter_4_original.png", scale);
+            model.ImageToSegment = model.ImageToLearnColors = Image2D.LoadFromFile("./images/letter_3.png", scale);
             return model;
         }
 
@@ -151,17 +117,17 @@ namespace Segmentator
             edges.Add(new ShapeEdge(4, 5));
 
             List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
-            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
-            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
-            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
-            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
-            edgeParams.Add(new ShapeEdgeParams(0.2, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.2, 0.1));
+            edgeParams.Add(new ShapeEdgeParams(0.2, 0.1));
+            edgeParams.Add(new ShapeEdgeParams(0.2, 0.1));
+            edgeParams.Add(new ShapeEdgeParams(0.2, 0.1));
+            edgeParams.Add(new ShapeEdgeParams(0.2, 0.1));
 
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams = new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
-            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(-Math.PI * 0.5, 1.3, Math.PI * 0.01, 1)); // TODO: we need edge length deviations to be relative
-            edgePairParams.Add(new Tuple<int, int>(1, 2), new ShapeEdgePairParams(Math.PI * 0.5, 1, Math.PI * 0.01, 1));
-            edgePairParams.Add(new Tuple<int, int>(2, 3), new ShapeEdgePairParams(-Math.PI * 0.5, 1, Math.PI * 0.01, 1));
-            edgePairParams.Add(new Tuple<int, int>(3, 4), new ShapeEdgePairParams(Math.PI * 0.5, 0.77, Math.PI * 0.01, 1));
+            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(-Math.PI * 0.5, 1.3, Math.PI * 0.02, 3)); // TODO: we need edge length deviations to be relative
+            edgePairParams.Add(new Tuple<int, int>(1, 2), new ShapeEdgePairParams(Math.PI * 0.5, 1, Math.PI * 0.02, 3));
+            edgePairParams.Add(new Tuple<int, int>(2, 3), new ShapeEdgePairParams(-Math.PI * 0.5, 1, Math.PI * 0.02, 3));
+            edgePairParams.Add(new Tuple<int, int>(3, 4), new ShapeEdgePairParams(Math.PI * 0.5, 0.77, Math.PI * 0.02, 3));
 
             return ShapeModel.Create(edges, edgeParams, edgePairParams);
         }

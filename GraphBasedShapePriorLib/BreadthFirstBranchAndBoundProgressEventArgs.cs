@@ -2,7 +2,7 @@
 
 namespace Research.GraphBasedShapePrior
 {
-    public class BreadthFirstBranchAndBoundStatusEventArgs : BranchAndBoundStatusEventArgs
+    public class BreadthFirstBranchAndBoundProgressEventArgs : BranchAndBoundProgressEventArgs
     {
         public double LowerBound { get; private set; }
         
@@ -10,16 +10,16 @@ namespace Research.GraphBasedShapePrior
 
         public double FrontItemsPerSecond { get; private set; }
 
-        public BreadthFirstBranchAndBoundStatusEventArgs(
+        public BreadthFirstBranchAndBoundProgressEventArgs(
             double lowerBound,
             int frontSize,
             double frontItemsPerSecond,
-            Image statusImage,
             Image segmentationMask,
             Image unaryTermsImage,
             Image shapeTermsImage,
+            ShapeConstraints constraints,
             Image bestMaskEstimate)
-            : base(statusImage, segmentationMask, unaryTermsImage, shapeTermsImage, bestMaskEstimate)
+            : base(segmentationMask, unaryTermsImage, shapeTermsImage, constraints, bestMaskEstimate)
         {
             this.LowerBound = lowerBound;
             this.FrontSize = frontSize;

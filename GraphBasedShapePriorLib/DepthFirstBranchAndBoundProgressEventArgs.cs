@@ -2,18 +2,18 @@
 
 namespace Research.GraphBasedShapePrior
 {
-    public class DepthFirstBranchAndBoundStatusEventArgs : BranchAndBoundStatusEventArgs
+    public class DepthFirstBranchAndBoundProgressEventArgs : BranchAndBoundProgressEventArgs
     {
         public double UpperBound { get; private set; }
 
-        public DepthFirstBranchAndBoundStatusEventArgs(
+        public DepthFirstBranchAndBoundProgressEventArgs(
             double upperBound,
-            Image statusImage,
             Image segmentationMask,
             Image unaryTermsImage,
             Image shapeTermsImage,
+            ShapeConstraints constraints,
             Image bestMaskEstimate)
-            : base(statusImage, segmentationMask, unaryTermsImage, shapeTermsImage, bestMaskEstimate)
+            : base(segmentationMask, unaryTermsImage, shapeTermsImage, constraints, bestMaskEstimate)
         {
             this.UpperBound = upperBound;
         }
