@@ -26,10 +26,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GpuBranchAndBoundSegmentato
 		{1D706F13-ADB3-46A7-AFD2-E2E1AEAE0911} = {1D706F13-ADB3-46A7-AFD2-E2E1AEAE0911}
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tools", "Tools", "{CBACB957-90A1-4050-A090-4D21EA4CC1BD}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SegmentPenaltyPrototype", "Tools\SegmentPenaltyPrototype\SegmentPenaltyPrototype.csproj", "{555897BA-4C2E-4BCB-A578-45449849AD9C}"
-EndProject
 Global
 	GlobalSection(TestCaseManagementSettings) = postSolution
 		CategoryFile = GraphBasedShapePrior.vsmdi
@@ -76,17 +72,8 @@ Global
 		{7C414CC8-8F93-4A9B-9111-079BBB5DB90A}.Release|x86.Build.0 = Release|Win32
 		{7C414CC8-8F93-4A9B-9111-079BBB5DB90A}.ReleaseGPU|x86.ActiveCfg = ReleaseGPU|Win32
 		{7C414CC8-8F93-4A9B-9111-079BBB5DB90A}.ReleaseGPU|x86.Build.0 = ReleaseGPU|Win32
-		{555897BA-4C2E-4BCB-A578-45449849AD9C}.Debug|x86.ActiveCfg = Debug|x86
-		{555897BA-4C2E-4BCB-A578-45449849AD9C}.Debug|x86.Build.0 = Debug|x86
-		{555897BA-4C2E-4BCB-A578-45449849AD9C}.Release|x86.ActiveCfg = Release|x86
-		{555897BA-4C2E-4BCB-A578-45449849AD9C}.Release|x86.Build.0 = Release|x86
-		{555897BA-4C2E-4BCB-A578-45449849AD9C}.ReleaseGPU|x86.ActiveCfg = Release|x86
-		{555897BA-4C2E-4BCB-A578-45449849AD9C}.ReleaseGPU|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{555897BA-4C2E-4BCB-A578-45449849AD9C} = {CBACB957-90A1-4050-A090-4D21EA4CC1BD}
 	EndGlobalSection
 EndGlobal
