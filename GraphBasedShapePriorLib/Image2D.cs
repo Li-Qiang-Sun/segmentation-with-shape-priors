@@ -16,6 +16,11 @@ namespace Research.GraphBasedShapePrior
             return ToRegularImage(image, x => x ? Color.White : Color.Black);
         }
 
+        public static Image ToRegularImage(Image2D<bool?> image)
+        {
+            return ToRegularImage(image, x => x.HasValue ? (x.Value ? Color.Red : Color.Blue) : Color.Black);
+        }
+
         public static Image ToRegularImage(Image2D<double> image, double min, double max)
         {
             Debug.Assert(max >= min);
@@ -62,6 +67,11 @@ namespace Research.GraphBasedShapePrior
         }
 
         public static void SaveToFile(Image2D<bool> image, string fileName)
+        {
+            ToRegularImage(image).Save(fileName);
+        }
+
+        public static void SaveToFile(Image2D<bool?> image, string fileName)
         {
             ToRegularImage(image).Save(fileName);
         }

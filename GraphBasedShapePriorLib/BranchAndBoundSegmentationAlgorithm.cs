@@ -247,8 +247,8 @@ namespace Research.GraphBasedShapePrior
                 throw new InvalidOperationException("Min edge width should be less than max edge width.");
             if (this.startConstraints != null)
             {
-                if (this.startConstraints.ShapeModel != this.ShapeModel)
-                    throw new InvalidOperationException("Given start constraints belong to another shape model.");
+                if (this.startConstraints.ShapeStructure != this.ShapeModel.Structure)
+                    throw new InvalidOperationException("Given start constraints have shape structure different from the one specified in shape model.");
                 // TODO: make this check work
                 //foreach (VertexConstraints vertexConstraints in this.startConstraints.VertexConstraints)
                 //{
@@ -271,7 +271,7 @@ namespace Research.GraphBasedShapePrior
             if (constraints == null)
             {
                 constraints = ShapeConstraints.CreateFromBounds(
-                    this.ShapeModel,
+                    this.ShapeModel.Structure,
                     Vector.Zero,
                     new Vector(this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height),
                     this.minEdgeWidth,
@@ -636,7 +636,7 @@ namespace Research.GraphBasedShapePrior
 
         private EnergyBound MakeMeanShapeBasedSolutionGuess()
         {
-            Shape shape = this.ShapeModel.FitMeanShape(this.ImageSegmentator.ImageSize);
+            Shape shape = this.ShapeModel.FitMeanShape(this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height);
             ShapeConstraints constraintsSet = ShapeConstraints.CreateFromShape(shape);
             return this.CalculateEnergyBound(constraintsSet);
         }
@@ -708,16 +708,16 @@ namespace Research.GraphBasedShapePrior
 
         private EnergyBound CalculateEnergyBound(ShapeConstraints constraintsSet)
         {
-            this.shapeTermsCalculator.CalculateShapeTerms(constraintsSet, this.shapeUnaryTerms);
-            double segmentationEnergy = this.ImageSegmentator.SegmentImageWithShapeTerms(point => this.shapeUnaryTerms[point.X, point.Y]);
-            double shapeEnergy = this.shapeEnergyLowerBoundCalculator.CalculateLowerBound(this.ImageSegmentator.ImageSize, constraintsSet);
+            this.shapeTermsCalculator.CalculateShapeTerms(this.ShapeModel, constraintsSet, this.shapeUnaryTerms);
+            double segmentationEnergy = this.ImageSegmentator.SegmentImageWithShapeTerms((x, y) => this.shapeUnaryTerms[x, y]);
+            double shapeEnergy = this.shapeEnergyLowerBoundCalculator.CalculateLowerBound(this.ImageSegmentator.ImageSize, this.ShapeModel, constraintsSet);
             return new EnergyBound(constraintsSet, shapeEnergy, segmentationEnergy, this.ShapeEnergyWeight);
         }
 
         private Image2D<bool> SegmentImageWithConstraints(ShapeConstraints constraintsSet)
         {
-            this.shapeTermsCalculator.CalculateShapeTerms(constraintsSet, this.shapeUnaryTerms);
-            this.ImageSegmentator.SegmentImageWithShapeTerms(point => this.shapeUnaryTerms[point.X, point.Y]);
+            this.shapeTermsCalculator.CalculateShapeTerms(this.ShapeModel, constraintsSet, this.shapeUnaryTerms);
+            this.ImageSegmentator.SegmentImageWithShapeTerms((x, y) => this.shapeUnaryTerms[x, y]);
             return this.ImageSegmentator.GetLastSegmentationMask();
         }
 

@@ -10,18 +10,18 @@ namespace Research.GraphBasedShapePrior.Tests
     {
         private static void TestShapeTermsImpl(string testName, ShapeModel shapeModel, IEnumerable<VertexConstraints> vertexConstraints, IEnumerable<EdgeConstraints> edgeConstraints, Size imageSize)
         {
-            ShapeConstraints constraintSet = ShapeConstraints.CreateFromConstraints(shapeModel, vertexConstraints, edgeConstraints);
+            ShapeConstraints constraintSet = ShapeConstraints.CreateFromConstraints(shapeModel.Structure, vertexConstraints, edgeConstraints);
 
             // Get CPU results
             Image2D<ObjectBackgroundTerm> shapeTermsCpu = new Image2D<ObjectBackgroundTerm>(imageSize.Width, imageSize.Height);
             CpuShapeTermsLowerBoundCalculator calculatorCpu = new CpuShapeTermsLowerBoundCalculator();
-            calculatorCpu.CalculateShapeTerms(constraintSet, shapeTermsCpu);
+            calculatorCpu.CalculateShapeTerms(shapeModel, constraintSet, shapeTermsCpu);
             Image2D.SaveToFile(shapeTermsCpu, -1000, 1000, String.Format("./{0}_cpu.png", testName));
 
             // Get GPU results
             Image2D<ObjectBackgroundTerm> shapeTermsGpu = new Image2D<ObjectBackgroundTerm>(imageSize.Width, imageSize.Height);
             GpuShapeTermsLowerBoundCalculator calculatorGpu = new GpuShapeTermsLowerBoundCalculator();
-            calculatorGpu.CalculateShapeTerms(constraintSet, shapeTermsGpu);
+            calculatorGpu.CalculateShapeTerms(shapeModel, constraintSet, shapeTermsGpu);
             Image2D.SaveToFile(shapeTermsGpu, -1000, 1000, String.Format("./{0}_gpu.png", testName));
 
             // Compare with CPU results

@@ -1,0 +1,63 @@
+﻿<Window x:Class="Research.GraphBasedShapePrior.ShapeModelLearning.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ShapeModelLearning="clr-namespace:Research.GraphBasedShapePrior.ShapeModelLearning" xmlns:WpfPropertyGrid="clr-namespace:System.Windows.Controls.WpfPropertyGrid;assembly=System.Windows.Controls.WpfPropertyGrid" Title="Shape model playground" Height="640" Width="1151">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="120*" />
+            <ColumnDefinition Width="50*" />
+            <ColumnDefinition Width="50*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="321*" />
+            <RowDefinition Height="171*" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="55" />
+        </Grid.RowDefinitions>
+        <TabControl Name="editorTabControl" Grid.RowSpan="3">
+            <TabItem Header="Shape editor">
+                <ShapeModelLearning:ShapeEditor x:Name="shapeEditor" Width="Auto" Height="Auto" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+            </TabItem>
+            <TabItem Header="Segmentation">
+                <Image Stretch="None" Width="Auto" Height="Auto" HorizontalAlignment="Left" VerticalAlignment="Top" Name="objectMaskImage"/>
+            </TabItem>
+            <TabItem Header="Object/background masks">
+                <ShapeModelLearning:MaskEditor x:Name="colorMaskEditor" Width="Auto" Height="Auto" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+            </TabItem>
+        </TabControl>
+        <StackPanel Grid.Row="3" Width="Auto" Height="Auto" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Orientation="Horizontal" Margin="5" Grid.ColumnSpan="2">
+            <Button Width="80" Name="loadShapeModelButton" Click="OnLoadShapeModelButtonClick">
+                <TextBlock>Load shape<LineBreak/>model...</TextBlock>
+            </Button>
+            <Button Width="80" Name="saveShapeModelButton" Click="OnSaveShapeModelButtonClick" IsEnabled="False">
+                <TextBlock>Save shape<LineBreak/>model...</TextBlock>
+            </Button>
+            <Button Width="80" Name="learnShapeModelButton" Click="OnLearnShapeModelButtonClick" IsEnabled="False" Margin="0,0,10,0">
+                <TextBlock>Learn shape<LineBreak/>model</TextBlock>
+            </Button>
+            <Button Width="80" Name="loadColorModelButton" Click="OnLoadColorModelButtonClick">
+                <TextBlock>Load color<LineBreak/>model...</TextBlock>
+            </Button>
+            <Button Width="80" Name="saveColorModelButton" Click="OnSaveColorModelButtonClick" IsEnabled="False">
+                <TextBlock>Save color<LineBreak/>model...</TextBlock>
+            </Button>
+            <Button Width="80" Name="learnColorModelButton" Click="OnLearnColorModelButtonClick" IsEnabled="False" Margin="0,0,10,0">
+                <TextBlock>Learn color<LineBreak/>model</TextBlock>
+            </Button>
+            <Button Width="80" Name="segmentImageButton" Click="OnSegmentImageButtonClick" IsEnabled="False">Segment!</Button>
+            <Button IsEnabled="False" Name="segmentImageWithoutShapeButton" Width="80" Click="OnSegmentImageWithoutShapeButtonClick">
+                <TextBlock>Segment w/o<LineBreak/>shape model</TextBlock>
+            </Button>
+        </StackPanel>
+        <ListBox Name="backgroundImagesListBox" SelectionMode="Single" Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="Auto" Height="Auto" Margin="5,5,5,0" SelectionChanged="OnBackgroundImagesListBoxSelectionChanged" Grid.Row="1" />
+        <TextBox Name="logTextBox" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="Auto" Height="Auto" Margin="5" IsReadOnly="False" IsReadOnlyCaretVisible="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Grid.Column="1" />
+        <StackPanel Grid.Row="2" Grid.Column="1" Width="Auto" Height="Auto" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Orientation="Horizontal" Margin="5,5,5,5">
+            <Button Width="90" Name="addImageButton" Click="OnAddImageButtonClick">Add image...</Button>
+            <Button Width="90" Name="removeImageButton" Click="OnRemoveImageButtonClick">Remove image</Button>
+        </StackPanel>
+        <WpfPropertyGrid:PropertyGrid Grid.RowSpan="3" Grid.Column="2" Name="propertyGrid"/>
+        <Label Content="Shape model is not specified" Grid.Column="2" Grid.Row="3" Height="28" HorizontalAlignment="Left" Margin="0,0,0,0" Name="shapeModelNotSpecifiedLabel" VerticalAlignment="Top" FontWeight="Bold" Foreground="Red" />
+        <Label Content="Shape model is specified" Grid.Column="2" Grid.Row="3" Height="28" HorizontalAlignment="Left" Margin="0,0,0,0" Name="shapeModelSpecifiedLabel" VerticalAlignment="Top" Visibility="Hidden" FontWeight="Bold" Foreground="Lime" />
+        <Label Content="Color model is not specified" Grid.Column="2" Grid.Row="3" Height="28" HorizontalAlignment="Left" Margin="0,20,0,0" Name="colorModelNotSpecifiedLabel" VerticalAlignment="Top" FontWeight="Bold" Foreground="Red" />
+        <Label Content="Color model is specified" Grid.Column="2" Grid.Row="3" Height="28" HorizontalAlignment="Left" Margin="0,20,0,0" Name="colorModelSpecifiedLabel" VerticalAlignment="Top" Visibility="Hidden" FontWeight="Bold" Foreground="Lime" />
+    </Grid>
+</Window>

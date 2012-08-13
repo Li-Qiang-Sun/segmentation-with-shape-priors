@@ -1,26 +1,28 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Runtime.Serialization;
 
 namespace Research.GraphBasedShapePrior
 {
+    [DataContract]
     public class ShapeEdgePairParams
     {
-        public ShapeEdgePairParams(double meanAngle, double lengthRatio, double angleDeviation, double lengthDeviation)
+        public ShapeEdgePairParams(double meanAngle, double meanLengthRatio, double angleDeviation, double lengthDiffDeviation)
         {
             Debug.Assert(meanAngle >= -Math.PI && meanAngle <= Math.PI);
-            Debug.Assert(lengthRatio >= 0);
+            Debug.Assert(meanLengthRatio >= 0);
             Debug.Assert(angleDeviation >= 0);
-            Debug.Assert(lengthDeviation >= 0);
+            Debug.Assert(lengthDiffDeviation >= 0);
 
             this.MeanAngle = meanAngle;
-            this.LengthRatio = lengthRatio;
+            this.MeanLengthRatio = meanLengthRatio;
             this.AngleDeviation = angleDeviation;
-            this.LengthDeviation = lengthDeviation;
+            this.LengthDiffDeviation = lengthDiffDeviation;
         }
 
         public ShapeEdgePairParams Swap()
         {
-            return new ShapeEdgePairParams(-this.MeanAngle, 1.0 / this.LengthRatio, this.AngleDeviation, this.LengthDeviation);
+            return new ShapeEdgePairParams(-this.MeanAngle, 1.0 / this.MeanLengthRatio, this.AngleDeviation, this.LengthDiffDeviation);
         }
 
         /// <summary>
@@ -29,21 +31,25 @@ namespace Research.GraphBasedShapePrior
         /// <remarks>
         /// For angle calculations we consider edge as v2-v1 vector.
         /// </remarks>
+        [DataMember]
         public double MeanAngle { get; private set; }
 
         /// <summary>
-        /// Gets first edge to second edge length ratio (mean).
+        /// Gets first edge to second edge mean length ratio.
         /// </summary>
-        public double LengthRatio { get; private set; }
+        [DataMember]
+        public double MeanLengthRatio { get; private set; }
 
         /// <summary>
         /// Gets angle constraint softness.
         /// </summary>
+        [DataMember]
         public double AngleDeviation { get; private set; }
 
         /// <summary>
         /// Gets length constraint softness.
         /// </summary>
-        public double LengthDeviation { get; private set; }
+        [DataMember]
+        public double LengthDiffDeviation { get; private set; }
     }
 }

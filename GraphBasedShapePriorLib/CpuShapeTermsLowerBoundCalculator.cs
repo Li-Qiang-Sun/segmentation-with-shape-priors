@@ -18,23 +18,27 @@ namespace Research.GraphBasedShapePrior
 
         private LruCache<EdgeDescription, Image2D<ObjectBackgroundTerm>> cachedEdgeTerms;
 
-        public void CalculateShapeTerms(ShapeConstraints constraintsSet, Image2D<ObjectBackgroundTerm> result)
+        public void CalculateShapeTerms(ShapeModel model, ShapeConstraints constraintsSet, Image2D<ObjectBackgroundTerm> result)
         {
+            if (model == null)
+                throw new ArgumentNullException("model");
             if (constraintsSet == null)
                 throw new ArgumentNullException("constraintsSet");
             if (result == null)
                 throw new ArgumentNullException("result");
+            if (model.Structure != constraintsSet.ShapeStructure)
+                throw new ArgumentException("Shape model and shape constraints correspond to different shape structures.");
 
-            if (constraintsSet.ShapeModel != this.shapeModel || result.Rectangle.Size != this.imageSize)
-                this.SetTarget(constraintsSet.ShapeModel, result.Rectangle.Size);
+            if (model != this.shapeModel || result.Rectangle.Size != this.imageSize)
+                this.SetTarget(model, result.Rectangle.Size);
 
             for (int x = 0; x < imageSize.Width; ++x)
                 for (int y = 0; y < imageSize.Height; ++y)
                     result[x, y] = new ObjectBackgroundTerm(Double.PositiveInfinity, 0);
 
-            for (int edgeIndex = 0; edgeIndex < constraintsSet.ShapeModel.Edges.Count; ++edgeIndex)
+            for (int edgeIndex = 0; edgeIndex < this.shapeModel.Structure.Edges.Count; ++edgeIndex)
             {
-                ShapeEdge edge = constraintsSet.ShapeModel.Edges[edgeIndex];
+                ShapeEdge edge = this.shapeModel.Structure.Edges[edgeIndex];
                 VertexConstraints vertexConstraints1 = constraintsSet.VertexConstraints[edge.Index1];
                 VertexConstraints vertexConstraints2 = constraintsSet.VertexConstraints[edge.Index2];
                 EdgeConstraints edgeConstraints = constraintsSet.EdgeConstraints[edgeIndex];
@@ -67,9 +71,9 @@ namespace Research.GraphBasedShapePrior
                                     out maxDistanceSqr);
 
                                 edgeTerms[x, y] = new ObjectBackgroundTerm(
-                                    constraintsSet.ShapeModel.CalculateObjectPenaltyForEdge(
+                                    this.shapeModel.CalculateObjectPenaltyForEdge(
                                         minDistanceSqr, edgeConstraints.MaxWidth),
-                                    constraintsSet.ShapeModel.CalculateBackgroundPenaltyForEdge(
+                                    this.shapeModel.CalculateBackgroundPenaltyForEdge(
                                         maxDistanceSqr, edgeConstraints.MinWidth));
                             }
                         });
@@ -85,7 +89,7 @@ namespace Research.GraphBasedShapePrior
 
         private void SetTarget(ShapeModel newShapeModel, Size newImageSize)
         {
-            if (newShapeModel.Edges.Count > CacheCapacity)
+            if (newShapeModel.Structure.Edges.Count > CacheCapacity)
                 throw new InvalidOperationException("Edge count is bigger than cache size. Such shape models are not currently supported.");
 
             this.freeTermImages = new LinkedList<Image2D<ObjectBackgroundTerm>>();

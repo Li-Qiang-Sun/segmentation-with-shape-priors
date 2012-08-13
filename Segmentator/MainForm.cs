@@ -6,6 +6,7 @@ using System.Text;
 using System.Windows.Forms;
 using MicrosoftResearch.Infer.Maths;
 using Research.GraphBasedShapePrior;
+using Vector = Research.GraphBasedShapePrior.Vector;
 
 namespace Segmentator
 {
@@ -49,6 +50,7 @@ namespace Segmentator
             this.startGpuButton.Enabled = false;
             this.startCpuButton.Enabled = false;
             this.segmentationPropertiesGrid.Enabled = false;
+            this.drawMeanShapeButton.Enabled = false;
             this.pauseContinueButton.Enabled = true;
 
             this.consoleContents.Clear();
@@ -109,6 +111,24 @@ namespace Segmentator
                     return Model.CreateLetter2();
                 case ModelType.Letter3:
                     return Model.CreateLetter3();
+                case ModelType.Letter4:
+                    return Model.CreateLetter4();
+                case ModelType.Letter5:
+                    return Model.CreateLetter5();
+                case ModelType.Cow1:
+                    return Model.CreateCow1();
+                case ModelType.Cow2:
+                    return Model.CreateCow2();
+                case ModelType.Cow3:
+                    return Model.CreateCow3();
+                case ModelType.Giraffe1:
+                    return Model.CreateGiraffe1();
+                case ModelType.Giraffe2:
+                    return Model.CreateGiraffe2();
+                case ModelType.Giraffe3:
+                    return Model.CreateGiraffe3();
+                case ModelType.Giraffe4:
+                    return Model.CreateGiraffe4();
                 default:
                     throw new NotSupportedException("Model type is not supported.");
             }
@@ -138,20 +158,22 @@ namespace Segmentator
             segmentator.MinEdgeWidth = this.segmentationProperties.MinEdgeWidth;
             segmentator.MaxEdgeWidth = this.segmentationProperties.MaxEdgeWidth;
 
-
+            ShapeEnergyLowerBoundCalculator shapeEnergyCalculator;
             if (this.segmentationProperties.UseTwoStepApproach)
             {
                 segmentator.MaxCoordFreedom = this.segmentationProperties.MaxCoordFreedomPre;
                 segmentator.MaxWidthFreedom = this.segmentationProperties.MaxWidthFreedomPre;
+                shapeEnergyCalculator = new ShapeEnergyLowerBoundCalculator(
+                    this.segmentationProperties.LengthGridSizePre, this.segmentationProperties.AngleGridSizePre);
             }
             else
             {
                 segmentator.MaxCoordFreedom = this.segmentationProperties.MaxCoordFreedom;
                 segmentator.MaxWidthFreedom = this.segmentationProperties.MaxWidthFreedom;
+                shapeEnergyCalculator = new ShapeEnergyLowerBoundCalculator(
+                    this.segmentationProperties.LengthGridSize, this.segmentationProperties.AngleGridSize);
             }
 
-            // Customize lower bound calculators
-            ShapeEnergyLowerBoundCalculator shapeEnergyCalculator = new ShapeEnergyLowerBoundCalculator(201, 201);
             segmentator.ShapeEnergyLowerBoundCalculator = shapeEnergyCalculator;
 
             // Load what has to be segmented
@@ -162,9 +184,8 @@ namespace Segmentator
             this.segmentator.ShapeModel.BackgroundDistanceCoeff = this.segmentationProperties.BackgroundDistanceCoeff;
 
             // Learn color models
-            GaussianMixtureModel objectColorModel, backgroundColorModel;
-            segmentator.LearnColorModels(
-                model.ImageToLearnColors, model.ObjectRectangle, segmentationProperties.MixtureComponents, out objectColorModel, out backgroundColorModel);
+            ObjectBackgroundColorModels colorModels = segmentator.LearnObjectBackgroundMixtureModels(
+                model.ImageToLearnColors, model.ObjectRectangle, segmentationProperties.MixtureComponents);
             Image2D<Color> shrinkedImage = model.ImageToSegment.Shrink(model.ObjectRectangle);
             this.segmentedImage = Image2D.ToRegularImage(shrinkedImage);
 
@@ -172,7 +193,7 @@ namespace Segmentator
             this.currentImage.Image = (Image)this.segmentedImage.Clone();
 
             // Run segmentation
-            Image2D<bool> mask = segmentator.SegmentImage(shrinkedImage, objectColorModel, backgroundColorModel);
+            Image2D<bool> mask = segmentator.SegmentImage(shrinkedImage, colorModels);
 
             // Re-run segmentation with reduced constraints in two-step mode
             if (!this.regularSegmentation && mask != null && this.segmentationProperties.UseTwoStepApproach)
@@ -180,9 +201,11 @@ namespace Segmentator
                 segmentator.MaxCoordFreedom = this.segmentationProperties.MaxCoordFreedom;
                 segmentator.MaxWidthFreedom = this.segmentationProperties.MaxWidthFreedom;
                 segmentator.StartConstraints = this.bestConstraints;
+                segmentator.ShapeEnergyLowerBoundCalculator = new ShapeEnergyLowerBoundCalculator(
+                    this.segmentationProperties.LengthGridSize, this.segmentationProperties.AngleGridSize);
 
                 Console.WriteLine("Performing second pass...");
-                mask = segmentator.SegmentImage(shrinkedImage, objectColorModel, backgroundColorModel);
+                mask = segmentator.SegmentImage(shrinkedImage, colorModels);
             }
 
             // Save mask as worker result
@@ -217,11 +240,7 @@ namespace Segmentator
                 {
                     this.DisposeStatusImages();
 
-                    Image statusImage = (Image)this.segmentedImage.Clone();
-                    using (Graphics g = Graphics.FromImage(statusImage))
-                        e.ResultConstraints.Draw(g);
-
-                    this.currentImage.Image = statusImage;
+                    this.currentImage.Image = CreateStatusImage(e.ResultConstraints, false, false, false, true);
                     this.segmentationMaskImage.Image = e.CollapsedSolutionSegmentationMask;
                     this.unaryTermsImage.Image = e.CollapsedSolutionUnaryTermsImage;
                     this.shapeTermsImage.Image = e.CollapsedSolutionShapeTermsImage;
@@ -250,11 +269,7 @@ namespace Segmentator
                 {
                     this.DisposeStatusImages();
 
-                    Image statusImage = (Image)this.segmentedImage.Clone();
-                    using (Graphics g = Graphics.FromImage(statusImage))
-                        e.Constraints.Draw(g);
-
-                    this.currentImage.Image = statusImage;
+                    this.currentImage.Image = CreateStatusImage(e.Constraints, true, true, true, false);
                     this.segmentationMaskImage.Image = e.SegmentationMask;
                     this.unaryTermsImage.Image = e.UnaryTermsImage;
                     this.shapeTermsImage.Image = e.ShapeTermsImage;
@@ -302,10 +317,10 @@ namespace Segmentator
                 // No BranchAndBoundFinished event in this case
                 this.DisposeStatusImages();
                 this.currentImage.Image = this.segmentedImage;
-                Image2D<bool> mask = (Image2D<bool>) e.Result;
+                Image2D<bool> mask = (Image2D<bool>)e.Result;
                 this.segmentationMaskImage.Image = Image2D.ToRegularImage(mask);
             }
-            
+
             this.justSegmentButton.Enabled = true;
             this.startGpuButton.Enabled = true;
             this.startCpuButton.Enabled = true;
@@ -313,6 +328,7 @@ namespace Segmentator
             this.stopButton.Enabled = false;
             this.pauseContinueButton.Enabled = false;
             this.segmentationPropertiesGrid.Enabled = true;
+            this.drawMeanShapeButton.Enabled = true;
         }
 
         private void OnStartGpuButtonClick(object sender, EventArgs e)
@@ -371,6 +387,106 @@ namespace Segmentator
                 this.switchToDfsButton.Enabled = false;
                 this.segmentator.Pause();
             }
+        }
+
+        private void OnDrawMeanShapeButtonClick(object sender, EventArgs e)
+        {
+            Model model = CreateModel(this.segmentationProperties.ModelType);
+            Size imageSize = new Size(300, 300);
+            Shape meanShape = model.ShapeModel.FitMeanShape(imageSize.Width, imageSize.Height);
+            ShapeConstraints constraints = ShapeConstraints.CreateFromShape(meanShape);
+            Image meanShapeImage = this.DrawConstraints(imageSize, 1, constraints, false, false, false, true);
+            this.currentImage.Image = meanShapeImage;
+        }
+
+        private Image DrawConstraints(
+            Size imageSize, float constraintsScale, ShapeConstraints shapeConstraints, bool drawVertexConstraints, bool drawMinEdgeWidth, bool drawMaxEdgeWidth, bool drawAverageEdgeWidth)
+        {
+            Bitmap backgroundImage = new Bitmap(imageSize.Width, imageSize.Height);
+            using (Graphics graphics = Graphics.FromImage(backgroundImage))
+                graphics.Clear(Color.Black);
+            return DrawConstraintsOnTopOfImage(
+                backgroundImage, constraintsScale, shapeConstraints, drawVertexConstraints, drawMinEdgeWidth, drawMaxEdgeWidth, drawAverageEdgeWidth);
+        }
+
+        private Image DrawConstraintsOnTopOfImage(
+            Image backgroundImage, float drawSizeRatio, ShapeConstraints shapeConstraints, bool drawVertexConstraints, bool drawMinEdgeWidth, bool drawMaxEdgeWidth, bool drawAverageEdgeWidth)
+        {
+            const float pointRadius = 4;
+            const float lineWidth = 2;
+
+            Bitmap statusImage = new Bitmap((int)(backgroundImage.Width * drawSizeRatio), (int)(backgroundImage.Height * drawSizeRatio));
+            using (Graphics graphics = Graphics.FromImage(statusImage))
+            {
+                graphics.DrawImage(backgroundImage, 0, 0, statusImage.Width, statusImage.Height);
+
+                if (drawVertexConstraints)
+                {
+                    foreach (VertexConstraints vertexConstraint in shapeConstraints.VertexConstraints)
+                    {
+                        graphics.DrawRectangle(
+                            new Pen(Color.Orange, lineWidth),
+                            (float)vertexConstraint.MinCoord.X * drawSizeRatio,
+                            (float)vertexConstraint.MinCoord.Y * drawSizeRatio,
+                            (float)(vertexConstraint.MaxCoord.X - vertexConstraint.MinCoord.X) * drawSizeRatio,
+                            (float)(vertexConstraint.MaxCoord.Y - vertexConstraint.MinCoord.Y) * drawSizeRatio);
+                    }
+                }
+
+                foreach (VertexConstraints vertexConstraint in shapeConstraints.VertexConstraints)
+                {
+                    graphics.FillEllipse(
+                        Brushes.Black,
+                        (float)vertexConstraint.MiddleCoord.X * drawSizeRatio - pointRadius,
+                        (float)vertexConstraint.MiddleCoord.Y * drawSizeRatio - pointRadius,
+                        2 * pointRadius,
+                        2 * pointRadius);
+                }
+
+                for (int i = 0; i < shapeConstraints.ShapeStructure.Edges.Count; ++i)
+                {
+                    ShapeEdge edge = shapeConstraints.ShapeStructure.Edges[i];
+                    Vector point1 = shapeConstraints.VertexConstraints[edge.Index1].MiddleCoord * drawSizeRatio;
+                    Vector point2 = shapeConstraints.VertexConstraints[edge.Index2].MiddleCoord * drawSizeRatio;
+                    graphics.DrawLine(new Pen(Color.Black, lineWidth), MathHelper.VecToPointF(point1), MathHelper.VecToPointF(point2));
+
+                    if (drawMinEdgeWidth || drawMaxEdgeWidth || drawAverageEdgeWidth)
+                    {
+                        EdgeConstraints edgeConstraint = shapeConstraints.EdgeConstraints[i];
+                        Vector diff = point2 - point1;
+                        Vector edgeNormal = (new Vector(diff.Y, -diff.X)).GetNormalized();
+
+                        if (drawMaxEdgeWidth)
+                            DrawOrientedRectange(graphics, point1, point2, edgeNormal, (float)edgeConstraint.MaxWidth * drawSizeRatio, new Pen(Color.Cyan, lineWidth));
+                        if (drawMinEdgeWidth)
+                            DrawOrientedRectange(graphics, point1, point2, edgeNormal, (float)edgeConstraint.MinWidth * drawSizeRatio, new Pen(Color.Red, lineWidth));
+                        if (drawAverageEdgeWidth)
+                            DrawOrientedRectange(graphics, point1, point2, edgeNormal, (float)(edgeConstraint.MinWidth + edgeConstraint.MaxWidth) * drawSizeRatio * 0.5f, new Pen(Color.Blue, lineWidth));
+                    }
+                }
+            }
+
+            return statusImage;
+        }
+
+        private Image CreateStatusImage(
+            ShapeConstraints shapeConstraints, bool drawVertexConstraints, bool drawMinEdgeWidth, bool drawMaxEdgeWidth, bool drawAverageEdgeWidth)
+        {
+            return this.DrawConstraintsOnTopOfImage(
+                this.segmentedImage, 2, shapeConstraints, drawVertexConstraints, drawMinEdgeWidth, drawMaxEdgeWidth, drawAverageEdgeWidth);
+        }
+
+        private void DrawOrientedRectange(Graphics graphics, Vector point1, Vector point2, Vector sideDirection, float sideWidth, Pen pen)
+        {
+            graphics.DrawPolygon(
+                pen,
+                new[]
+                    {
+                        MathHelper.VecToPointF(point1 - sideDirection * sideWidth * 0.5),
+                        MathHelper.VecToPointF(point1 + sideDirection * sideWidth * 0.5),
+                        MathHelper.VecToPointF(point2 + sideDirection * sideWidth * 0.5),
+                        MathHelper.VecToPointF(point2 - sideDirection * sideWidth * 0.5)
+                    });
         }
     }
 }

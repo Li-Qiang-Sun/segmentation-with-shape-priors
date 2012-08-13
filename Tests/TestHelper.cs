@@ -17,7 +17,7 @@ namespace Research.GraphBasedShapePrior.Tests
             Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams =
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
 
-            return ShapeModel.Create(edges, edgeParams, edgePairParams);
+            return ShapeModel.Create(new ShapeStructure(edges), edgeParams, edgePairParams);
         }
         
         public static ShapeModel CreateTestShapeModelWith2Edges(double meanAngle, double lengthRatio)
@@ -34,7 +34,7 @@ namespace Research.GraphBasedShapePrior.Tests
                 new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
             edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(meanAngle, lengthRatio, 0.1, 10));
 
-            return ShapeModel.Create(edges, edgeParams, edgePairParams);
+            return ShapeModel.Create(new ShapeStructure(edges), edgeParams, edgePairParams);
         }
 
         public static ShapeModel CreateTestShapeModel5Edges()
@@ -60,7 +60,7 @@ namespace Research.GraphBasedShapePrior.Tests
             edgePairParams.Add(new Tuple<int, int>(1, 3), new ShapeEdgePairParams(Math.PI * 0.5, 0.8, 0.1, 10));
             edgePairParams.Add(new Tuple<int, int>(0, 4), new ShapeEdgePairParams(-Math.PI * 0.5, 1.2, 0.05, 5));
 
-            return ShapeModel.Create(edges, edgeParams, edgePairParams);
+            return ShapeModel.Create(new ShapeStructure(edges), edgeParams, edgePairParams);
         }
 
         public static ShapeModel CreateLetterShapeModel()
@@ -85,17 +85,7 @@ namespace Research.GraphBasedShapePrior.Tests
             edgePairParams.Add(new Tuple<int, int>(2, 3), new ShapeEdgePairParams(-Math.PI * 0.5, 1, Math.PI * 0.02, 2));
             edgePairParams.Add(new Tuple<int, int>(3, 4), new ShapeEdgePairParams(Math.PI * 0.5, 0.77, Math.PI * 0.02, 2));
 
-            return ShapeModel.Create(edges, vertexParams, edgePairParams);
-        }
-
-        public static IEnumerable<VertexConstraints> VerticesToConstraints(IEnumerable<Vector> vertices)
-        {
-            return from vertex in vertices select new VertexConstraints(vertex);
-        }
-
-        public static IEnumerable<EdgeConstraints> EdgeWidthsToConstraints(IEnumerable<double> edgeWidths)
-        {
-            return from width in edgeWidths select new EdgeConstraints(width);
+            return ShapeModel.Create(new ShapeStructure(edges), vertexParams, edgePairParams);
         }
     }
 }

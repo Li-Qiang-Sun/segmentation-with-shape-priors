@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using MicrosoftResearch.Infer.Distributions;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -63,7 +60,7 @@ namespace Research.GraphBasedShapePrior
                 throw new InvalidOperationException("Shape fitting strategy must be specified before running segmentation");
             
             DebugConfiguration.WriteImportantDebugText("Performing initial segmentation...");
-            this.ImageSegmentator.SegmentImageWithShapeTerms(point => ObjectBackgroundTerm.Zero);
+            this.ImageSegmentator.SegmentImageWithShapeTerms((x, y) => ObjectBackgroundTerm.Zero);
             Image2D<bool> currentMask = this.ImageSegmentator.GetLastSegmentationMask();
 
             for (int iteration = 1; iteration <= this.MaxIterationCount; ++iteration)
@@ -73,7 +70,7 @@ namespace Research.GraphBasedShapePrior
                 List<Shape> shapes = this.ShapeFittingStrategy.FitShapes(this.ShapeModel, currentMask);
                 double shapePriorWeight = (double) iteration / this.WeightChangingIterationCount;
                 this.ImageSegmentator.SegmentImageWithShapeTerms(
-                    point => this.CalculateShapeTerms(shapes, shapePriorWeight, point));
+                    (x, y) => this.CalculateShapeTerms(shapes, shapePriorWeight, new Vector(x, y)));
                 Image2D<bool> newMask = this.ImageSegmentator.GetLastSegmentationMask();
 
                 int differentValues = Image2D<bool>.DifferentValueCount(currentMask, newMask);
@@ -96,8 +93,7 @@ namespace Research.GraphBasedShapePrior
             return currentMask;
         }
 
-        private ObjectBackgroundTerm CalculateShapeTerms(
-            List<Shape> shapes, double shapePriorWeight, Point point)
+        private ObjectBackgroundTerm CalculateShapeTerms(List<Shape> shapes, double shapePriorWeight, Vector point)
         {
             double objectTerm = 0, backgroundTerm = 0;
 
@@ -107,8 +103,8 @@ namespace Research.GraphBasedShapePrior
                 double singleShapePriorWeight = shapePriorWeight / shapes.Count;
                 foreach (Shape shape in shapes)
                 {
-                    objectTerm += shape.GetObjectPenalty(point) * singleShapePriorWeight;
-                    backgroundTerm += shape.GetBackgroundPenalty(point) * singleShapePriorWeight;
+                    objectTerm += this.ShapeModel.GetObjectPenalty(shape, point) * singleShapePriorWeight;
+                    backgroundTerm += this.ShapeModel.GetBackgroundPenalty(shape, point) * singleShapePriorWeight;
                 }
             }
 

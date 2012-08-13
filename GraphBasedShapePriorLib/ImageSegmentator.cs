@@ -31,8 +31,7 @@ namespace Research.GraphBasedShapePrior
 
         public ImageSegmentator(
             Image2D<Color> image,
-            IColorModel objectColorModel,
-            IColorModel backgroundColorModel,
+            ObjectBackgroundColorModels colorModels,
             double brightnessBinaryTermCutoff,
             double constantBinaryTermWeight,
             double unaryTermWeight,
@@ -40,10 +39,8 @@ namespace Research.GraphBasedShapePrior
         {
             if (image == null)
                 throw new ArgumentNullException("image");
-            if (objectColorModel == null)
-                throw new ArgumentNullException("objectColorModel");
-            if (backgroundColorModel == null)
-                throw new ArgumentNullException("backgroundColorModel");
+            if (colorModels == null)
+                throw new ArgumentNullException("colorModels");
 
             if (brightnessBinaryTermCutoff <= 0)
                 throw new ArgumentOutOfRangeException("brightnessBinaryTermCutoff", "Parameter value should be positive.");
@@ -59,7 +56,7 @@ namespace Research.GraphBasedShapePrior
             this.UnaryTermWeight = unaryTermWeight;
             this.ShapeUnaryTermWeight = shapeUnaryTermWeight;
 
-            this.PrepareColorTerms(image, objectColorModel, backgroundColorModel);
+            this.PrepareColorTerms(image, colorModels);
             this.segmentedImage = image;
 
             this.graphCutCalculator = new GraphCutCalculator(this.segmentedImage.Width, this.segmentedImage.Height);
@@ -155,14 +152,14 @@ namespace Research.GraphBasedShapePrior
         }
 
         public double SegmentImageWithShapeTerms(
-            Func<Point, ObjectBackgroundTerm> shapeTermCalculator)
+            Func<int, int, ObjectBackgroundTerm> shapeTermCalculator)
         {
             // Calculate shape terms, check for changes))
             for (int x = 0; x < this.lastUnaryTerms.Width; ++x)
             {
                 for (int y = 0; y < this.lastUnaryTerms.Height; ++y)
                 {
-                    ObjectBackgroundTerm shapeTerms = shapeTermCalculator(new Point(x, y));
+                    ObjectBackgroundTerm shapeTerms = shapeTermCalculator(x, y);
                     
                     if (firstTime || shapeTerms != this.lastShapeTerms[x, y])
                     {
@@ -263,15 +260,15 @@ namespace Research.GraphBasedShapePrior
             return Math.Exp(-this.BrightnessBinaryTermCutoff * brightnessDiffSqr / meanDiffSqr) + this.ConstantBinaryTermWeight;
         }
 
-        private void PrepareColorTerms(Image2D<Color> image, IColorModel objectColorModel, IColorModel backgroundColorModel)
+        private void PrepareColorTerms(Image2D<Color> image, ObjectBackgroundColorModels colorModels)
         {
             this.colorTerms = new Image2D<ObjectBackgroundTerm>(image.Width, image.Height);
             for (int x = 0; x < image.Width; ++x)
             {
                 for (int y = 0; y < image.Height; ++y)
                 {
-                    double objectTerm = -objectColorModel.LogProb(image[x, y]);
-                    double backgroundTerm = -backgroundColorModel.LogProb(image[x, y]);
+                    double objectTerm = -colorModels.ObjectColorModel.LogProb(image[x, y]);
+                    double backgroundTerm = -colorModels.BackgroundColorModel.LogProb(image[x, y]);
                     this.colorTerms[x, y] = new ObjectBackgroundTerm(objectTerm, backgroundTerm);
                 }
             }

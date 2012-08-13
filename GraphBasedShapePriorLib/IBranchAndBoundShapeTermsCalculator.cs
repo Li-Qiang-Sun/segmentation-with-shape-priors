@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace Research.GraphBasedShapePrior
+﻿namespace Research.GraphBasedShapePrior
 {
     public interface IShapeTermsLowerBoundCalculator
     {
-        void CalculateShapeTerms(ShapeConstraints constraints, Image2D<ObjectBackgroundTerm> result);
+        void CalculateShapeTerms(ShapeModel model, ShapeConstraints constraints, Image2D<ObjectBackgroundTerm> result);
     }
 }

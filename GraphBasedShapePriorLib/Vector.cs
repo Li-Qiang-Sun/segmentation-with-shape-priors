@@ -94,13 +94,7 @@ namespace Research.GraphBasedShapePrior
 
         public double DistanceToSegment(Vector segmentStart, Vector segmentEnd)
         {
-            double distance, alpha;
-            this.DistanceToSegment(segmentStart, segmentEnd, out distance, out alpha);
-            if (alpha < 0)
-                return this.DistanceToPoint(segmentStart);
-            if (alpha > 1)
-                return this.DistanceToPoint(segmentEnd);
-            return distance;
+            return Math.Sqrt(this.DistanceToSegmentSquared(segmentStart, segmentEnd));
         }
 
         public void DistanceToSegment(Vector segmentStart, Vector segmentEnd, out double distance, out double alpha)
@@ -129,6 +123,26 @@ namespace Research.GraphBasedShapePrior
                 distanceSqr = p.LengthSquared;
             else
                 distanceSqr = (this - segmentEnd).LengthSquared;
+        }
+
+        public double DistanceToLine(Vector point1, Vector point2)
+        {
+            return Math.Sqrt(this.DistanceToLineSquared(point1, point2));
+        }
+
+        public double DistanceToLineSquared(Vector point1, Vector point2)
+        {
+            double distanceSqr, alpha;
+            this.DistanceToLineSquared(point1, point2, out distanceSqr, out alpha);
+            return distanceSqr;
+        }
+
+        public void DistanceToLineSquared(Vector point1, Vector point2, out double distanceSqr, out double alpha)
+        {
+            Vector v = point2 - point1;
+            Vector p = this - point1;
+            alpha = DotProduct(v, p) / v.LengthSquared;
+            distanceSqr = ((point1 + alpha * v) - this).LengthSquared;
         }
 
         public Vector GetNormalized()

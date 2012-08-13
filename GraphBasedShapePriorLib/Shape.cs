@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Drawing;
+using System.Linq;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -9,101 +10,76 @@ namespace Research.GraphBasedShapePrior
     {
         private readonly List<Vector> vertexPositions;
 
+        private readonly ExposableCollection<Vector> vertexPositionsExposable;
+
         private readonly List<double> edgeWidths;
 
-        public Shape(ShapeModel model, IEnumerable<Vector> vertexPositions, IEnumerable<double> edgeWidths)
+        private readonly ExposableCollection<double> edgeWidthsExposable;
+
+        public Shape(ShapeStructure structure, IEnumerable<Vector> vertexPositions, IEnumerable<double> edgeWidths)
         {
-            if (model == null)
-                throw new ArgumentNullException("model");
+            if (structure == null)
+                throw new ArgumentNullException("structure");
             if (vertexPositions == null)
                 throw new ArgumentNullException("vertexPositions");
             if (edgeWidths == null)
                 throw new ArgumentNullException("edgeWidths");
-            
-            this.Model = model;
+
+            this.Structure = structure;
             this.vertexPositions = new List<Vector>(vertexPositions);
             this.edgeWidths = new List<double>(edgeWidths);
 
-            if (this.vertexPositions.Count != model.VertexCount)
+            if (this.vertexPositions.Count != structure.VertexCount)
                 throw new ArgumentException("Wrong number of vertex positions given.", "vertexPositions");
-            if (this.edgeWidths.Count != model.Edges.Count)
+            if (this.edgeWidths.Count != structure.Edges.Count)
                 throw new ArgumentException("Wrong number of edge widths given.", "edgeWidths");
+
+            this.vertexPositionsExposable = new ExposableCollection<Vector>(this.vertexPositions);
+            this.edgeWidthsExposable = new ExposableCollection<double>(this.edgeWidths);
         }
 
-        public ShapeModel Model { get; private set; }
-
-        public ReadOnlyCollection<Vector> VertexPositions
+        public Shape FitToSize(double width, double height)
         {
-            get { return this.vertexPositions.AsReadOnly(); }
-        }
-
-        public ReadOnlyCollection<double> EdgeWidths
-        {
-            get { return this.edgeWidths.AsReadOnly(); }
-        }
-
-        public double GetObjectPenalty(Point point)
-        {
-            return GetObjectPenalty(new Vector(point.X, point.Y));
-        }
-
-        public double GetBackgroundPenalty(Point point)
-        {
-            return GetBackgroundPenalty(new Vector(point.X, point.Y));
-        }
-
-        public double GetObjectPenalty(Vector point)
-        {
-            double minPenalty = Double.PositiveInfinity;
-            for (int i = 0; i < this.Model.Edges.Count; ++i)
+            Vector min = new Vector(Double.PositiveInfinity, Double.PositiveInfinity);
+            Vector max = new Vector(Double.NegativeInfinity, Double.NegativeInfinity);
+            foreach (Vector vertexPosition in vertexPositions)
             {
-                ShapeEdge edge = this.Model.Edges[i];
-                double penalty = this.Model.CalculateObjectPenaltyForEdge(
-                    point, edgeWidths[i], this.vertexPositions[edge.Index1], this.vertexPositions[edge.Index2]);
-                minPenalty = Math.Min(minPenalty, penalty);
-            }
-            return minPenalty;
-        }
-
-        public double GetBackgroundPenalty(Vector point)
-        {
-            double minPenalty = Double.PositiveInfinity;
-            for (int i = 0; i < this.Model.Edges.Count; ++i)
-            {
-                ShapeEdge edge = this.Model.Edges[i];
-                double penalty = this.Model.CalculateBackgroundPenaltyForEdge(
-                    point, edgeWidths[i], this.vertexPositions[edge.Index1], this.vertexPositions[edge.Index2]);
-                minPenalty = Math.Min(minPenalty, penalty);
-            }
-            return minPenalty;
-        }
-
-        public double CalculateEnergy()
-        {
-            double totalEnergy = 0;
-
-            // Unary energy terms
-            for (int i = 0; i < this.Model.Edges.Count; ++i)
-            {
-                ShapeEdge edge = this.Model.Edges[i];
-                totalEnergy += this.Model.CalculateEdgeWidthEnergyTerm(
-                    i, this.edgeWidths[i], this.VertexPositions[edge.Index1], this.VertexPositions[edge.Index2]);
+                min.X = Math.Min(min.X, vertexPosition.X);
+                min.Y = Math.Min(min.Y, vertexPosition.Y);
+                max.X = Math.Max(max.X, vertexPosition.X);
+                max.Y = Math.Max(max.Y, vertexPosition.Y);
             }
 
-            // Pairwise energy terms
-            foreach (Tuple<int, int> edgePair in this.Model.ConstrainedEdgePairs)
-            {
-                ShapeEdge edge1 = this.Model.Edges[edgePair.Item1];
-                ShapeEdge edge2 = this.Model.Edges[edgePair.Item2];
-                double edgePairEnergy = this.Model.CalculateEdgePairEnergyTerm(
-                    edgePair.Item1,
-                    edgePair.Item2,
-                    this.vertexPositions[edge1.Index2] - this.vertexPositions[edge1.Index1],
-                    this.vertexPositions[edge2.Index2] - this.vertexPositions[edge2.Index1]);
-                totalEnergy += edgePairEnergy;
-            }
+            double widthRatio = width / (max.X - min.X);
+            double heightRatio = height / (max.Y - min.Y);
+            double scale = Math.Min(widthRatio, heightRatio);
 
-            return totalEnergy;
+            return this.Scale(scale, min);
+        }
+
+        public Shape Scale(double scale, Vector origin)
+        {
+            IEnumerable<Vector> fittedVertexPositions = this.vertexPositions.Select(pos => (pos - origin) * scale);
+            IEnumerable<double> fittedEdgeWidths = this.edgeWidths.Select(w => w * scale);
+            return new Shape(this.Structure, fittedVertexPositions, fittedEdgeWidths);
+        }
+
+        public ShapeStructure Structure { get; private set; }
+
+        public ExposableCollection<Vector> VertexPositions
+        {
+            get { return this.vertexPositionsExposable; }
+        }
+
+        public ExposableCollection<double> EdgeWidths
+        {
+            get { return this.edgeWidthsExposable; }
+        }
+
+        public Vector GetEdgeVector(int edgeIndex)
+        {
+            ShapeEdge edge = this.Structure.Edges[edgeIndex];
+            return this.VertexPositions[edge.Index2] - this.VertexPositions[edge.Index1];
         }
     }
 }

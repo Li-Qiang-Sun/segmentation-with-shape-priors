@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Drawing;
 using System.Linq;
 
 namespace Research.GraphBasedShapePrior
@@ -11,8 +10,6 @@ namespace Research.GraphBasedShapePrior
     {
         private List<VertexConstraints> vertexConstraints;
         private List<EdgeConstraints> edgeConstraints;
-
-        public ShapeModel ShapeModel { get; private set; }
 
         private ShapeConstraints()
         {
@@ -23,29 +20,31 @@ namespace Research.GraphBasedShapePrior
         {
             this.vertexConstraints = new List<VertexConstraints>(other.vertexConstraints);
             this.edgeConstraints = new List<EdgeConstraints>(other.edgeConstraints);
-            this.ShapeModel = other.ShapeModel;
+            this.ShapeStructure = other.ShapeStructure;
         }
 
+        public ShapeStructure ShapeStructure { get; private set; }
+
         public static ShapeConstraints CreateFromConstraints(
-            ShapeModel model,
+            ShapeStructure structure,
             IEnumerable<VertexConstraints> vertexConstraints,
             IEnumerable<EdgeConstraints> edgeConstraints)
         {
-            if (model == null)
-                throw new ArgumentNullException("model");
+            if (structure == null)
+                throw new ArgumentNullException("structure");
             if (vertexConstraints == null)
                 throw new ArgumentNullException("vertexConstraints");
             if (edgeConstraints == null)
                 throw new ArgumentNullException("edgeConstraints");
             
             ShapeConstraints result = new ShapeConstraints();
-            result.ShapeModel = model;
+            result.ShapeStructure = structure;
             result.vertexConstraints = new List<VertexConstraints>(vertexConstraints);
             result.edgeConstraints = new List<EdgeConstraints>(edgeConstraints);
 
-            if (result.vertexConstraints.Count != result.ShapeModel.VertexCount)
+            if (result.vertexConstraints.Count != result.ShapeStructure.VertexCount)
                 throw new ArgumentException("Vertex constraint should be given for every vertex (and for every vertex only).", "vertexConstraints");
-            if (result.edgeConstraints.Count != result.ShapeModel.Edges.Count)
+            if (result.edgeConstraints.Count != result.ShapeStructure.Edges.Count)
                 throw new ArgumentException("Edge constraint should be given for every edge (and for every vertex only).", "edgeConstraints");
 
             return result;
@@ -57,25 +56,25 @@ namespace Research.GraphBasedShapePrior
                 shape.VertexPositions.Select(vertex => new VertexConstraints(vertex));
             IEnumerable<EdgeConstraints> edgeConstraints =
                 shape.EdgeWidths.Select(width => new EdgeConstraints(width));
-            return CreateFromConstraints(shape.Model, vertexConstraints, edgeConstraints);
+            return CreateFromConstraints(shape.Structure, vertexConstraints, edgeConstraints);
         }
 
         public static ShapeConstraints CreateFromBounds(
-            ShapeModel model,
+            ShapeStructure structure,
             Vector coordMin,
             Vector coordMax,
             double minEdgeWidth,
             double maxEdgeWidth)
         {
             ShapeConstraints result = new ShapeConstraints();
-            result.ShapeModel = model;
+            result.ShapeStructure = structure;
             result.vertexConstraints = new List<VertexConstraints>();
             result.edgeConstraints = new List<EdgeConstraints>();
 
-            for (int i = 0; i < model.VertexCount; ++i)
+            for (int i = 0; i < structure.VertexCount; ++i)
                 result.vertexConstraints.Add(new VertexConstraints(coordMin, coordMax));
 
-            for (int i = 0; i < model.Edges.Count; ++i)
+            for (int i = 0; i < structure.Edges.Count; ++i)
                 result.edgeConstraints.Add(new EdgeConstraints(minEdgeWidth, maxEdgeWidth));
 
             return result;
@@ -187,52 +186,18 @@ namespace Research.GraphBasedShapePrior
             get { return this.edgeConstraints.AsReadOnly(); }
         }
 
-        public void Draw(Graphics graphics)
-        {
-            foreach (VertexConstraints vertexConstraint in vertexConstraints)
-            {
-                graphics.DrawRectangle(
-                    Pens.Green,
-                    (float)vertexConstraint.MinCoord.X,
-                    (float)vertexConstraint.MinCoord.Y,
-                    (float)(vertexConstraint.MaxCoord.X - vertexConstraint.MinCoord.X),
-                    (float)(vertexConstraint.MaxCoord.Y - vertexConstraint.MinCoord.Y));
-            }
-
-            for (int i = 0; i < this.ShapeModel.Edges.Count; ++i)
-            {
-                ShapeEdge edge = this.ShapeModel.Edges[i];
-                Vector point1 = this.vertexConstraints[edge.Index1].MiddleCoord;
-                Vector point2 = this.vertexConstraints[edge.Index2].MiddleCoord;
-                graphics.DrawLine(Pens.Orange, MathHelper.VecToPointF(point1), MathHelper.VecToPointF(point2));
-
-                EdgeConstraints edgeConstraint = this.edgeConstraints[i];
-                Vector diff = point2 - point1;
-                Vector edgeNormal = (new Vector(diff.Y, -diff.X)).GetNormalized();
-                Vector middle = point1 + 0.5 * diff;
-                graphics.DrawLine(
-                    Pens.Cyan,
-                    MathHelper.VecToPointF(middle - edgeNormal * edgeConstraint.MaxWidth * 0.5),
-                    MathHelper.VecToPointF(middle + edgeNormal * edgeConstraint.MaxWidth * 0.5));
-                graphics.DrawLine(
-                    Pens.Red,
-                    MathHelper.VecToPointF(middle - edgeNormal * edgeConstraint.MinWidth * 0.5),
-                    MathHelper.VecToPointF(middle + edgeNormal * edgeConstraint.MinWidth * 0.5));
-            }
-        }
-
         public ShapeConstraints Collapse()
         {
             List<VertexConstraints> collapsedVertexConstraints = this.vertexConstraints.Select(c => c.Collapse()).ToList();
             List<EdgeConstraints> collapsedEdgeConstraints = this.edgeConstraints.Select(c => c.Collapse()).ToList();
-            return CreateFromConstraints(this.ShapeModel, collapsedVertexConstraints, collapsedEdgeConstraints);
+            return CreateFromConstraints(this.ShapeStructure, collapsedVertexConstraints, collapsedEdgeConstraints);
         }
 
         public ShapeConstraints CollapseRandomly()
         {
             List<VertexConstraints> collapsedVertexConstraints = this.vertexConstraints.Select(c => c.CollapseRandomly()).ToList();
             List<EdgeConstraints> collapsedEdgeConstraints = this.edgeConstraints.Select(c => c.CollapseRandomly()).ToList();
-            return CreateFromConstraints(this.ShapeModel, collapsedVertexConstraints, collapsedEdgeConstraints);
+            return CreateFromConstraints(this.ShapeStructure, collapsedVertexConstraints, collapsedEdgeConstraints);
         }
     }
 }

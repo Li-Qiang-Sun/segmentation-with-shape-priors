@@ -154,9 +154,29 @@ namespace Research.GraphBasedShapePrior
             return this.values[gridX, gridY];
         }
 
+        public bool TryGetValueByGridIndices(int gridX, int gridY, out double value)
+        {
+            if (!this.IsComputed)
+                throw new InvalidOperationException("You should calculate transform first.");
+            
+            if (!this.AreGridIndicesComputed(gridX, gridY))
+            {
+                value = 0;
+                return false;
+            }
+            
+            value = this.values[gridX, gridY];
+            return true;
+        }
+
         public double GetValueByCoords(double coordX, double coordY)
         {
             return this.GetValueByGridIndices(CoordToGridIndexX(coordX), CoordToGridIndexY(coordY));
+        }
+
+        public bool TryGetValueByCoords(double coordX, double coordY, out double value)
+        {
+            return this.TryGetValueByGridIndices(CoordToGridIndexX(coordX), CoordToGridIndexY(coordY), out value);
         }
 
         public Tuple<int, int> GetBestIndicesByGridIndices(int gridX, int gridY)

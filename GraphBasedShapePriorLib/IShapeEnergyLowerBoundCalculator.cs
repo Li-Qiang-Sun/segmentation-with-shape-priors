@@ -4,6 +4,6 @@ namespace Research.GraphBasedShapePrior
 {
     public interface IShapeEnergyLowerBoundCalculator
     {
-        double CalculateLowerBound(Size imageSize, ShapeConstraints shapeConstraints);
+        double CalculateLowerBound(Size imageSize, ShapeModel model, ShapeConstraints shapeConstraints);
     }
 }

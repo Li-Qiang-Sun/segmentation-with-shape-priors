@@ -113,9 +113,9 @@ namespace Research
 				Deallocate();
 			}
 
-			virtual void CalculateShapeTerms(ShapeConstraints ^shapeConstraints, Image2D<ObjectBackgroundTerm> ^result)
+			virtual void CalculateShapeTerms(ShapeModel ^shapeModel, ShapeConstraints ^shapeConstraints, Image2D<ObjectBackgroundTerm> ^result)
 			{
-				int edgeCount = shapeConstraints->ShapeModel->Edges->Count;
+				int edgeCount = shapeConstraints->ShapeStructure->Edges->Count;
 				Size imageSize = Size(result->Width, result->Height);
 
 				if (edgeCount != lastEdgeCount || imageSize != lastImageSize)
@@ -129,7 +129,7 @@ namespace Research
 				// Copy params
 				for (int edgeIndex = 0; edgeIndex < edgeCount; ++edgeIndex)
 				{
-					ShapeEdge edge = shapeConstraints->ShapeModel->Edges[edgeIndex];
+					ShapeEdge edge = shapeConstraints->ShapeStructure->Edges[edgeIndex];
 					EdgeConstraints ^edgeConstraints = shapeConstraints->EdgeConstraints[edgeIndex];
 					VertexConstraints ^vertexConstraints1 = shapeConstraints->VertexConstraints[edge.Index1];
 					VertexConstraints ^vertexConstraints2 = shapeConstraints->VertexConstraints[edge.Index2];
@@ -169,7 +169,7 @@ namespace Research
 					corners1,
 					corners2,
 					edgeWidthLimits,
-					static_cast<float>(shapeConstraints->ShapeModel->BackgroundDistanceCoeff),
+					static_cast<float>(shapeModel->BackgroundDistanceCoeff),
 					result->Width,
 					result->Height,
 					objectPenaltiesGpu,

@@ -18,14 +18,13 @@ namespace Research.GraphBasedShapePrior.Tests
             double eps)
         {
             // Create shape model and calculate energy in normal way
-            Shape shape = new Shape(model, vertices, edgeWidths);
-            double energy1 = shape.CalculateEnergy();
+            Shape shape = new Shape(model.Structure, vertices, edgeWidths);
+            double energy1 = model.CalculateEnergy(shape);
 
             // Calculate energy via generalized distance transforms
-            ShapeConstraints constraints = ShapeConstraints.CreateFromConstraints(
-                model, TestHelper.VerticesToConstraints(vertices), TestHelper.EdgeWidthsToConstraints(edgeWidths));
+            ShapeConstraints constraints = ShapeConstraints.CreateFromShape(shape);
             ShapeEnergyLowerBoundCalculator calculator = new ShapeEnergyLowerBoundCalculator(lengthGridSize, angleGridSize);
-            double energy2 = calculator.CalculateLowerBound(imageSize, constraints);
+            double energy2 = calculator.CalculateLowerBound(imageSize, model, constraints);
 
             Assert.AreEqual(energy1, energy2, eps);
 
@@ -35,7 +34,7 @@ namespace Research.GraphBasedShapePrior.Tests
         private static void TestMeanShapeImpl(ShapeModel shapeModel, double eps)
         {
             Size imageSize = new Size(100, 160);
-            Shape meanShape = shapeModel.FitMeanShape(imageSize);
+            Shape meanShape = shapeModel.FitMeanShape(imageSize.Width, imageSize.Height);
 
             // Check GDT vs usual approach
             double energy = TestShapeEnergyCalculationApproachesImpl(
@@ -225,13 +224,13 @@ namespace Research.GraphBasedShapePrior.Tests
             {
                 double angle = startAngle + Math.PI * 0.5 + angleStep * i;
                 vertices[2] = new Vector(vertices[1].X + edgeLength * Math.Cos(angle), vertices[1].Y + edgeLength * Math.Sin(angle));
-                Shape shape = new Shape(shapeModel, vertices, edgeWidths);
+                Shape shape = new Shape(shapeModel.Structure, vertices, edgeWidths);
 
                 // Test if energy is increasing/decreasing properly
                 if (i <= iterationCount / 2)
-                    Assert.IsTrue(lastShape == null || lastShape.CalculateEnergy() < shape.CalculateEnergy());
+                    Assert.IsTrue(lastShape == null || shapeModel.CalculateEnergy(lastShape) < shapeModel.CalculateEnergy(shape));
                 else
-                    Assert.IsTrue(lastShape.CalculateEnergy() > shape.CalculateEnergy());
+                    Assert.IsTrue(shapeModel.CalculateEnergy(lastShape) > shapeModel.CalculateEnergy(shape));
 
                 TestShapeEnergyCalculationApproachesImpl(shapeModel, vertices, edgeWidths, new Size(51, 51), 2001, 2001, 0.01);
 

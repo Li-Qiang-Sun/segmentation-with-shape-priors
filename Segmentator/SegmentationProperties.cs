@@ -13,6 +13,15 @@ namespace Segmentator
         Letter1,
         Letter2,
         Letter3,
+        Letter4,
+        Letter5,
+        Cow1,
+        Cow2,
+        Cow3,
+        Giraffe1,
+        Giraffe2,
+        Giraffe3,
+        Giraffe4,
     }
     
     class SegmentationProperties
@@ -65,6 +74,18 @@ namespace Segmentator
         [Category("Algorithm")]
         public double MaxWidthFreedom { get; set; }
 
+        [Category("Algorithm")]
+        public int LengthGridSize { get; set; }
+
+        [Category("Algorithm")]
+        public int AngleGridSize { get; set; }
+
+        [Category("Algorithm")]
+        public int LengthGridSizePre { get; set; }
+
+        [Category("Algorithm")]
+        public int AngleGridSizePre { get; set; }
+
         [Category("Model")]
         public ModelType ModelType { get; set; }
 
@@ -79,20 +100,24 @@ namespace Segmentator
             this.BrightnessBinaryTermCutoff = 0.01;
 
             this.ShapeEnergyWeight = 100;
-            this.MinEdgeWidth = 10;
-            this.MaxEdgeWidth = 20;
-            this.BackgroundDistanceCoeff = 1;
+            this.MinEdgeWidth = 5;
+            this.MaxEdgeWidth = 15;
+            this.BackgroundDistanceCoeff = 5;
 
-            this.UseTwoStepApproach = false;
-            this.BfsIterations = 1000000;
+            this.UseTwoStepApproach = true;
+            this.BfsIterations = 10000000;
             this.MaxBfsUpperBoundEstimateProbability = 1;
-            this.ReportRate = 50;
-            this.MaxCoordFreedom = 3;
+            this.ReportRate = 500;
+            this.MaxCoordFreedom = 4;
             this.MaxCoordFreedomPre = 20;
-            this.MaxWidthFreedom = 3;
+            this.MaxWidthFreedom = 4;
             this.MaxWidthFreedomPre = 20;
+            this.LengthGridSizePre = 101;
+            this.AngleGridSizePre = 101;
+            this.LengthGridSize = 301;
+            this.AngleGridSize = 301;
 
-            this.ModelType = ModelType.OneEdge;
+            this.ModelType = ModelType.Letter1;
             this.MixtureComponents = 3;
         }
     }
