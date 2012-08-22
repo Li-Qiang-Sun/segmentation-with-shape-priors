@@ -46,7 +46,6 @@
             this.label3 = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
-            this.drawMeanShapeButton = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.currentImage)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.segmentationMaskImage)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.shapeTermsImage)).BeginInit();
@@ -235,22 +234,11 @@
             this.label5.TabIndex = 33;
             this.label5.Text = "Best mask so far";
             // 
-            // drawMeanShapeButton
-            // 
-            this.drawMeanShapeButton.Location = new System.Drawing.Point(625, 635);
-            this.drawMeanShapeButton.Name = "drawMeanShapeButton";
-            this.drawMeanShapeButton.Size = new System.Drawing.Size(119, 31);
-            this.drawMeanShapeButton.TabIndex = 34;
-            this.drawMeanShapeButton.Text = "Draw mean shape";
-            this.drawMeanShapeButton.UseVisualStyleBackColor = true;
-            this.drawMeanShapeButton.Click += new System.EventHandler(this.OnDrawMeanShapeButtonClick);
-            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1506, 678);
-            this.Controls.Add(this.drawMeanShapeButton);
             this.Controls.Add(this.label5);
             this.Controls.Add(this.label4);
             this.Controls.Add(this.label3);
@@ -302,7 +290,6 @@
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label label5;
-        private System.Windows.Forms.Button drawMeanShapeButton;
     }
 }
 

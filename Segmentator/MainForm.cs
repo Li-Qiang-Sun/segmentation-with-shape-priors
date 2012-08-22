@@ -40,8 +40,25 @@ namespace Segmentator
             this.segmentationWorker.RunWorkerCompleted += OnSegmentationCompleted;
         }
 
+        private bool TryValidateProperties()
+        {
+            try
+            {
+                this.segmentationProperties.Validate();
+                return true;
+            }
+            catch (PropertyValidationException e)
+            {
+                MessageBox.Show(e.Message, "Invalid settings", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
         private void RunSegmentation(bool regular)
         {
+            if (!this.TryValidateProperties())
+                return;
+
             File.Delete("./lower_bound.txt");
 
             this.regularSegmentation = regular;
@@ -50,7 +67,6 @@ namespace Segmentator
             this.startGpuButton.Enabled = false;
             this.startCpuButton.Enabled = false;
             this.segmentationPropertiesGrid.Enabled = false;
-            this.drawMeanShapeButton.Enabled = false;
             this.pauseContinueButton.Enabled = true;
 
             this.consoleContents.Clear();
@@ -97,43 +113,6 @@ namespace Segmentator
             }
         }
 
-        private static Model CreateModel(ModelType modelType)
-        {
-            switch (modelType)
-            {
-                case ModelType.OneEdge:
-                    return Model.CreateOneEdge();
-                case ModelType.TwoEdges:
-                    return Model.CreateTwoEdges();
-                case ModelType.Letter1:
-                    return Model.CreateLetter1();
-                case ModelType.Letter2:
-                    return Model.CreateLetter2();
-                case ModelType.Letter3:
-                    return Model.CreateLetter3();
-                case ModelType.Letter4:
-                    return Model.CreateLetter4();
-                case ModelType.Letter5:
-                    return Model.CreateLetter5();
-                case ModelType.Cow1:
-                    return Model.CreateCow1();
-                case ModelType.Cow2:
-                    return Model.CreateCow2();
-                case ModelType.Cow3:
-                    return Model.CreateCow3();
-                case ModelType.Giraffe1:
-                    return Model.CreateGiraffe1();
-                case ModelType.Giraffe2:
-                    return Model.CreateGiraffe2();
-                case ModelType.Giraffe3:
-                    return Model.CreateGiraffe3();
-                case ModelType.Giraffe4:
-                    return Model.CreateGiraffe4();
-                default:
-                    throw new NotSupportedException("Model type is not supported.");
-            }
-        }
-
         private void DoSegmentation(object sender, DoWorkEventArgs e)
         {
             Rand.Restart(666);
@@ -176,24 +155,25 @@ namespace Segmentator
 
             segmentator.ShapeEnergyLowerBoundCalculator = shapeEnergyCalculator;
 
-            // Load what has to be segmented
-            Model model = CreateModel(this.segmentationProperties.ModelType);
+            // Load model
+            ShapeModel model = ShapeModel.LoadFromFile(this.segmentationProperties.ShapeModel);
+            ObjectBackgroundColorModels colorModels = ObjectBackgroundColorModels.LoadFromFile(this.segmentationProperties.ColorModel);
+            
+            // Load and downscale image
+            Image2D<Color> originalImage = Image2D.LoadFromFile(this.segmentationProperties.ImageToSegment);
+            double scale = this.segmentationProperties.DownscaledImageSize / (double)Math.Max(originalImage.Width, originalImage.Height);
+            Image2D<Color> downscaledImage = Image2D.LoadFromFile(this.segmentationProperties.ImageToSegment, scale);
+            this.segmentedImage = Image2D.ToRegularImage(downscaledImage);
 
-            // Setup shape model
-            this.segmentator.ShapeModel = model.ShapeModel;
+            // Setup shape model)))
+            this.segmentator.ShapeModel = model;
             this.segmentator.ShapeModel.BackgroundDistanceCoeff = this.segmentationProperties.BackgroundDistanceCoeff;
-
-            // Learn color models
-            ObjectBackgroundColorModels colorModels = segmentator.LearnObjectBackgroundMixtureModels(
-                model.ImageToLearnColors, model.ObjectRectangle, segmentationProperties.MixtureComponents);
-            Image2D<Color> shrinkedImage = model.ImageToSegment.Shrink(model.ObjectRectangle);
-            this.segmentedImage = Image2D.ToRegularImage(shrinkedImage);
 
             // Show original image in status window)
             this.currentImage.Image = (Image)this.segmentedImage.Clone();
 
             // Run segmentation
-            Image2D<bool> mask = segmentator.SegmentImage(shrinkedImage, colorModels);
+            Image2D<bool> mask = segmentator.SegmentImage(downscaledImage, colorModels);
 
             // Re-run segmentation with reduced constraints in two-step mode
             if (!this.regularSegmentation && mask != null && this.segmentationProperties.UseTwoStepApproach)
@@ -205,7 +185,7 @@ namespace Segmentator
                     this.segmentationProperties.LengthGridSize, this.segmentationProperties.AngleGridSize);
 
                 Console.WriteLine("Performing second pass...");
-                mask = segmentator.SegmentImage(shrinkedImage, colorModels);
+                mask = segmentator.SegmentImage(downscaledImage, colorModels);
             }
 
             // Save mask as worker result
@@ -328,7 +308,6 @@ namespace Segmentator
             this.stopButton.Enabled = false;
             this.pauseContinueButton.Enabled = false;
             this.segmentationPropertiesGrid.Enabled = true;
-            this.drawMeanShapeButton.Enabled = true;
         }
 
         private void OnStartGpuButtonClick(object sender, EventArgs e)
@@ -387,16 +366,6 @@ namespace Segmentator
                 this.switchToDfsButton.Enabled = false;
                 this.segmentator.Pause();
             }
-        }
-
-        private void OnDrawMeanShapeButtonClick(object sender, EventArgs e)
-        {
-            Model model = CreateModel(this.segmentationProperties.ModelType);
-            Size imageSize = new Size(300, 300);
-            Shape meanShape = model.ShapeModel.FitMeanShape(imageSize.Width, imageSize.Height);
-            ShapeConstraints constraints = ShapeConstraints.CreateFromShape(meanShape);
-            Image meanShapeImage = this.DrawConstraints(imageSize, 1, constraints, false, false, false, true);
-            this.currentImage.Image = meanShapeImage;
         }
 
         private Image DrawConstraints(
