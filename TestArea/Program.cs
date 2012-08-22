@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using MicrosoftResearch.Infer.Maths;
 using Research.GraphBasedShapePrior;
-using Vector = Research.GraphBasedShapePrior.Vector;
+using Research.GraphBasedShapePrior.Util;
+using Vector = Research.GraphBasedShapePrior.Util.Vector;
 
 namespace TestArea
 {

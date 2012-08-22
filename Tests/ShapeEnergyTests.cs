@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Research.GraphBasedShapePrior.Util;
 
 namespace Research.GraphBasedShapePrior.Tests
 {

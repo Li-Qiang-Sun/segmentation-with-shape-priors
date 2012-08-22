@@ -28,6 +28,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GpuBranchAndBoundSegmentato
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShapeModelLearning", "ShapeModelLearning\ShapeModelLearning.csproj", "{33EE186A-5905-4811-8710-F39FC00F3B4B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Util", "Util\Util.csproj", "{E903B941-21F1-430D-B69B-2451ED33DBBF}"
+EndProject
 Global
 	GlobalSection(TestCaseManagementSettings) = postSolution
 		CategoryFile = GraphBasedShapePrior.vsmdi
@@ -80,6 +82,12 @@ Global
 		{33EE186A-5905-4811-8710-F39FC00F3B4B}.Release|x86.Build.0 = Release|x86
 		{33EE186A-5905-4811-8710-F39FC00F3B4B}.ReleaseGPU|x86.ActiveCfg = ReleaseGPU|x86
 		{33EE186A-5905-4811-8710-F39FC00F3B4B}.ReleaseGPU|x86.Build.0 = ReleaseGPU|x86
+		{E903B941-21F1-430D-B69B-2451ED33DBBF}.Debug|x86.ActiveCfg = Debug|x86
+		{E903B941-21F1-430D-B69B-2451ED33DBBF}.Debug|x86.Build.0 = Debug|x86
+		{E903B941-21F1-430D-B69B-2451ED33DBBF}.Release|x86.ActiveCfg = Release|x86
+		{E903B941-21F1-430D-B69B-2451ED33DBBF}.Release|x86.Build.0 = Release|x86
+		{E903B941-21F1-430D-B69B-2451ED33DBBF}.ReleaseGPU|x86.ActiveCfg = ReleaseGPU|x86
+		{E903B941-21F1-430D-B69B-2451ED33DBBF}.ReleaseGPU|x86.Build.0 = ReleaseGPU|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

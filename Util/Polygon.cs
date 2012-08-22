@@ -1,11 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
 
-namespace Research.GraphBasedShapePrior
+namespace Research.GraphBasedShapePrior.Util
 {
     public class Polygon
     {

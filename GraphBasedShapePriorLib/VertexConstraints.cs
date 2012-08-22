@@ -4,6 +4,8 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Drawing;
 using MicrosoftResearch.Infer.Maths;
+using Research.GraphBasedShapePrior.Util;
+using Vector = Research.GraphBasedShapePrior.Util.Vector;
 
 namespace Research.GraphBasedShapePrior
 {

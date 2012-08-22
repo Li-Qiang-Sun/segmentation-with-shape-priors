@@ -154,6 +154,9 @@
     <ProjectReference Include="..\GraphBasedShapePriorLib\GraphBasedShapePriorLib.csproj">
       <Project>{1d706f13-adb3-46a7-afd2-e2e1aeae0911}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\Util\Util.csproj">
+      <Project>{e903b941-21f1-430d-b69b-2451ed33dbbf}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <CUDA_Build_Rule Include="Kernels.cu" />

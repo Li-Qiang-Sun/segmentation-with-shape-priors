@@ -1,4 +1,6 @@
-﻿namespace Research.GraphBasedShapePrior
+﻿using Research.GraphBasedShapePrior.Util;
+
+namespace Research.GraphBasedShapePrior
 {
     public interface IShapeTermsLowerBoundCalculator
     {

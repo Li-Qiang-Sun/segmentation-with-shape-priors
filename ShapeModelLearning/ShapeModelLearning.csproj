@@ -134,6 +134,10 @@
       <Project>{1D706F13-ADB3-46A7-AFD2-E2E1AEAE0911}</Project>
       <Name>GraphBasedShapePriorLib</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Util\Util.csproj">
+      <Project>{E903B941-21F1-430D-B69B-2451ED33DBBF}</Project>
+      <Name>Util</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

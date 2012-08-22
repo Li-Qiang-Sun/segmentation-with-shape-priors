@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Drawing;
 
-namespace Research.GraphBasedShapePrior
+namespace Research.GraphBasedShapePrior.Util
 {
     public static class Image2D
     {

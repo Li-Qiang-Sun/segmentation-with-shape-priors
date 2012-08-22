@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using MicrosoftResearch.Infer.Distributions;
 using MicrosoftResearch.Infer.Maths;
+using Research.GraphBasedShapePrior.Util;
 
 namespace Research.GraphBasedShapePrior
 {

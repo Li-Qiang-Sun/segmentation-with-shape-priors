@@ -7,6 +7,7 @@
 using namespace System;
 using namespace System::Diagnostics;
 using namespace System::Drawing;
+using namespace Research::GraphBasedShapePrior::Util;
 
 namespace Research
 {

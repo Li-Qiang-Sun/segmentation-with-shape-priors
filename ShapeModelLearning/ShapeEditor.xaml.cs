@@ -6,6 +6,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using Research.GraphBasedShapePrior.Util;
+using Vector = Research.GraphBasedShapePrior.Util.Vector;
 
 namespace Research.GraphBasedShapePrior.ShapeModelLearning
 {

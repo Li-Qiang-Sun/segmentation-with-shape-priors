@@ -6,6 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using MicrosoftResearch.Infer.Maths;
+using Research.GraphBasedShapePrior.Util;
+using Vector = Research.GraphBasedShapePrior.Util.Vector;
 
 namespace Research.GraphBasedShapePrior
 {

@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Linq;
 using MicrosoftResearch.Infer.Distributions;
 using Research.GraphBasedShapePrior.GraphCuts;
+using Research.GraphBasedShapePrior.Util;
 
 namespace Research.GraphBasedShapePrior
 {

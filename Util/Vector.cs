@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Diagnostics;
 
-namespace Research.GraphBasedShapePrior
+namespace Research.GraphBasedShapePrior.Util
 {
     public struct Vector
     {

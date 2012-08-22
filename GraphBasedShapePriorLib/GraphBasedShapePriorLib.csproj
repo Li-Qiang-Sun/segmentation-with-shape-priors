@@ -70,31 +70,22 @@
     <Compile Include="GaussianMixtureColorModel.cs" />
     <Compile Include="IColorModel.cs" />
     <Compile Include="LengthAngleConstraints.cs" />
-    <Compile Include="LruCacheItemDiscardedEventArgs.cs" />
     <Compile Include="CpuShapeTermsLowerBoundCalculator.cs" />
     <Compile Include="BranchAndBoundProgressEventArgs.cs" />
     <Compile Include="BranchAndBoundType.cs" />
-    <Compile Include="Circle.cs" />
     <Compile Include="ColorUtils.cs" />
     <Compile Include="DepthFirstBranchAndBoundProgressEventArgs.cs" />
     <Compile Include="EdgeConstraints.cs" />
     <Compile Include="GeneralizedDistanceTransform1D.cs" />
     <Compile Include="GeneralizedDistanceTransform2D.cs" />
-    <Compile Include="Helper.cs" />
     <Compile Include="IBranchAndBoundShapeTermsCalculator.cs" />
     <Compile Include="ImageSegmentator.cs" />
     <Compile Include="IShapeEnergyLowerBoundCalculator.cs" />
     <Compile Include="LengthAngleSpaceSeparatorSet.cs" />
     <Compile Include="LengthAngleSpaceSeparator.cs" />
-    <Compile Include="LruCache.cs" />
-    <Compile Include="MathHelper.cs" />
     <Compile Include="ObjectBackgroundColorModels.cs" />
-    <Compile Include="ObjectBackgroundTerm.cs" />
-    <Compile Include="Polygon.cs" />
-    <Compile Include="Range.cs" />
     <Compile Include="SegmentationAlgorithmBase.cs" />
     <Compile Include="DebugConfiguration.cs" />
-    <Compile Include="Image2D.cs" />
     <Compile Include="IShapeFittingStrategy.cs" />
     <Compile Include="MixtureUtils.cs" />
     <Compile Include="SAShapeFittingStrategy.cs" />
@@ -111,13 +102,16 @@
     <Compile Include="ShapeEdgePairParams.cs" />
     <Compile Include="ShapeModel.cs" />
     <Compile Include="ShapeEdgeParams.cs" />
-    <Compile Include="Vector.cs" />
     <Compile Include="VerbosityLevel.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\GraphCuts\GraphCuts.vcxproj">
       <Project>{19F5BAC2-897A-4C7C-853A-752853165CCD}</Project>
       <Name>GraphCuts</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Util\Util.csproj">
+      <Project>{E903B941-21F1-430D-B69B-2451ED33DBBF}</Project>
+      <Name>Util</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

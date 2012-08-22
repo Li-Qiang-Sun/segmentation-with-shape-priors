@@ -1,4 +1,5 @@
 ﻿using System;
+using Research.GraphBasedShapePrior.Util;
 
 namespace Research.GraphBasedShapePrior
 {

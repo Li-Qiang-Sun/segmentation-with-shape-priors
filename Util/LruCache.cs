@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Research.GraphBasedShapePrior
+namespace Research.GraphBasedShapePrior.Util
 {
     public class LruCache<TKey, TValue>
     {

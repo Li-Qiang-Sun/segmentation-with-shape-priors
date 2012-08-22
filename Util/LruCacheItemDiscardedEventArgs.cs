@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Research.GraphBasedShapePrior
+namespace Research.GraphBasedShapePrior.Util
 {
     public class LruCacheItemDiscardedEventArgs <TKey, TValue> : EventArgs
     {

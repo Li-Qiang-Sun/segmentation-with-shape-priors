@@ -9,8 +9,10 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
+using Research.GraphBasedShapePrior.Util;
 using Color = System.Drawing.Color;
 using Path = System.IO.Path;
+using Vector = Research.GraphBasedShapePrior.Util.Vector;
 
 namespace Research.GraphBasedShapePrior.ShapeModelLearning
 {

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace Research.GraphBasedShapePrior
+﻿namespace Research.GraphBasedShapePrior.Util
 {
     public struct ObjectBackgroundTerm
     {

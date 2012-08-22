@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Ink;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Research.GraphBasedShapePrior.Util;
 using Color = System.Drawing.Color;
 
 namespace Research.GraphBasedShapePrior.ShapeModelLearning
