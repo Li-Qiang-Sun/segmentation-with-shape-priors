@@ -18,7 +18,15 @@ namespace Research.GraphBasedShapePrior.Util
 
         public static double Trunc(double value, double min, double max)
         {
+            Debug.Assert(max >= min);
             return Math.Min(max, Math.Max(value, min));
+        }
+
+        public static Vector Trunc(Vector value, Vector min, Vector max)
+        {
+            return new Vector(
+                Trunc(value.X, min.X, max.X),
+                Trunc(value.Y, min.Y, max.Y));
         }
 
         public static double Sqr(double x)

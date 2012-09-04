@@ -326,7 +326,7 @@ namespace Research.GraphBasedShapePrior
             return new Shape(this.Structure, vertices, edgeWidths);
         }
 
-        public double GetObjectPenalty(Shape shape, Vector point)
+        public double CalculateObjectPenalty(Shape shape, Vector point)
         {
             if (shape == null)
                 throw new ArgumentNullException("shape");
@@ -344,7 +344,7 @@ namespace Research.GraphBasedShapePrior
             return minPenalty;
         }
 
-        public double GetBackgroundPenalty(Shape shape, Vector point)
+        public double CalculateBackgroundPenalty(Shape shape, Vector point)
         {
             if (shape == null)
                 throw new ArgumentNullException("shape");
@@ -360,6 +360,12 @@ namespace Research.GraphBasedShapePrior
                 maxPenalty = Math.Max(maxPenalty, penalty);
             }
             return maxPenalty;
+        }
+
+        public ObjectBackgroundTerm CalculatePenalties(Shape shape, Vector point)
+        {
+            return new ObjectBackgroundTerm(
+                this.CalculateObjectPenalty(shape, point), this.CalculateBackgroundPenalty(shape, point));
         }
 
         public double CalculateEnergy(Shape shape)

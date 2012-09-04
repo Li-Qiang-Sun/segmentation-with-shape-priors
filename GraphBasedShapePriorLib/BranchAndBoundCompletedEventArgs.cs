@@ -5,10 +5,13 @@ namespace Research.GraphBasedShapePrior
 {
     public class BranchAndBoundCompletedEventArgs : EventArgs
     {
+        // TODO: return Image2D
         public Image CollapsedSolutionSegmentationMask { get; private set; }
 
+        // TODO: return Image2D
         public Image CollapsedSolutionUnaryTermsImage { get; private set; }
 
+        // TODO: return Image2D
         public Image CollapsedSolutionShapeTermsImage { get; private set; }
         
         public ShapeConstraints ResultConstraints { get; private set; }

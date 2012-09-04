@@ -194,6 +194,15 @@ namespace Research.GraphBasedShapePrior
             return CreateFromConstraints(this.ShapeStructure, collapsedVertexConstraints, collapsedEdgeConstraints);
         }
 
+        public Shape CollapseToShape()
+        {
+            ShapeConstraints collapsedConstraints = this.Collapse();
+            return new Shape(
+                this.ShapeStructure,
+                from vc in collapsedConstraints.VertexConstraints select vc.MiddleCoord,
+                from ec in collapsedConstraints.EdgeConstraints select ec.MiddleWidth);
+        }
+
         public ShapeConstraints CollapseRandomly()
         {
             List<VertexConstraints> collapsedVertexConstraints = this.vertexConstraints.Select(c => c.CollapseRandomly()).ToList();

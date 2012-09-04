@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Threading;
 using Research.GraphBasedShapePrior.Util;
 
 namespace Research.GraphBasedShapePrior
@@ -19,11 +20,19 @@ namespace Research.GraphBasedShapePrior
             this.BrightnessBinaryTermCutoff = 1.2;
             this.ConstantBinaryTermWeight = 1;
             this.UnaryTermWeight = 0.15;
-            this.ShapeUnaryTermWeight = 1;
+            this.ShapeUnaryTermWeight = 0.15;
             this.ShapeEnergyWeight = 25;
         }
 
         public ShapeModel ShapeModel { get; set; }
+
+        public bool IsRunning { get; private set; }
+
+        public bool IsPaused { get; private set; }
+
+        protected bool IsStopping { get; private set; }
+
+        public bool WasStopped { get; private set; }
 
         public double BrightnessBinaryTermCutoff
         {
@@ -82,7 +91,7 @@ namespace Research.GraphBasedShapePrior
 
         public ImageSegmentator ImageSegmentator { get; private set; }
 
-        public Image2D<bool> SegmentImage(Image2D<Color> image, ObjectBackgroundColorModels colorModels)
+        public SegmentationSolution SegmentImage(Image2D<Color> image, ObjectBackgroundColorModels colorModels)
         {
             if (image == null)
                 throw new ArgumentNullException("image");
@@ -101,26 +110,32 @@ namespace Research.GraphBasedShapePrior
                 "Segmented image size is {0}x{1}.",
                 this.ImageSegmentator.ImageSize.Width,
                 this.ImageSegmentator.ImageSize.Height);
-            
-            Image2D<bool> mask;
-            if (this.ShapeUnaryTermWeight > 0)
+
+            SegmentationSolution solution = null;
+            try
             {
                 if (this.ShapeModel == null)
                     throw new InvalidOperationException("Shape model must be specified before segmenting image.");
-                
+
                 DebugConfiguration.WriteImportantDebugText("Running segmentation algorithm...");
-                mask = this.SegmentCurrentImage();
+                this.IsRunning = true;
+                solution = this.SegmentCurrentImage();
+
+                if (solution == null)
+                    throw new InvalidOperationException("Segmentation solution can not be null.");
             }
-            else
+            finally
             {
-                DebugConfiguration.WriteImportantDebugText("Shape does not affect segmentation, so just segmenting image..");
-                this.ImageSegmentator.SegmentImageWithShapeTerms((x, y) => ObjectBackgroundTerm.Zero);
-                mask = this.ImageSegmentator.GetLastSegmentationMask();
+                if (this.IsStopping)
+                    this.WasStopped = true;
+                
+                this.IsRunning = false;
+                this.IsStopping = false;
             }
 
             DebugConfiguration.WriteImportantDebugText("Finished");
 
-            return mask;
+            return solution;
         }
 
         public ObjectBackgroundColorModels LearnObjectBackgroundMixtureModels(
@@ -174,6 +189,60 @@ namespace Research.GraphBasedShapePrior
             return new ObjectBackgroundColorModels(objectColorModel, backgroundColorModel);
         }
 
-        protected abstract Image2D<bool> SegmentCurrentImage();
+        public void Pause()
+        {
+            if (!this.IsRunning)
+                throw new InvalidOperationException("Segmentation algorithm is not currently running.");
+            if (this.IsPaused)
+                throw new InvalidOperationException("Segmentation algorithm is already paused.");
+
+            this.IsPaused = true;
+            this.DoPause();
+        }
+
+        public void Continue()
+        {
+            if (!this.IsRunning)
+                throw new InvalidOperationException("Segmentation algorithm is not currently running.");
+            if (!this.IsPaused)
+                throw new InvalidOperationException("Segmentation algorithm should be paused to continue it.");
+
+            this.IsPaused = false;
+            this.DoContinue();
+        }
+        
+        public void Stop()
+        {
+            if (this.IsPaused)
+                throw new InvalidOperationException("Segmentation algorithm can't be stopped while it is paused.");
+            if (!this.IsRunning)
+                return;
+
+            this.IsStopping = true;
+            this.DoStop();
+        }
+
+        protected abstract SegmentationSolution SegmentCurrentImage();
+
+        protected virtual void DoPause()
+        {
+            
+        }
+
+        protected virtual void DoContinue()
+        {
+            
+        }
+
+        protected virtual void DoStop()
+        {
+            
+        }
+
+        protected void WaitIfPaused()
+        {
+            while (this.IsPaused)
+                Thread.Sleep(10);
+        }
     }
 }

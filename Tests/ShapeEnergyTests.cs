@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Research.GraphBasedShapePrior.Util;
+using Random = Research.GraphBasedShapePrior.Util.Random;
 
 namespace Research.GraphBasedShapePrior.Tests
 {
@@ -61,21 +62,19 @@ namespace Research.GraphBasedShapePrior.Tests
             lengthRange = lengthAngleConstraints.LengthBoundary;
             angleRange = lengthAngleConstraints.AngleBoundary;
 
-            Random random = new Random(666);
-
             const int insideCheckCount = 1000;
             for (int i = 0; i < insideCheckCount; ++i)
             {
                 Vector edgePoint1 =
                     constraint1.MinCoord +
                     new Vector(
-                        random.NextDouble() * (constraint1.MaxCoord.X - constraint1.MinCoord.X),
-                        random.NextDouble() * (constraint1.MaxCoord.Y - constraint1.MinCoord.Y));
+                        Random.Double() * (constraint1.MaxCoord.X - constraint1.MinCoord.X),
+                        Random.Double() * (constraint1.MaxCoord.Y - constraint1.MinCoord.Y));
                 Vector edgePoint2 =
                     constraint2.MinCoord +
                     new Vector(
-                        random.NextDouble() * (constraint2.MaxCoord.X - constraint2.MinCoord.X),
-                        random.NextDouble() * (constraint2.MaxCoord.Y - constraint2.MinCoord.Y));
+                        Random.Double() * (constraint2.MaxCoord.X - constraint2.MinCoord.X),
+                        Random.Double() * (constraint2.MaxCoord.Y - constraint2.MinCoord.Y));
 
                 Vector vec = edgePoint2 - edgePoint1;
                 double length = vec.Length;
@@ -93,13 +92,13 @@ namespace Research.GraphBasedShapePrior.Tests
                 Vector edgePoint1 =
                     constraint1.MinCoord +
                     new Vector(
-                        (random.NextDouble() * 2 - 0.5) * (constraint1.MaxCoord.X - constraint1.MinCoord.X),
-                        (random.NextDouble() * 2 - 0.5) * (constraint1.MaxCoord.Y - constraint1.MinCoord.Y));
+                        (Random.Double() * 2 - 0.5) * (constraint1.MaxCoord.X - constraint1.MinCoord.X),
+                        (Random.Double() * 2 - 0.5) * (constraint1.MaxCoord.Y - constraint1.MinCoord.Y));
                 Vector edgePoint2 =
                     constraint2.MinCoord +
                     new Vector(
-                        (random.NextDouble() * 2 - 0.5) * (constraint2.MaxCoord.X - constraint2.MinCoord.X),
-                        (random.NextDouble() * 2 - 0.5) * (constraint2.MaxCoord.Y - constraint2.MinCoord.Y));
+                        (Random.Double() * 2 - 0.5) * (constraint2.MaxCoord.X - constraint2.MinCoord.X),
+                        (Random.Double() * 2 - 0.5) * (constraint2.MaxCoord.Y - constraint2.MinCoord.Y));
 
                 Vector vec = edgePoint2 - edgePoint1;
                 double length = vec.Length;

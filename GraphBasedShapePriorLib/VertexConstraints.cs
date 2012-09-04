@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Drawing;
 using MicrosoftResearch.Infer.Maths;
 using Research.GraphBasedShapePrior.Util;
+using Random = Research.GraphBasedShapePrior.Util.Random;
 using Vector = Research.GraphBasedShapePrior.Util.Vector;
 
 namespace Research.GraphBasedShapePrior
@@ -84,8 +85,8 @@ namespace Research.GraphBasedShapePrior
         public VertexConstraints CollapseRandomly()
         {
             return new VertexConstraints(new Vector(
-                this.MinCoord.X + (this.MaxCoord.X - this.MinCoord.X) * Rand.Double(),
-                this.MinCoord.Y + (this.MaxCoord.Y - this.MinCoord.Y) * Rand.Double()));
+                this.MinCoord.X + (this.MaxCoord.X - this.MinCoord.X) * Random.Double(),
+                this.MinCoord.Y + (this.MaxCoord.Y - this.MinCoord.Y) * Random.Double()));
         }
 
         public List<VertexConstraints> Split()

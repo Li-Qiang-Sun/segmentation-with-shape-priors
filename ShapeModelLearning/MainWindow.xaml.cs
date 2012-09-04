@@ -313,10 +313,10 @@ namespace Research.GraphBasedShapePrior.ShapeModelLearning
             customSetupStep(segmentator, scale);
 
             // Segment
-            Image2D<bool> mask = segmentator.SegmentImage(image, this.colorModels);
-            Image2D.SaveToFile(mask, "mask.png");
+            SegmentationSolution result = segmentator.SegmentImage(image, this.colorModels);
+            Image2D.SaveToFile(result.Mask, "mask.png");
             BitmapSource maskImage = ImageHelper.ResizeImage(
-                ImageHelper.MaskToBitmapSource(mask), originalImage.PixelWidth, originalImage.PixelHeight);
+                ImageHelper.MaskToBitmapSource(result.Mask), originalImage.PixelWidth, originalImage.PixelHeight);
             this.imageInfos[selectedIndex].SegmentationMask = maskImage;
 
             // Show results

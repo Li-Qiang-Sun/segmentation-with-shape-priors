@@ -4,25 +4,12 @@ using System.Linq;
 using MicrosoftResearch.Infer.Distributions;
 using MicrosoftResearch.Infer.Maths;
 using Research.GraphBasedShapePrior.Util;
+using Random = Research.GraphBasedShapePrior.Util.Random;
 
 namespace Research.GraphBasedShapePrior
 {
     public static class MixtureUtils
     {
-        public static TComponentType Sample<TComponent, TComponentType>(this Mixture<TComponent> mixture) where TComponent : Sampleable<TComponentType>
-        {
-            Debug.Assert(mixture != null);
-
-            double weightSum = mixture.WeightSum();
-            double[] weightsArray = mixture.Weights.ToArray();
-            MicrosoftResearch.Infer.Maths.Vector weights =
-                MicrosoftResearch.Infer.Maths.Vector.FromArray(weightsArray, Sparsity.Dense);
-
-            int component = Rand.Sample(weights, weightSum);
-            TComponent distribution = mixture.Components[component];
-            return distribution.Sample();
-        }
-
         public static double LogProb<TComponent, TComponentType>(this Mixture<TComponent> mixture, TComponentType what) where TComponent : IDistribution<TComponentType>
         {
             double sum = 0;
@@ -200,7 +187,7 @@ namespace Research.GraphBasedShapePrior
 
             mean = MicrosoftResearch.Infer.Maths.Vector.Zero(min.Count);
             for (int i = 0; i < min.Count; ++i)
-                mean[i] = min[i] + diff[i] * Rand.Double();
+                mean[i] = min[i] + diff[i] * Random.Double();
 
             covariance = PositiveDefiniteMatrix.IdentityScaledBy(
                 min.Count,

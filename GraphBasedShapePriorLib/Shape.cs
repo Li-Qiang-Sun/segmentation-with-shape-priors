@@ -82,5 +82,10 @@ namespace Research.GraphBasedShapePrior
             ShapeEdge edge = this.Structure.Edges[edgeIndex];
             return this.VertexPositions[edge.Index2] - this.VertexPositions[edge.Index1];
         }
+
+        public Shape Clone()
+        {
+            return new Shape(this.Structure, this.vertexPositions, this.edgeWidths);
+        }
     }
 }

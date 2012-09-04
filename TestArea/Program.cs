@@ -4,6 +4,7 @@ using System.Drawing;
 using MicrosoftResearch.Infer.Maths;
 using Research.GraphBasedShapePrior;
 using Research.GraphBasedShapePrior.Util;
+using Random = Research.GraphBasedShapePrior.Util.Random;
 using Vector = Research.GraphBasedShapePrior.Util.Vector;
 
 namespace TestArea
@@ -97,15 +98,14 @@ namespace TestArea
             const int iterations = 200000;
             using (Graphics graphics = Graphics.FromImage(image))
             {
-                Random random = new Random();
                 for (int i = 0; i < iterations; ++i)
                 {
                     Vector point1 = new Vector(
-                        point1Constraints.MinCoord.X + (point1Constraints.MaxCoord.X - point1Constraints.MinCoord.X) * random.NextDouble(),
-                        point1Constraints.MinCoord.Y + (point1Constraints.MaxCoord.Y - point1Constraints.MinCoord.Y) * random.NextDouble());
+                        point1Constraints.MinCoord.X + (point1Constraints.MaxCoord.X - point1Constraints.MinCoord.X) * Random.Double(),
+                        point1Constraints.MinCoord.Y + (point1Constraints.MaxCoord.Y - point1Constraints.MinCoord.Y) * Random.Double());
                     Vector point2 = new Vector(
-                        point2Constraints.MinCoord.X + (point2Constraints.MaxCoord.X - point2Constraints.MinCoord.X) * random.NextDouble(),
-                        point2Constraints.MinCoord.Y + (point2Constraints.MaxCoord.Y - point2Constraints.MinCoord.Y) * random.NextDouble());
+                        point2Constraints.MinCoord.X + (point2Constraints.MaxCoord.X - point2Constraints.MinCoord.X) * Random.Double(),
+                        point2Constraints.MinCoord.Y + (point2Constraints.MaxCoord.Y - point2Constraints.MinCoord.Y) * Random.Double());
 
                     double distanceSqr, alpha;
                     point.DistanceToSegmentSquared(point1, point2, out distanceSqr, out alpha);
@@ -245,15 +245,14 @@ namespace TestArea
         {
             const int GeneratedPointCount = 100000;
 
-            Random random = new Random();
             List<Vector> lengthAnglePoints = new List<Vector>();
             double maxLength = 0;
             for (int i = 0; i < GeneratedPointCount; ++i)
             {
-                double randomX1 = constraint1.MinCoord.X + random.NextDouble() * (constraint1.MaxCoord.X - constraint1.MinCoord.X);
-                double randomY1 = constraint1.MinCoord.Y + random.NextDouble() * (constraint1.MaxCoord.Y - constraint1.MinCoord.Y);
-                double randomX2 = constraint2.MinCoord.X + random.NextDouble() * (constraint2.MaxCoord.X - constraint2.MinCoord.X);
-                double randomY2 = constraint2.MinCoord.Y + random.NextDouble() * (constraint2.MaxCoord.Y - constraint2.MinCoord.Y);
+                double randomX1 = constraint1.MinCoord.X + Random.Double() * (constraint1.MaxCoord.X - constraint1.MinCoord.X);
+                double randomY1 = constraint1.MinCoord.Y + Random.Double() * (constraint1.MaxCoord.Y - constraint1.MinCoord.Y);
+                double randomX2 = constraint2.MinCoord.X + Random.Double() * (constraint2.MaxCoord.X - constraint2.MinCoord.X);
+                double randomY2 = constraint2.MinCoord.Y + Random.Double() * (constraint2.MaxCoord.Y - constraint2.MinCoord.Y);
                 Vector vector1 = new Vector(randomX1, randomY1);
                 Vector vector2 = new Vector(randomX2, randomY2);
                 if (vector1 == vector2)
@@ -393,7 +392,7 @@ namespace TestArea
 
         static void Main()
         {
-            Rand.Restart(666);
+            Random.SetSeed(666);
 
             //MainForDualDecomposition();
             //MainForPointIsClosestExperiment();

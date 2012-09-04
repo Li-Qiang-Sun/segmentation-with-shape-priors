@@ -155,7 +155,7 @@ namespace Research.GraphBasedShapePrior
         public double SegmentImageWithShapeTerms(
             Func<int, int, ObjectBackgroundTerm> shapeTermCalculator)
         {
-            // Calculate shape terms, check for changes))
+            // Calculate shape terms, check for changes
             for (int x = 0; x < this.lastUnaryTerms.Width; ++x)
             {
                 for (int y = 0; y < this.lastUnaryTerms.Height; ++y)
@@ -164,8 +164,8 @@ namespace Research.GraphBasedShapePrior
                     
                     if (firstTime || shapeTerms != this.lastShapeTerms[x, y])
                     {
-                        double objectTermNew = (this.colorTerms[x, y].ObjectTerm + shapeTerms.ObjectTerm * this.ShapeUnaryTermWeight) * this.UnaryTermWeight;
-                        double backgroundTermNew = (this.colorTerms[x, y].BackgroundTerm + shapeTerms.BackgroundTerm * this.ShapeUnaryTermWeight) * this.UnaryTermWeight;
+                        double objectTermNew = this.colorTerms[x, y].ObjectTerm * this.UnaryTermWeight + shapeTerms.ObjectTerm * this.ShapeUnaryTermWeight;
+                        double backgroundTermNew = this.colorTerms[x, y].BackgroundTerm * this.UnaryTermWeight + shapeTerms.BackgroundTerm * this.ShapeUnaryTermWeight;
                         Debug.Assert(!Double.IsInfinity(objectTermNew) && !Double.IsNaN(objectTermNew));
                         Debug.Assert(!Double.IsInfinity(backgroundTermNew) && !Double.IsNaN(backgroundTermNew));
 

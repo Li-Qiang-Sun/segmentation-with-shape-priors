@@ -30,5 +30,10 @@ namespace Research.GraphBasedShapePrior
             if (VerbosityLevel != VerbosityLevel.None)
                 Console.WriteLine(format, arg);
         }
+
+        public static void WriteImportantDebugText()
+        {
+            WriteImportantDebugText(String.Empty);
+        }
     }
 }

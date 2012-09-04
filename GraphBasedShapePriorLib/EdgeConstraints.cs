@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using MicrosoftResearch.Infer.Maths;
 using Research.GraphBasedShapePrior.Util;
+using Random = Research.GraphBasedShapePrior.Util.Random;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -49,7 +50,7 @@ namespace Research.GraphBasedShapePrior
 
         public EdgeConstraints CollapseRandomly()
         {
-            return new EdgeConstraints(this.MinWidth + this.Freedom * Rand.Double());
+            return new EdgeConstraints(this.MinWidth + this.Freedom * Random.Double());
         }
 
         public List<EdgeConstraints> Split()

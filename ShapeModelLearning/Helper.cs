@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
+using Random = Research.GraphBasedShapePrior.Util.Random;
 
 namespace Research.GraphBasedShapePrior.ShapeModelLearning
 {
@@ -12,10 +10,9 @@ namespace Research.GraphBasedShapePrior.ShapeModelLearning
             if (items.Count <= count)
                 return;
             
-            Random random = new Random();
             for (int i = 0; i < count; ++i)
             {
-                int swapIndex = i + random.Next(items.Count - i);
+                int swapIndex = Random.Int(i, items.Count - i);
                 T tmp = items[i];
                 items[i] = items[swapIndex];
                 items[swapIndex] = tmp;

@@ -43,7 +43,7 @@ namespace Research.GraphBasedShapePrior.Util
                     result.SetPixel(i, j, converter(image[i, j]));
             return result;
         }
-        
+
         public static Image2D<Color> LoadFromFile(string fileName, double scaleCoeff = 1)
         {
             using (Bitmap image = new Bitmap(fileName))
@@ -92,14 +92,14 @@ namespace Research.GraphBasedShapePrior.Util
             if (brightness >= 0.5)
             {
                 brightness = 2 * brightness - 1;
-                int color = (int) Math.Round(255 * brightness);
-                return Color.FromArgb(color, 0, 0);    
+                int color = (int)Math.Round(255 * brightness);
+                return Color.FromArgb(color, 0, 0);
             }
             else
             {
                 brightness = 2 * (0.5 - brightness);
                 int color = (int)Math.Round(255 * brightness);
-                return Color.FromArgb(0, 0, color);    
+                return Color.FromArgb(0, 0, color);
             }
         }
     }
@@ -118,6 +118,11 @@ namespace Research.GraphBasedShapePrior.Util
         public int Width { get; private set; }
 
         public int Height { get; private set; }
+
+        public Size Size
+        {
+            get { return new Size(this.Width, this.Height); }
+        }
 
         public Rectangle Rectangle
         {
