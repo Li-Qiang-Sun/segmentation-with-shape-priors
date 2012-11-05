@@ -23,7 +23,7 @@ namespace Research.GraphBasedShapePrior
                 this.ShapeEnergyWeight,
                 shapeEnergy);
 
-            return new SegmentationSolution(this.Shape, this.ImageSegmentator.GetLastSegmentationMask());
+            return new SegmentationSolution(this.Shape, this.ImageSegmentator.GetLastSegmentationMask(), totalEnergy);
         }
 
         private ObjectBackgroundTerm CalculateShapeTerms(Vector point)

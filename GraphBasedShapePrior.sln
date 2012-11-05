@@ -30,6 +30,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShapeModelLearning", "Shape
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Util", "Util\Util.csproj", "{E903B941-21F1-430D-B69B-2451ED33DBBF}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LSSVMLearning", "LSSVMLearning\LSSVMLearning.vcxproj", "{0CB408F6-0899-4C31-A359-9C58AE676BC4}"
+EndProject
 Global
 	GlobalSection(TestCaseManagementSettings) = postSolution
 		CategoryFile = GraphBasedShapePrior.vsmdi
@@ -88,6 +90,12 @@ Global
 		{E903B941-21F1-430D-B69B-2451ED33DBBF}.Release|x86.Build.0 = Release|x86
 		{E903B941-21F1-430D-B69B-2451ED33DBBF}.ReleaseGPU|x86.ActiveCfg = ReleaseGPU|x86
 		{E903B941-21F1-430D-B69B-2451ED33DBBF}.ReleaseGPU|x86.Build.0 = ReleaseGPU|x86
+		{0CB408F6-0899-4C31-A359-9C58AE676BC4}.Debug|x86.ActiveCfg = Debug|Win32
+		{0CB408F6-0899-4C31-A359-9C58AE676BC4}.Debug|x86.Build.0 = Debug|Win32
+		{0CB408F6-0899-4C31-A359-9C58AE676BC4}.Release|x86.ActiveCfg = Release|Win32
+		{0CB408F6-0899-4C31-A359-9C58AE676BC4}.Release|x86.Build.0 = Release|Win32
+		{0CB408F6-0899-4C31-A359-9C58AE676BC4}.ReleaseGPU|x86.ActiveCfg = Release|Win32
+		{0CB408F6-0899-4C31-A359-9C58AE676BC4}.ReleaseGPU|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

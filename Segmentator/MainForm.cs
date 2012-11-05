@@ -150,16 +150,31 @@ namespace Segmentator
         {
             algorithm.SolutionFitter.AnnealingProgress += OnAnnealingBasedSegmentatorProgress;
 
+            if (!String.IsNullOrEmpty(this.segmentationProperties.InitialShape))
+                algorithm.StartShape = Shape.LoadFromFile(this.segmentationProperties.InitialShape);
+
             this.SetupShapeMutator(algorithm.ShapeMutator);
             this.SetupAnnealing(algorithm.SolutionFitter);
         }
 
+        private void SetupSimpleSegmentationAlgorithm(SimpleSegmentationAlgorithm algorithm)
+        {
+            if (!String.IsNullOrEmpty(this.segmentationProperties.InitialShape))
+                algorithm.Shape = Shape.LoadFromFile(this.segmentationProperties.InitialShape);
+        }
+
         private void SetupShapeMutator(ShapeMutator mutator)
         {
-            mutator.VertexMutationProbability = this.segmentationProperties.VertexMutationProbability;
-            mutator.VertexMutationRelativeDeviation = this.segmentationProperties.VertexMutationRelativeDeviation;
-            mutator.EdgeMutationRelativeDeviation = this.segmentationProperties.EdgeMutationRelativeDeviation;
-            mutator.MaxMutationCount = this.segmentationProperties.MaxMutationCount;
+            mutator.EdgeWidthMutationWeight = this.segmentationProperties.EdgeWidthMutationWeight;
+            mutator.EdgeWidthMutationPower = this.segmentationProperties.EdgeWidthMutationPower;
+            mutator.EdgeLengthMutationWeight = this.segmentationProperties.EdgeLengthMutationWeight;
+            mutator.EdgeLengthMutationPower = this.segmentationProperties.EdgeLengthMutationPower;
+            mutator.EdgeAngleMutationWeight = this.segmentationProperties.EdgeAngleMutationWeight;
+            mutator.EdgeAngleMutationPower = this.segmentationProperties.EdgeAngleMutationPower;
+            mutator.ShapeTranslationWeight = this.segmentationProperties.ShapeTranslationWeight;
+            mutator.ShapeTranslationPower = this.segmentationProperties.ShapeTranslationPower;
+            mutator.ShapeScaleWeight = this.segmentationProperties.ShapeScaleWeight;
+            mutator.ShapeScalePower = this.segmentationProperties.ShapeScalePower;
         }
 
         private void SetupAnnealing<T>(SimulatedAnnealingMinimizer<T> minimizer)
@@ -176,11 +191,12 @@ namespace Segmentator
             Random.SetSeed(666);
             
             // Common settings
-            segmentator.UnaryTermWeight = this.segmentationProperties.UnaryTermWeight;
+            segmentator.ColorUnaryTermWeight = this.segmentationProperties.ColorTermWeight;
             segmentator.ShapeUnaryTermWeight = this.segmentationProperties.ShapeTermWeight;
+            segmentator.ColorDifferencePairwiseTermWeight = this.segmentationProperties.ColorDifferencePairwiseTermWeight;
+            segmentator.ColorDifferencePairwiseTermCutoff = this.segmentationProperties.ColorDifferencePairwiseTermCutoff;
+            segmentator.ConstantPairwiseTermWeight = this.segmentationProperties.ConstantPairwiseTermWeight;
             segmentator.ShapeEnergyWeight = this.segmentationProperties.ShapeEnergyWeight;
-            segmentator.BrightnessBinaryTermCutoff = this.segmentationProperties.BrightnessBinaryTermCutoff;
-            segmentator.ConstantBinaryTermWeight = this.segmentationProperties.ConstantBinaryTermWeight;
 
             // Custom setup
             if (this.segmentator is BranchAndBoundSegmentationAlgorithm)
@@ -189,6 +205,8 @@ namespace Segmentator
                 this.SetupCoordinateDescentSegmentationAlgorithm((CoordinateDescentSegmentationAlgorithm)this.segmentator);
             else if (this.segmentator is AnnealingSegmentationAlgorithm)
                 this.SetupAnnealingSegmentationAlgorithm((AnnealingSegmentationAlgorithm)this.segmentator);
+            else if (this.segmentator is SimpleSegmentationAlgorithm)
+                this.SetupSimpleSegmentationAlgorithm((SimpleSegmentationAlgorithm)this.segmentator);
 
             // Load color models
             ObjectBackgroundColorModels colorModels = ObjectBackgroundColorModels.LoadFromFile(this.segmentationProperties.ColorModel);
@@ -202,7 +220,6 @@ namespace Segmentator
             // Setup shape model
             ShapeModel model = ShapeModel.LoadFromFile(this.segmentationProperties.ShapeModel);
             this.segmentator.ShapeModel = model;
-            this.segmentator.ShapeModel.BackgroundDistanceCoeff = this.segmentationProperties.BackgroundDistanceCoeff;
 
             // Show original image in status window)
             this.currentImage.Image = (Image)this.segmentedImage.Clone();
@@ -240,14 +257,14 @@ namespace Segmentator
                 }));
         }
 
-        private void OnAnnealingBasedSegmentatorProgress(object sender, SimulatedAnnealingProgressEventArgs<SegmentationSolution> e)
+        private void OnAnnealingBasedSegmentatorProgress(object sender, SimulatedAnnealingProgressEventArgs<Shape> e)
         {
             this.Invoke(new MethodInvoker(
                 delegate
                 {
                     this.currentImage.Image.Dispose();
-                    this.currentImage.Image = CreateStatusImage(e.CurrentSolution.Shape);
-                    this.segmentationMaskImage.Image = Image2D.ToRegularImage(e.CurrentSolution.Mask);
+                    this.currentImage.Image = CreateStatusImage(e.CurrentSolution);
+                    // TODO: show current mask somehow
                 }));
         }
 
@@ -259,9 +276,9 @@ namespace Segmentator
                     this.DisposeStatusImages();
 
                     this.currentImage.Image = CreateStatusImage(e.Shape);
-                    this.segmentationMaskImage.Image = e.SegmentationMask;
-                    this.unaryTermsImage.Image = e.UnaryTermsImage;
-                    this.shapeTermsImage.Image = e.ShapeTermsImage;
+                    this.segmentationMaskImage.Image = Image2D.ToRegularImage(e.SegmentationMask);
+                    this.unaryTermsImage.Image = Image2D.ToRegularImage(e.UnaryTermsImage, -5, 5);
+                    this.shapeTermsImage.Image = Image2D.ToRegularImage(e.ShapeTermsImage, -5, 5);
                 }));
         }
 
@@ -286,9 +303,9 @@ namespace Segmentator
                     this.DisposeStatusImages();
 
                     this.currentImage.Image = CreateStatusImage(e.Constraints, true, true, true, false);
-                    this.segmentationMaskImage.Image = e.SegmentationMask;
-                    this.unaryTermsImage.Image = e.UnaryTermsImage;
-                    this.shapeTermsImage.Image = e.ShapeTermsImage;
+                    this.segmentationMaskImage.Image = Image2D.ToRegularImage(e.SegmentationMask);
+                    this.unaryTermsImage.Image = Image2D.ToRegularImage(e.UnaryTermsImage, -5, 5);
+                    this.shapeTermsImage.Image = Image2D.ToRegularImage(e.ShapeTermsImage, -5, 5);
                 }));
         }
 

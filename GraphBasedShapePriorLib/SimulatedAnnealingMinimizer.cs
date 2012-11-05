@@ -89,6 +89,9 @@ namespace Research.GraphBasedShapePrior
             T bestSolution = startSolution;
             double minObjective = objectiveFunction(bestSolution);
 
+            // TODO: remove me
+            int acceptedBecauseBetter = 0, acceptedRandomly = 0;
+
             int lastUpdateIteration = 0;
             int currentIteration = 0;
             int iterationsFromLastReannealing = 0;
@@ -104,6 +107,12 @@ namespace Research.GraphBasedShapePrior
                 
                 if (Random.Double() < acceptanceProb)
                 {
+                    // TODO: remove me
+                    if (currentObjective < prevObjective)
+                        ++acceptedBecauseBetter;
+                    else
+                        ++acceptedRandomly;
+                    
                     prevObjective = currentObjective;
                     prevSolution = currentSolution;
                     ++acceptedSolutionsFromLastReannealing;
@@ -131,6 +140,7 @@ namespace Research.GraphBasedShapePrior
                 {
                     iterationsFromLastReannealing = 0;
                     acceptedSolutionsFromLastReannealing = 0;
+                    prevSolution = bestSolution;
                     DebugConfiguration.WriteDebugText("Reannealing");
                 }
                 else
@@ -138,6 +148,10 @@ namespace Research.GraphBasedShapePrior
                     ++iterationsFromLastReannealing;
                 }
             }
+
+            // TODO: remove me
+            //Console.WriteLine("Accepted because better: {0}", acceptedBecauseBetter);
+            //Console.WriteLine("Accepted randomly: {0}", acceptedRandomly);
 
             return bestSolution;
         }

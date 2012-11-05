@@ -67,6 +67,65 @@ namespace TestArea
             return ShapeModel.Create(new ShapeStructure(edges), edgeParams, edgePairParams);
         }
 
+        private static ShapeModel CreateGiraffeShapeModel()
+        {
+            List<ShapeEdge> edges = new List<ShapeEdge>();
+            edges.Add(new ShapeEdge(0, 1));
+            edges.Add(new ShapeEdge(0, 2));
+            edges.Add(new ShapeEdge(0, 4));
+            edges.Add(new ShapeEdge(1, 3));
+            edges.Add(new ShapeEdge(4, 5));
+
+            List<ShapeEdgeParams> edgeParams = new List<ShapeEdgeParams>();
+            edgeParams.Add(new ShapeEdgeParams(0.1, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.1, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.1, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.1, 0.05));
+            edgeParams.Add(new ShapeEdgeParams(0.1, 0.05));
+
+            Dictionary<Tuple<int, int>, ShapeEdgePairParams> edgePairParams = new Dictionary<Tuple<int, int>, ShapeEdgePairParams>();
+            edgePairParams.Add(new Tuple<int, int>(0, 1), new ShapeEdgePairParams(Math.PI * 0.5, 1.5, Math.PI * 0.1, 5));
+            edgePairParams.Add(new Tuple<int, int>(0, 2), new ShapeEdgePairParams(-Math.PI * 0.75, 2, Math.PI * 0.1, 5));
+            edgePairParams.Add(new Tuple<int, int>(0, 3), new ShapeEdgePairParams(Math.PI * 0.5, 1.5, Math.PI * 0.1, 5));
+            edgePairParams.Add(new Tuple<int, int>(2, 4), new ShapeEdgePairParams(-Math.PI * 0.5, 0.2, Math.PI * 0.1, 5));
+
+            return ShapeModel.Create(new ShapeStructure(edges), edgeParams, edgePairParams);
+        }
+
+        static void MainForGiraffeSave()
+        {
+            CreateGiraffeShapeModel().SaveToFile("giraffe.shp");
+        }
+
+        static double WeightToDeviation(double weight)
+        {
+            return Math.Sqrt(0.5 / (Math.Max(weight, 0) + 1e-6));
+        }
+
+        static void MainForGiraffeAdjustSave()
+        {
+            ShapeModel model = ShapeModel.LoadFromFile(@"C:\segmentation-with-shape-priors\Data\giraffes\giraffe_learned_pre.shp");
+
+            // Edge 
+            model.GetMutableEdgeParams(0).WidthToEdgeLengthRatioDeviation = WeightToDeviation(1.819928);
+            model.GetMutableEdgeParams(1).WidthToEdgeLengthRatioDeviation = WeightToDeviation(0.586110);
+            model.GetMutableEdgeParams(2).WidthToEdgeLengthRatioDeviation = WeightToDeviation(0.249062);
+            model.GetMutableEdgeParams(3).WidthToEdgeLengthRatioDeviation = WeightToDeviation(0.673922);
+            model.GetMutableEdgeParams(4).WidthToEdgeLengthRatioDeviation = WeightToDeviation(0.541160);
+
+            // Edge pair
+            model.GetMutableEdgePairParams(0, 1).AngleDeviation = WeightToDeviation(1.311689);
+            model.GetMutableEdgePairParams(0, 1).LengthDiffDeviation = WeightToDeviation(0.001267);
+            model.GetMutableEdgePairParams(0, 2).AngleDeviation = WeightToDeviation(3.032988);
+            model.GetMutableEdgePairParams(0, 2).LengthDiffDeviation = WeightToDeviation(0);
+            model.GetMutableEdgePairParams(0, 3).AngleDeviation = WeightToDeviation(0);
+            model.GetMutableEdgePairParams(0, 3).LengthDiffDeviation = WeightToDeviation(0);
+            model.GetMutableEdgePairParams(2, 4).AngleDeviation = WeightToDeviation(0.985037);
+            model.GetMutableEdgePairParams(2, 4).LengthDiffDeviation = WeightToDeviation(0);
+
+            model.SaveToFile(@"C:\segmentation-with-shape-priors\Data\giraffes\giraffe_learned.shp");
+        }
+
         static void MainForConvexHull()
         {
             List<Vector> points = new List<Vector>();
@@ -374,6 +433,26 @@ namespace TestArea
             Shape shape = shapeModel.FitMeanShape(100, 200);
         }
 
+        private static void PrintGMM(string name, GaussianMixtureColorModel gmm)
+        {
+            Console.WriteLine("{0}:", name);
+            for (int i = 0; i < gmm.Components.Count; ++i)
+            {
+                Console.WriteLine("WEIGHTS[{0}]={1}", i, gmm.Weights[i]);
+                Console.WriteLine("MEANS[{0}]={1}", i, gmm.Components[i].GetMean());
+                Console.WriteLine("COVARIANCES[{0}]=\n{1}", i, gmm.Components[i].GetVariance());
+                Console.WriteLine();
+            }
+            Console.WriteLine();
+        }
+        
+        private static void PrintColorModels()
+        {
+            ObjectBackgroundColorModels colorModels = ObjectBackgroundColorModels.LoadFromFile(@"./gmm_3.clr");
+            PrintGMM("OBJECT COLOR", (GaussianMixtureColorModel) colorModels.ObjectColorModel);
+            PrintGMM("BACKGROUND COLOR", (GaussianMixtureColorModel) colorModels.BackgroundColorModel);
+        }
+
         //private static void MainForDualDecomposition()
         //{
         //    ShapeModel shapeModel = CreateSimpleShapeModel1();
@@ -394,9 +473,13 @@ namespace TestArea
         {
             Random.SetSeed(666);
 
+            MainForGiraffeAdjustSave();
+
+            //PrintColorModels();
             //MainForDualDecomposition();
             //MainForPointIsClosestExperiment();
-            MainForLengthAngleDependenceExperiment();
+            //MainForLengthAngleDependenceExperiment();
+            //MainForGiraffeSave();
             //GenerateMeanShape();
             //DrawLengthAngleDependence();
             //MainForUnaryPotentialsCheck();

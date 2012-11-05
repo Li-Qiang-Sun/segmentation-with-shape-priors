@@ -6,12 +6,16 @@ using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Forms;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Microsoft.Win32;
 using Research.GraphBasedShapePrior.Util;
 using Color = System.Drawing.Color;
+using MessageBox = System.Windows.MessageBox;
+using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using Path = System.IO.Path;
+using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 using Vector = Research.GraphBasedShapePrior.Util.Vector;
 
 namespace Research.GraphBasedShapePrior.ShapeModelLearning
@@ -67,6 +71,8 @@ namespace Research.GraphBasedShapePrior.ShapeModelLearning
 
             this.saveColorModelButton.IsEnabled = this.colorModels != null;
             this.learnColorModelButton.IsEnabled = this.imageInfos.Count > 0;
+
+            this.saveLatentSvmTrainingSetButton.IsEnabled = this.shapeModel != null && this.colorModels != null && this.imageInfos.Count > 0;
 
             this.segmentImageButton.IsEnabled =
                 this.backgroundImagesListBox.SelectedIndex != -1 && this.shapeModel != null && this.colorModels != null;
@@ -268,9 +274,52 @@ namespace Research.GraphBasedShapePrior.ShapeModelLearning
             this.UpdateControlsAccordingToCurrentState();
         }
 
+        private void OnSaveLatentSvmTrainingSetButtonClick(object sender, RoutedEventArgs e)
+        {
+            FolderBrowserDialog dlg = new FolderBrowserDialog();
+            HwndSource source = PresentationSource.FromVisual(this) as HwndSource;
+            System.Windows.Forms.IWin32Window win = new OldWindow(source.Handle);
+            if (dlg.ShowDialog(win) != System.Windows.Forms.DialogResult.OK)
+                return;
+
+            string directory = dlg.SelectedPath;
+            using (StreamWriter writer = new StreamWriter(Path.Combine(directory, "all.txt")))
+            {
+                string colorModelsPath = Path.Combine(directory, "color_model.clr");
+                this.colorModels.SaveToFile(colorModelsPath);
+                writer.WriteLine(colorModelsPath);
+
+                int index = 0;
+                foreach (ImageInfo imageInfo in imageInfos)
+                {
+                    double scale = this.CalcSegmentedImageScale(imageInfo.Image);
+                    Shape scaledShape = imageInfo.Shape.Scale(scale, Vector.Zero);
+                    BitmapSource scaledImage = ImageHelper.ResizeImage(
+                        imageInfo.Image,
+                        (int)Math.Round(imageInfo.Image.PixelWidth * scale),
+                        (int)Math.Round(imageInfo.Image.PixelHeight * scale));
+                    Image2D<Color> scaledConvertedImage = ImageHelper.BitmapSourceToImage2D(scaledImage);
+
+                    string shapePath = Path.Combine(directory, string.Format("shape_{0:000}.s", index));
+                    scaledShape.SaveToFile(shapePath);
+
+                    string imagePath = Path.Combine(directory, string.Format("image_{0:000}.png", index));
+                    Image2D.SaveToFile(scaledConvertedImage, imagePath);
+
+                    writer.WriteLine("{0}\t{1}", shapePath, imagePath);
+                    ++index;
+                }
+            }
+        }
+
         private void OnSegmentImageWithoutShapeButtonClick(object sender, RoutedEventArgs e)
         {
-            this.SegmentImage((segmentator, scale) => { segmentator.ShapeUnaryTermWeight = 0; });
+            this.SegmentImage(
+                (segmentator, scale) =>
+                {
+                    segmentator.ShapeModel = this.shapeModel;
+                    segmentator.ShapeUnaryTermWeight = 0;
+                });
         }
 
         private void OnSegmentImageButtonClick(object sender, RoutedEventArgs e)
@@ -279,23 +328,24 @@ namespace Research.GraphBasedShapePrior.ShapeModelLearning
                 (segmentator, scale) =>
                 {
                     Shape scaledShape = this.shapeEditor.Shape.Scale(scale, Vector.Zero);
-                    this.shapeModel.BackgroundDistanceCoeff = this.algorithmProperties.BackgroundDistanceCoeff;
                     segmentator.ShapeModel = this.shapeModel;
                     segmentator.Shape = scaledShape;
                 });
+        }
+
+        private double CalcSegmentedImageScale(BitmapSource segmentedImage)
+        {
+            double widthScale = this.algorithmProperties.SegmentedImageSize / segmentedImage.PixelWidth;
+            double heightScale = this.algorithmProperties.SegmentedImageSize / segmentedImage.PixelHeight;
+            return Math.Min(widthScale, heightScale);
         }
 
         private void SegmentImage(Action<SimpleSegmentationAlgorithm, double> customSetupStep)
         {
             int selectedIndex = this.backgroundImagesListBox.SelectedIndex;
             BitmapSource originalImage = this.imageInfos[selectedIndex].Image;
+            double scale = CalcSegmentedImageScale(originalImage);
 
-            // Compute scale for everything
-            double widthScale = this.algorithmProperties.SegmentedImageSize / originalImage.PixelWidth;
-            double heightScale = this.algorithmProperties.SegmentedImageSize / originalImage.PixelHeight;
-            double scale = Math.Min(widthScale, heightScale);
-
-            // Downscale original image
             BitmapSource scaledImage = ImageHelper.ResizeImage(
                 originalImage, (int)(originalImage.PixelWidth * scale), (int)(originalImage.PixelHeight * scale));
             Image2D<Color> image = ImageHelper.BitmapSourceToImage2D(scaledImage);
@@ -303,10 +353,10 @@ namespace Research.GraphBasedShapePrior.ShapeModelLearning
 
             // Customize segmentator
             SimpleSegmentationAlgorithm segmentator = new SimpleSegmentationAlgorithm();
-            segmentator.ShapeUnaryTermWeight = this.algorithmProperties.ShapeTermWeight;
-            segmentator.UnaryTermWeight = this.algorithmProperties.UnaryTermWeight;
-            segmentator.ConstantBinaryTermWeight = this.algorithmProperties.ConstantBinaryTermWeight;
-            segmentator.BrightnessBinaryTermCutoff = this.algorithmProperties.BrightnessBinaryTermCutoff;
+            segmentator.ShapeUnaryTermWeight = this.algorithmProperties.ShapeUnaryTermWeight;
+            segmentator.ColorUnaryTermWeight = this.algorithmProperties.ColorUnaryTermWeight;
+            segmentator.ColorDifferencePairwiseTermWeight = this.algorithmProperties.BinaryTermWeight;
+            segmentator.ColorDifferencePairwiseTermCutoff = this.algorithmProperties.BrightnessBinaryTermCutoff;
             segmentator.ShapeEnergyWeight = this.algorithmProperties.ShapeEnergyWeight;
 
             // Run custom setup step
@@ -369,6 +419,21 @@ namespace Research.GraphBasedShapePrior.ShapeModelLearning
             public MaskEditContext ColorModelMaskEditContext { get; set; }
 
             public Image2D<bool?> ColorModelMask { get; set; }
+        }
+
+        private class OldWindow : System.Windows.Forms.IWin32Window
+        {
+            private readonly IntPtr handle;
+
+            public OldWindow(IntPtr handle)
+            {
+                this.handle = handle;
+            }
+
+            IntPtr System.Windows.Forms.IWin32Window.Handle
+            {
+                get { return handle; }
+            }
         }
 
         private class ConsoleCapture : TextWriter

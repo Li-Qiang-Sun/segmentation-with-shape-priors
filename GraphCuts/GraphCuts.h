@@ -71,6 +71,11 @@ namespace Research
 
 				~GraphCutCalculator()
 				{
+					this->!GraphCutCalculator();
+				}
+
+				!GraphCutCalculator()
+				{
 					delete graph;
 					delete neighborsSet;
 				}

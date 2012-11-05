@@ -24,13 +24,13 @@ namespace Research.GraphBasedShapePrior.ShapeModelLearning
         public double SegmentedImageSize { get; set; }
 
         [Category("Segmentation")]
-        public double ShapeTermWeight { get; set; }
+        public double ShapeUnaryTermWeight { get; set; }
 
         [Category("Segmentation")]
-        public double UnaryTermWeight { get; set; }
+        public double ColorUnaryTermWeight { get; set; }
 
         [Category("Segmentation")]
-        public double ConstantBinaryTermWeight { get; set; }
+        public double BinaryTermWeight { get; set; }
 
         [Category("Segmentation")]
         public double BrightnessBinaryTermCutoff { get; set; }
@@ -53,10 +53,10 @@ namespace Research.GraphBasedShapePrior.ShapeModelLearning
             this.StopTolerance = 1;
 
             this.SegmentedImageSize = 140;
-            this.ShapeTermWeight = 0.5;
-            this.UnaryTermWeight = 0.5;
-            this.ShapeEnergyWeight = 100;
-            this.ConstantBinaryTermWeight = 0;
+            this.ShapeUnaryTermWeight = 0.5;
+            this.ColorUnaryTermWeight = 1;
+            this.ShapeEnergyWeight = 0.1;
+            this.BinaryTermWeight = 1;
             this.BrightnessBinaryTermCutoff = 0.01;
             this.BackgroundDistanceCoeff = 5;
             this.MixtureComponents = 3;

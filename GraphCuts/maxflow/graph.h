@@ -72,7 +72,7 @@ public:
 	// to the graph, and the second argument is an estimate of the maximum number of edges.
 	// The last (optional) argument is the pointer to the function which will be called 
 	// if an error occurs; an error message is passed to this function. 
-	// If this argument is omitted, exit(1) will be called.
+	// If this argument is omitted, exit(2) will be called.
 	//
 	// IMPORTANT: It is possible to add more nodes to the graph than node_num_max 
 	// (and node_num_max can be zero). However, if the count is exceeded, then 
@@ -302,7 +302,7 @@ private:
 
 	void	(*error_function)(char *);	// this function is called if a error occurs,
 										// with a corresponding error message
-										// (or exit(1) is called if it's NULL)
+										// (or exit(2) is called if it's NULL)
 
 	flowtype			flow;		// total flow
 

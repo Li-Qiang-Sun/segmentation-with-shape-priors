@@ -8,7 +8,7 @@ using Random = Research.GraphBasedShapePrior.Util.Random;
 namespace Research.GraphBasedShapePrior.Tests
 {
     [TestClass]
-    public class ShapeEnergyTests
+    public class ShapeTests
     {
         private static double TestShapeEnergyCalculationApproachesImpl(
             ShapeModel model,
@@ -166,23 +166,6 @@ namespace Research.GraphBasedShapePrior.Tests
             List<double> edgeWidths = new List<double> { 10, 11, 12, 13, 14 };
 
             TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateTestShapeModel5Edges(), vertices, edgeWidths, new Size(120, 120), 2001, 2001, 3);
-        }
-
-        [TestMethod]
-        public void TestShapeEnergyCalculationApproaches5()
-        {
-            List<Vector> vertices = new List<Vector>
-            {
-                new Vector(0, 0),
-                new Vector(-40, -1),
-                new Vector(3, -40),
-                new Vector(37, -43),
-                new Vector(2, -90),
-                new Vector(-35, -95)
-            };
-            List<double> edgeWidths = new List<double> { 10, 11, 12, 13, 14 };
-
-            TestShapeEnergyCalculationApproachesImpl(TestHelper.CreateLetterShapeModel(), vertices, edgeWidths, new Size(120, 120), 3001, 3001, 2);
         }
 
         [TestMethod]
@@ -373,6 +356,24 @@ namespace Research.GraphBasedShapePrior.Tests
             Range range1 = new Range(split[0].MinWidth, split[0].MaxWidth, false);
             Range range2 = new Range(split[1].MinWidth, split[1].MaxWidth, false);
             Assert.IsFalse(range1.IntersectsWith(range2));
+        }
+
+        [TestMethod]
+        public void TestLengthAngleRepresentation()
+        {
+            ShapeModel model = TestHelper.CreateLetterShapeModel();
+            Shape meanShape = model.FitMeanShape(100, 100);
+            ShapeLengthAngleRepresentation lengthAngleRepresentation = meanShape.GetLengthAngleRepresentation();
+            Shape meanShape2 = model.BuildShapeFromLengthAngleRepresentation(lengthAngleRepresentation);
+
+            for (int i = 0; i < model.Structure.VertexCount; ++i)
+            {
+                Assert.AreEqual(meanShape.VertexPositions[i].X, meanShape2.VertexPositions[i].X, 1e-6);
+                Assert.AreEqual(meanShape.VertexPositions[i].Y, meanShape2.VertexPositions[i].Y, 1e-6);
+            }
+
+            for (int i = 0; i < model.Structure.Edges.Count; ++i)
+                Assert.AreEqual(meanShape.EdgeWidths[i], meanShape2.EdgeWidths[i], 1e-6);
         }
     }
 }

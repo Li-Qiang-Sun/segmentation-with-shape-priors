@@ -1,27 +1,24 @@
 ﻿using System;
-using System.Drawing;
+using Research.GraphBasedShapePrior.Util;
 
 namespace Research.GraphBasedShapePrior
 {
     public class BranchAndBoundCompletedEventArgs : EventArgs
     {
-        // TODO: return Image2D
-        public Image CollapsedSolutionSegmentationMask { get; private set; }
+        public Image2D<bool> CollapsedSolutionSegmentationMask { get; private set; }
 
-        // TODO: return Image2D
-        public Image CollapsedSolutionUnaryTermsImage { get; private set; }
+        public Image2D<ObjectBackgroundTerm> CollapsedSolutionUnaryTermsImage { get; private set; }
 
-        // TODO: return Image2D
-        public Image CollapsedSolutionShapeTermsImage { get; private set; }
+        public Image2D<ObjectBackgroundTerm> CollapsedSolutionShapeTermsImage { get; private set; }
         
         public ShapeConstraints ResultConstraints { get; private set; }
 
         public double LowerBound { get; private set; }
 
         public BranchAndBoundCompletedEventArgs(
-            Image collapsedSolutionSegmentationMask,
-            Image collapsedSolutionUnaryTermsImage,
-            Image collapsedSolutionShapeTermsImage,
+            Image2D<bool> collapsedSolutionSegmentationMask,
+            Image2D<ObjectBackgroundTerm> collapsedSolutionUnaryTermsImage,
+            Image2D<ObjectBackgroundTerm> collapsedSolutionShapeTermsImage,
             ShapeConstraints resultConstraints,
             double lowerBound)
         {

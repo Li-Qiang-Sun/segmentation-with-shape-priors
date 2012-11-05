@@ -56,6 +56,11 @@ namespace Research.GraphBasedShapePrior.Util
             return vector * alpha;
         }
 
+        public static Vector operator /(Vector vector, double alpha)
+        {
+            return vector * (1.0 / alpha);
+        }
+
         public static bool operator ==(Vector vector1, Vector vector2)
         {
             return vector1.X == vector2.X && vector1.Y == vector2.Y;

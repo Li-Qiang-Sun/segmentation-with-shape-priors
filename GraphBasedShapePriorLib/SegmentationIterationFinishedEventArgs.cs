@@ -8,7 +8,12 @@ namespace Research.GraphBasedShapePrior
 {
     public class SegmentationIterationFinishedEventArgs : EventArgs
     {
-        public SegmentationIterationFinishedEventArgs(int iteration, Shape shape, Image segmentationMask, Image unaryTermsImage, Image shapeTermsImage)
+        public SegmentationIterationFinishedEventArgs(
+            int iteration,
+            Shape shape,
+            Image2D<bool> segmentationMask,
+            Image2D<ObjectBackgroundTerm> unaryTermsImage,
+            Image2D<ObjectBackgroundTerm> shapeTermsImage)
         {
             this.Iteration = iteration;
             this.Shape = shape;
@@ -21,13 +26,10 @@ namespace Research.GraphBasedShapePrior
 
         public Shape Shape { get; private set; }
 
-        // TODO: return Image2D
-        public Image SegmentationMask { get; private set; }
+        public Image2D<bool> SegmentationMask { get; private set; }
 
-        // TODO: return Image2D
-        public Image UnaryTermsImage { get; private set; }
+        public Image2D<ObjectBackgroundTerm> UnaryTermsImage { get; private set; }
 
-        // TODO: return Image2D
-        public Image ShapeTermsImage { get; private set; }
+        public Image2D<ObjectBackgroundTerm> ShapeTermsImage { get; private set; }
     }
 }

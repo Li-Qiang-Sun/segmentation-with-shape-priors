@@ -44,9 +44,24 @@ namespace Research.GraphBasedShapePrior.Util
             return result;
         }
 
-        public static Image2D<Color> LoadFromFile(string fileName, double scaleCoeff = 1)
+        public static Image2D<Color> LoadFromFile(string fileName)
+        {
+            return LoadFromFile(fileName, 1);
+        }
+
+        public static Image2D<Color> LoadFromFile(string fileName, double scaleCoeff)
         {
             using (Bitmap image = new Bitmap(fileName))
+                return FromRegularImage(image, scaleCoeff);
+        }
+
+        public static Image2D<Color> FromRegularImage(Bitmap image)
+        {
+            return FromRegularImage(image, 1);
+        }
+        
+        public static Image2D<Color> FromRegularImage(Bitmap image, double scaleCoeff)
+        {
             using (Bitmap scaledImage = new Bitmap(
                 image,
                 (int)Math.Round(image.Width * scaleCoeff),

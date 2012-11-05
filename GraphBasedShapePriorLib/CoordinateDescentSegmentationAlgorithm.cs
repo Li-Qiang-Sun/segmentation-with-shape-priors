@@ -71,6 +71,7 @@ namespace Research.GraphBasedShapePrior
             Image2D<bool> prevMask = this.ImageSegmentator.GetLastSegmentationMask();
             Shape prevShape = this.ShapeModel.FitMeanShape(
                 this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height);
+            double prevEnergy = 0;
 
             for (int iteration = 1; iteration <= this.MaxIterationCount && !this.IsStopping; ++iteration)
             {
@@ -81,17 +82,17 @@ namespace Research.GraphBasedShapePrior
                 Image2D<bool> prevMaskCopy = prevMask;
                 Shape currentShape = this.ShapeFitter.Run(
                     prevShape,
-                    (s, t) => this.ShapeMutator.MutateShape(s, this.ImageSegmentator.ImageSize, t / this.ShapeFitter.StartTemperature),
+                    (s, t) => this.ShapeMutator.MutateShape(s, this.ShapeModel, this.ImageSegmentator.ImageSize, t / this.ShapeFitter.StartTemperature),
                     s => this.CalcObjective(s, prevMaskCopy));
                 
-                double energy = this.ImageSegmentator.SegmentImageWithShapeTerms((x, y) => this.ShapeModel.CalculatePenalties(currentShape, new Vector(x, y)));
+                double currentEnergy = this.ImageSegmentator.SegmentImageWithShapeTerms((x, y) => this.ShapeModel.CalculatePenalties(currentShape, new Vector(x, y)));
                 Image2D<bool> currentMask = this.ImageSegmentator.GetLastSegmentationMask();
 
                 int differentValues = Image2D<bool>.DifferentValueCount(prevMask, currentMask);
                 double changedPixelRate = (double)differentValues / (this.ImageSegmentator.ImageSize.Width * this.ImageSegmentator.ImageSize.Height);
 
                 DebugConfiguration.WriteImportantDebugText("On iteration {0}:", iteration);
-                DebugConfiguration.WriteImportantDebugText("Energy is {0:0.000}", energy);
+                DebugConfiguration.WriteImportantDebugText("Energy is {0:0.000}", currentEnergy);
                 DebugConfiguration.WriteImportantDebugText("Changed pixel rate is {0:0.000000}", changedPixelRate);
                 DebugConfiguration.WriteImportantDebugText();
 
@@ -103,49 +104,45 @@ namespace Research.GraphBasedShapePrior
 
                 prevMask = currentMask;
                 prevShape = currentShape;
+                prevEnergy = currentEnergy;
 
                 if (IterationFinished != null)
                 {
-                    Image segmentationMask, unaryTermsMask, shapeTermsMask;
-                    GetUnaryTermMasks(out segmentationMask, out unaryTermsMask, out shapeTermsMask);
-                    IterationFinished(this, new SegmentationIterationFinishedEventArgs(iteration, currentShape, segmentationMask, unaryTermsMask, shapeTermsMask));
+                    IterationFinished(this, new SegmentationIterationFinishedEventArgs(
+                        iteration,
+                        currentShape,
+                        this.ImageSegmentator.GetLastSegmentationMask(),
+                        this.ImageSegmentator.GetLastUnaryTerms(),
+                        this.ImageSegmentator.GetLastShapeTerms()));
                 }
             }
 
-            return new SegmentationSolution(prevShape, prevMask);
-        }
-
-        private void GetUnaryTermMasks(out Image segmentationMask, out Image unaryTermsMask, out Image shapeTermsMask)
-        {
-            segmentationMask = Image2D.ToRegularImage(this.ImageSegmentator.GetLastSegmentationMask());
-            const double unaryTermDeviation = 20;
-            unaryTermsMask = Image2D.ToRegularImage(this.ImageSegmentator.GetLastUnaryTerms(), -unaryTermDeviation, unaryTermDeviation);
-            double shapeTermDeviation = this.ShapeUnaryTermWeight > 1e-6 ? unaryTermDeviation / this.ShapeUnaryTermWeight : 1000;
-            shapeTermsMask = Image2D.ToRegularImage(this.ImageSegmentator.GetLastShapeTerms(), -shapeTermDeviation, shapeTermDeviation);
+            return new SegmentationSolution(prevShape, prevMask, prevEnergy);
         }
 
         private double CalcObjective(Shape shape, Image2D<bool> mask)
         {
             double shapeEnergy = this.ShapeModel.CalculateEnergy(shape);
             double labelingEnergy = CalcShapeLabelingEnergy(shape, mask);
-            return shapeEnergy * this.ShapeEnergyWeight + labelingEnergy * this.ShapeUnaryTermWeight;
+            return shapeEnergy * this.ShapeEnergyWeight + labelingEnergy;
         }
 
         private double CalcShapeLabelingEnergy(Shape shape, Image2D<bool> mask)
         {
-            double result = 0;
+            double shapeTermSum = 0;
             for (int x = 0; x < mask.Width; ++x)
             {
                 for (int y = 0; y < mask.Height; ++y)
                 {
+                    
                     if (mask[x, y])
-                        result += this.ShapeModel.CalculateObjectPenalty(shape, new Vector(x, y));
+                        shapeTermSum += this.ShapeModel.CalculateObjectPenalty(shape, new Vector(x, y));
                     else
-                        result += this.ShapeModel.CalculateBackgroundPenalty(shape, new Vector(x, y));
+                        shapeTermSum += this.ShapeModel.CalculateBackgroundPenalty(shape, new Vector(x, y));
                 }
             }
 
-            return result;
+            return shapeTermSum * this.ShapeUnaryTermWeight * this.ImageSegmentator.UnaryTermScaleCoeff;
         }
     }
 }

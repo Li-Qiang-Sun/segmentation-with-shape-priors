@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.ComponentModel;
 using System.Drawing.Design;
 using System.Windows.Forms.Design;
 
@@ -21,16 +22,20 @@ namespace Segmentator
         public double ShapeTermWeight { get; set; }
 
         [Category("Low-level energy")]
-        [DisplayName("Unary term weight")]
-        public double UnaryTermWeight { get; set; }
+        [DisplayName("Сolor term weight")]
+        public double ColorTermWeight { get; set; }
 
         [Category("Low-level energy")]
-        [DisplayName("Constant binary term weight")]
-        public double ConstantBinaryTermWeight { get; set; }
+        [DisplayName("Pairwise constant term weight")]
+        public double ConstantPairwiseTermWeight { get; set; }
 
         [Category("Low-level energy")]
-        [DisplayName("Binary term cutoff")]
-        public double BrightnessBinaryTermCutoff { get; set; }
+        [DisplayName("Pairwise color term weight")]
+        public double ColorDifferencePairwiseTermWeight { get; set; }
+
+        [Category("Low-level energy")]
+        [DisplayName("Pairwise color term cutoff")]
+        public double ColorDifferencePairwiseTermCutoff { get; set; }
 
         #endregion
 
@@ -39,10 +44,6 @@ namespace Segmentator
         [Category("High-level energy")]
         [DisplayName("Shape energy weight")]
         public double ShapeEnergyWeight { get; set; }
-
-        [Category("High-level energy")]
-        [DisplayName("Background distance coeff")]
-        public double BackgroundDistanceCoeff { get; set; }
 
         #endregion
 
@@ -118,27 +119,51 @@ namespace Segmentator
 
         [Category("Simulated annealing")]
         [DisplayName("StartTemperature")]
-        public int AnnealingStartTemperature { get; set; }
+        public double AnnealingStartTemperature { get; set; }
 
         #endregion
 
         #region Shape mutation
 
         [Category("Shape mutation")]
-        [DisplayName("Vertex mutation probability")]
-        public double VertexMutationProbability { get; set; }
+        [DisplayName("Edge width mutation weight")]
+        public double EdgeWidthMutationWeight { get; set; }
 
         [Category("Shape mutation")]
-        [DisplayName("Vertex mutation stddev (relative to image size)")]
-        public double VertexMutationRelativeDeviation { get; set; }
+        [DisplayName("Edge width mutation power")]
+        public double EdgeWidthMutationPower { get; set; }
 
         [Category("Shape mutation")]
-        [DisplayName("Edge mutation stddev (relative to image size)")]
-        public double EdgeMutationRelativeDeviation { get; set; }
+        [DisplayName("Edge length mutation weight")]
+        public double EdgeLengthMutationWeight { get; set; }
 
         [Category("Shape mutation")]
-        [DisplayName("Max number of pointwise mutations for a single shape")]
-        public int MaxMutationCount { get; set; }
+        [DisplayName("Edge length mutation power")]
+        public double EdgeLengthMutationPower { get; set; }
+
+        [Category("Shape mutation")]
+        [DisplayName("Edge angle mutation weight")]
+        public double EdgeAngleMutationWeight { get; set; }
+
+        [Category("Shape mutation")]
+        [DisplayName("Edge angle mutation power")]
+        public double EdgeAngleMutationPower { get; set; }
+
+        [Category("Shape mutation")]
+        [DisplayName("Shape translation weight")]
+        public double ShapeTranslationWeight { get; set; }
+
+        [Category("Shape mutation")]
+        [DisplayName("Shape translation power")]
+        public double ShapeTranslationPower { get; set; }
+
+        [Category("Shape mutation")]
+        [DisplayName("Shape scale weight")]
+        public double ShapeScaleWeight { get; set; }
+
+        [Category("Shape mutation")]
+        [DisplayName("Shape scale power")]
+        public double ShapeScalePower { get; set; }
 
         #endregion
 
@@ -183,6 +208,11 @@ namespace Segmentator
         [DisplayName("Downscaled image size")]
         public int DownscaledImageSize { get; set; }
 
+        [Category("Main")]
+        [DisplayName("Initial shape")]
+        [Editor(typeof(FileNameEditor), typeof(UITypeEditor))]
+        public string InitialShape { get; set; }
+
         #endregion
 
         public void Validate()
@@ -199,13 +229,13 @@ namespace Segmentator
 
         public SegmentationProperties()
         {
-            this.ShapeTermWeight = 1.5;
-            this.UnaryTermWeight = 3;
-            this.ConstantBinaryTermWeight = 0;
-            this.BrightnessBinaryTermCutoff = 0.01;
+            this.ShapeTermWeight = 9.680417;
+            this.ColorTermWeight = 9.258642;
+            this.ColorDifferencePairwiseTermWeight = 0.781996;
+            this.ColorDifferencePairwiseTermCutoff = 1.2;
+            this.ConstantPairwiseTermWeight = 0;
 
-            this.ShapeEnergyWeight = 100;
-            this.BackgroundDistanceCoeff = 0.5;
+            this.ShapeEnergyWeight = 1.0;
 
             this.MinEdgeWidth = 5;
             this.MaxEdgeWidth = 15;
@@ -223,23 +253,29 @@ namespace Segmentator
             this.MinDescentIterations = 3;
             this.MaxDescentIterations = 20;
             this.MinDescentPixelChangeRate = 0.0002;
-            
-            this.VertexMutationProbability = 0.8;
-            this.VertexMutationRelativeDeviation = 0.3;
-            this.EdgeMutationRelativeDeviation = 0.1;
-            this.MaxMutationCount = 3;
+
+            this.EdgeWidthMutationWeight = 0.2;
+            this.EdgeLengthMutationWeight = 0.25;
+            this.EdgeAngleMutationWeight = 0.25;
+            this.ShapeTranslationWeight = 0;
+            this.ShapeScaleWeight = 0;
+            this.EdgeWidthMutationPower = 0.1;
+            this.EdgeLengthMutationPower = 0.3;
+            this.EdgeAngleMutationPower = Math.PI * 0.25;
+            this.ShapeTranslationPower = 0.1;
+            this.ShapeScalePower = 0.1;
 
             this.MaxAnnealingIterations = 5000;
             this.MaxAnnealingStallingIterations = 1000;
             this.ReannealingInterval = 500;
             this.AnnealingReportRate = 5;
-            this.AnnealingStartTemperature = 1000;
+            this.AnnealingStartTemperature = 0.7;
 
             this.Algorithm = SegmentationAlgorithm.Simple;
-            this.ShapeModel = @"..\..\..\Data\giraffes\giraffe.shp";
-            this.ColorModel = @"..\..\..\Data\giraffes\giraffe_3.clr";
-            this.ImageToSegment = @"..\..\..\Data\giraffes\train\giraffe_train_5.jpg";
-            this.DownscaledImageSize = 80;
+            this.ShapeModel = @"..\..\..\Data\giraffes\giraffe_learned.shp";
+            this.ColorModel = @"..\..\..\Data\giraffes\lssvm\color_model.clr";
+            this.ImageToSegment = @"..\..\..\Data\giraffes\lssvm\image_004.png";
+            this.DownscaledImageSize = 140;
         }
     }
 }

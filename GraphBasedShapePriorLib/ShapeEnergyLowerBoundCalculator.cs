@@ -36,7 +36,7 @@ namespace Research.GraphBasedShapePrior
                 throw new ArgumentException("Shape model and shape constraints correspond to different shape structures.");
 
             List<ILengthAngleConstraints> lengthAngleConstraints = CalculateLengthAngleConstraints(shapeConstraints);
-            if (model.PairwiseEdgeConstraintCount == 0)
+            if (model.ConstrainedEdgePairs.Count == 0)
             {
                 double lowerBound = CalculateSingleEdgeLowerBound(model, shapeConstraints, lengthAngleConstraints);
                 Debug.Assert(lowerBound >= 0);
@@ -94,7 +94,7 @@ namespace Research.GraphBasedShapePrior
         private static double CalculateSingleEdgeLowerBound(
             ShapeModel model, ShapeConstraints shapeConstraints, IList<ILengthAngleConstraints> lengthAngleConstraints)
         {
-            // Shape is forced to be a fully-connected tree, so this |E|=1 is the only case possible
+            // TODO: support models with multiple edges but without pairwise constraints
             Debug.Assert(model.Structure.Edges.Count == 1);
             Debug.Assert(lengthAngleConstraints.Count == 1);
 

@@ -190,7 +190,7 @@ namespace Research.GraphBasedShapePrior
                 collapsedBfsSolution.Bound,
                 collapsedBfsSolution.SegmentationEnergy,
                 collapsedBfsSolution.ShapeEnergy * this.ShapeEnergyWeight);
-            return new SegmentationSolution(resultShape, this.ImageSegmentator.GetLastSegmentationMask());
+            return new SegmentationSolution(resultShape, this.ImageSegmentator.GetLastSegmentationMask(), collapsedBfsSolution.Bound);
         }
 
         private SortedSet<EnergyBound> BreadthFirstBranchAndBoundTraverse(ShapeConstraints constraints)
@@ -280,30 +280,16 @@ namespace Research.GraphBasedShapePrior
             return front;
         }
 
-        private void GetUnaryTermMasks(ShapeConstraints constraints, out Image segmentationMask, out Image unaryTermsMask, out Image shapeTermsMask)
-        {
-            this.SegmentImageWithConstraints(constraints);
-            segmentationMask = Image2D.ToRegularImage(this.ImageSegmentator.GetLastSegmentationMask());
-            const double unaryTermDeviation = 20;
-            unaryTermsMask = Image2D.ToRegularImage(this.ImageSegmentator.GetLastUnaryTerms(), -unaryTermDeviation, unaryTermDeviation);
-            double shapeTermDeviation =
-                this.ShapeUnaryTermWeight > 1e-6
-                    ? unaryTermDeviation / this.ShapeUnaryTermWeight
-                    : 1000;
-            shapeTermsMask = Image2D.ToRegularImage(this.ImageSegmentator.GetLastShapeTerms(), -shapeTermDeviation, shapeTermDeviation);
-        }
-
         private void ReportBranchAndBoundProgress(SortedSet<EnergyBound> front)
         {
             EnergyBound currentMin = front.Min;
 
             // In order to report various masks we need to segment image again
-            Image currentMask, currentUnaryTermsImage, currentShapeTermsImage;
-            this.GetUnaryTermMasks(currentMin.Constraints, out currentMask, out currentUnaryTermsImage, out currentShapeTermsImage);
+            this.SegmentImageWithConstraints(currentMin.Constraints);
 
             // Raise status report event
             BranchAndBoundProgressEventArgs args = new BranchAndBoundProgressEventArgs(
-                front.Min.Bound, currentMask, currentUnaryTermsImage, currentShapeTermsImage, currentMin.Constraints);
+                front.Min.Bound, this.ImageSegmentator.GetLastSegmentationMask(), this.ImageSegmentator.GetLastUnaryTerms(), this.ImageSegmentator.GetLastShapeTerms(), currentMin.Constraints);
             if (this.BreadthFirstBranchAndBoundProgress != null)
                 this.BreadthFirstBranchAndBoundProgress.Invoke(this, args);
         }
@@ -311,11 +297,10 @@ namespace Research.GraphBasedShapePrior
         private void ReportBranchAndBoundCompletion(EnergyBound result)
         {
             // In order to report various masks we need to segment image again
-            Image collapsedMask, collapsedUnaryTermsImage, collapsedShapeTermsImage;
-            this.GetUnaryTermMasks(result.Constraints.Collapse(), out collapsedMask, out collapsedUnaryTermsImage, out collapsedShapeTermsImage);
+            this.SegmentImageWithConstraints(result.Constraints.Collapse());
 
             BranchAndBoundCompletedEventArgs args = new BranchAndBoundCompletedEventArgs(
-                collapsedMask, collapsedUnaryTermsImage, collapsedShapeTermsImage, result.Constraints, result.Bound);
+                this.ImageSegmentator.GetLastSegmentationMask(), this.ImageSegmentator.GetLastUnaryTerms(), this.ImageSegmentator.GetLastShapeTerms(), result.Constraints, result.Bound);
             if (this.BranchAndBoundCompleted != null)
                 this.BranchAndBoundCompleted.Invoke(this, args);
         }

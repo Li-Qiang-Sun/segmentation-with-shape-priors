@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using Research.GraphBasedShapePrior.Util;
 using Random = Research.GraphBasedShapePrior.Util.Random;
 
@@ -9,94 +9,229 @@ namespace Research.GraphBasedShapePrior
 {
     public class ShapeMutator
     {
-        private double vertexMutationProbability;
-        private double vertexMutationRelativeDeviation;
-        private double edgeMutationRelativeDeviation;
-        private int maxMutationCount;
+        private double edgeWidthMutationWeight;
+        private double edgeLengthMutationWeight;
+        private double edgeAngleMutationWeight;
+        private double shapeTranslationWeight;
+        private double shapeScaleWeight;
+
+        private double edgeWidthMutationPower;
+        private double edgeLengthMutationPower;
+        private double edgeAngleMutationPower;
+        private double shapeTranslationPower;
+        private double shapeScalePower;
 
         public ShapeMutator()
         {
-            this.vertexMutationProbability = 0.8;
-            this.vertexMutationRelativeDeviation = 0.3;
-            this.edgeMutationRelativeDeviation = 0.1;
-            this.maxMutationCount = 3;
+            this.edgeWidthMutationWeight = 0.2;
+            this.edgeLengthMutationWeight = 0.25;
+            this.edgeAngleMutationWeight = 0.25;
+            this.shapeTranslationWeight = 0.1;
+            this.shapeScaleWeight = 0.1;
+
+            this.edgeWidthMutationPower = 0.1;
+            this.edgeLengthMutationPower = 0.3;
+            this.edgeAngleMutationPower = Math.PI * 0.25;
+            this.shapeTranslationPower = 0.1;
+            this.shapeScalePower = 0.1;
         }
         
-        public double VertexMutationProbability
+        public double EdgeWidthMutationWeight
         {
-            get { return vertexMutationProbability; }
+            get { return this.edgeWidthMutationWeight; }
             set
             {
-                if (value < 0 || value > 1)
-                    throw new ArgumentOutOfRangeException("value", "Value of this property should be in [0, 1] range.");
-                vertexMutationProbability = value;
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be non-negative.");
+                this.edgeWidthMutationWeight = value;
             }
         }
-        
-        public double VertexMutationRelativeDeviation
+
+        public double EdgeLengthMutationWeight
         {
-            get { return vertexMutationRelativeDeviation; }
+            get { return this.edgeLengthMutationWeight; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be non-negative.");
+                this.edgeLengthMutationWeight = value;
+            }
+        }
+
+        public double EdgeAngleMutationWeight
+        {
+            get { return this.edgeAngleMutationWeight; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be non-negative.");
+                this.edgeAngleMutationWeight = value;
+            }
+        }
+
+        public double ShapeTranslationWeight
+        {
+            get { return this.shapeTranslationWeight; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be non-negative.");
+                this.shapeTranslationWeight = value;
+            }
+        }
+
+        public double ShapeScaleWeight
+        {
+            get { return this.shapeScaleWeight; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be non-negative.");
+                this.shapeScaleWeight = value;
+            }
+        }
+
+        public double EdgeWidthMutationPower
+        {
+            get { return this.edgeWidthMutationPower; }
             set
             {
                 if (value <= 0)
                     throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
-                vertexMutationRelativeDeviation = value;
+                this.edgeWidthMutationPower = value;
             }
         }
 
-        public double EdgeMutationRelativeDeviation
+        public double EdgeLengthMutationPower
         {
-            get { return edgeMutationRelativeDeviation; }
+            get { return this.edgeLengthMutationPower; }
             set
             {
                 if (value <= 0)
                     throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
-                edgeMutationRelativeDeviation = value;
+                this.edgeLengthMutationPower = value;
             }
         }
 
-        public int MaxMutationCount
+        public double EdgeAngleMutationPower
         {
-            get { return maxMutationCount; }
+            get { return this.edgeAngleMutationPower; }
             set
             {
                 if (value <= 0)
                     throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
-                maxMutationCount = value;
+                this.edgeAngleMutationPower = value;
             }
         }
 
-        public Shape MutateShape(Shape shape, Size imageSize, double relativeTemperature)
+        public double ShapeTranslationPower
         {
-            Shape resultShape = shape.Clone();
-            int mutations = Random.Int(1, this.MaxMutationCount + 1);
-            for (int i = 0; i < mutations; ++i)
-                ApplySingleMutation(resultShape, imageSize, relativeTemperature);
-            return resultShape;
-        }
-
-        private void ApplySingleMutation(Shape shape, Size imageSize, double relativeTemperature)
-        {
-            if (Random.Double() < this.VertexMutationProbability)
+            get { return this.shapeTranslationPower; }
+            set
             {
-                int randomVertex = Random.Int(shape.VertexPositions.Count);
-                double stdDevBase = this.VertexMutationRelativeDeviation * relativeTemperature;
-                double stdDevX = stdDevBase * imageSize.Width;
-                double stdDevY = stdDevBase * imageSize.Height;
-                Vector shift = new Vector(Random.Normal(0, stdDevX), Random.Normal(0, stdDevY));
-                shape.VertexPositions[randomVertex] = MathHelper.Trunc(
-                    shape.VertexPositions[randomVertex] + shift,
-                    Vector.Zero,
-                    new Vector(imageSize.Width, imageSize.Height));
+                if (value <= 0)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
+                this.shapeTranslationPower = value;
             }
+        }
+
+        public double ShapeScalePower
+        {
+            get { return this.shapeScalePower; }
+            set
+            {
+                if (value <= 0)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
+                this.shapeScalePower = value;
+            }
+        }
+
+        public Shape MutateShape(Shape shape, ShapeModel shapeModel, Size imageSize, double normalizedTemperature)
+        {
+            if (shape == null)
+                throw new ArgumentNullException("shape");
+            if (shapeModel == null)
+                throw new ArgumentNullException("shapeModel");
+
+            double maxImageSideSize = Math.Max(imageSize.Width, imageSize.Height);
+            Shape mutatedShape;
+
+            double weightSum =
+                this.edgeWidthMutationWeight +
+                this.edgeLengthMutationWeight +
+                this.edgeAngleMutationWeight +
+                this.shapeTranslationWeight +
+                this.shapeScaleWeight;
+            if (weightSum <= 0)
+                throw new InvalidOperationException("At least one type of mutation should have non-zero probability weight.");
+            double rand = Random.Double(0, weightSum);
+
+            // Shape part mutation
+            if (rand < this.edgeWidthMutationWeight + this.edgeLengthMutationWeight + this.edgeAngleMutationWeight)
+            {
+                ShapeLengthAngleRepresentation representation = shape.GetLengthAngleRepresentation();
+                int randomEdge = Random.Int(shape.Structure.Edges.Count);
+                
+                // Mutate edge width
+                if (rand < this.edgeWidthMutationWeight)
+                {
+                    double widthShiftStdDev = maxImageSideSize * this.edgeWidthMutationPower * normalizedTemperature;
+                    const double minWidth = 3;
+                    double widthShift = Random.Normal(0, widthShiftStdDev, -shape.EdgeWidths[randomEdge] + minWidth);
+                    representation.EdgeWidths[randomEdge] += widthShift;
+                }
+                // Mutate edge length
+                else if (rand < this.edgeWidthMutationWeight + this.edgeLengthMutationWeight)
+                {
+                    double lengthShiftStdDev = maxImageSideSize * this.edgeLengthMutationPower * normalizedTemperature;
+                    double lengthShift = Random.Normal(0, lengthShiftStdDev);
+                    representation.EdgeLengths[randomEdge] += lengthShift;
+                }
+                // Mutate edge angle
+                else
+                {
+                    double angleShiftStdDev = this.edgeAngleMutationPower * normalizedTemperature;
+                    double angleShift = Random.Normal(0, angleShiftStdDev);
+                    representation.EdgeAngles[randomEdge] += angleShift;
+                } 
+
+                mutatedShape = shapeModel.BuildShapeFromLengthAngleRepresentation(representation);
+            }
+            // Whole shape mutation
             else
             {
-                int randomEdge = Random.Int(shape.EdgeWidths.Count);
-                double maxImageSideSize = Math.Max(imageSize.Width, imageSize.Height);
-                double stdDev = maxImageSideSize * this.EdgeMutationRelativeDeviation * relativeTemperature;
-                double shift = Random.Normal(0, stdDev, -shape.EdgeWidths[randomEdge]);
-                shape.EdgeWidths[randomEdge] += shift;
+                rand -= this.edgeWidthMutationWeight + this.edgeLengthMutationWeight + this.edgeAngleMutationWeight;
+                mutatedShape = shape.Clone();
+
+                // Translate shape
+                if (rand < this.shapeTranslationWeight)
+                {
+                    double translationStdDev = maxImageSideSize * this.shapeTranslationPower * normalizedTemperature;
+                    Vector shift = new Vector(Random.Normal(0, translationStdDev), Random.Normal(0, translationStdDev));
+                    for (int i = 0; i < mutatedShape.VertexPositions.Count; ++i)
+                        mutatedShape.VertexPositions[i] += shift;
+                }
+                // Scale shape
+                else
+                {
+                    Vector shapeCenter = shape.VertexPositions.Aggregate(Vector.Zero, (a, c) => a + c) / shape.VertexPositions.Count;
+                    double scaleStdDev = this.shapeScalePower * normalizedTemperature;
+                    const double minScale = 0.1;
+                    double scale = Random.Normal(1.0, scaleStdDev, minScale);
+                    for (int i = 0; i < mutatedShape.VertexPositions.Count; ++i)
+                        mutatedShape.VertexPositions[i] = shapeCenter + scale * (mutatedShape.VertexPositions[i] - shapeCenter);
+                }
             }
+
+            // Clamp vertex positions to image
+            Debug.Assert(mutatedShape != null);
+            for (int i = 0; i < mutatedShape.VertexPositions.Count; ++i)
+            {
+                mutatedShape.VertexPositions[i] = MathHelper.Trunc(
+                    mutatedShape.VertexPositions[i], Vector.Zero, new Vector(imageSize.Width, imageSize.Height));
+            }
+
+            return mutatedShape;
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Drawing;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -18,6 +19,21 @@ namespace Research.GraphBasedShapePrior
             if (mixture == null)
                 throw new ArgumentNullException("mixture");
             this.mixture = mixture;
+        }
+
+        public int ComponentCount
+        {
+            get { return this.mixture.Components.Count; }
+        }
+
+        public ReadOnlyCollection<double> Weights
+        {
+            get { return this.mixture.Weights.AsReadOnly(); }
+        }
+
+        public ReadOnlyCollection<VectorGaussian> Components
+        {
+            get { return this.mixture.Components.AsReadOnly(); }
         }
 
         public static GaussianMixtureColorModel Fit(IEnumerable<Color> pixels, int mixtureComponentCount, double stopTolerance)

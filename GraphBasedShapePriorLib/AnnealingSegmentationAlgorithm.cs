@@ -5,15 +5,19 @@ namespace Research.GraphBasedShapePrior
 {
     public class AnnealingSegmentationAlgorithm : SegmentationAlgorithmBase
     {
-        public SimulatedAnnealingMinimizer<SegmentationSolution> SolutionFitter { get; private set; }
+        public SimulatedAnnealingMinimizer<Shape> SolutionFitter { get; private set; }
 
         public ShapeMutator ShapeMutator { get; private set; }
+
+        public Func<Shape, double> AdditionalShapePenalty { get; set; }
+
+        public Shape StartShape { get; set; }
 
         public AnnealingSegmentationAlgorithm()
         {
             this.ShapeMutator = new ShapeMutator();
-            
-            this.SolutionFitter = new SimulatedAnnealingMinimizer<SegmentationSolution>();
+
+            this.SolutionFitter = new SimulatedAnnealingMinimizer<Shape>();
             this.SolutionFitter.MaxIterations = 5000;
             this.SolutionFitter.MaxStallingIterations = 1000;
             this.SolutionFitter.ReannealingInterval = 500;
@@ -23,34 +27,46 @@ namespace Research.GraphBasedShapePrior
         
         protected override SegmentationSolution SegmentCurrentImage()
         {
-            Shape startShape = this.ShapeModel.FitMeanShape(
-                this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height);
-            Image2D<bool> startMask = this.ShapeToMask(startShape);
-            SegmentationSolution startSolution = new SegmentationSolution(startShape, startMask);
+            Shape startShape = this.StartShape;
+            if (startShape == null)
+            {
+                startShape = this.ShapeModel.FitMeanShape(
+                    this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height);
+            }
 
-            return this.SolutionFitter.Run(startSolution, this.MutateSolution, this.CalcObjective);
+            Shape solutionShape = this.SolutionFitter.Run(startShape, this.MutateSolution, s => this.CalcObjective(s, false));
+            double solutionEnergy = CalcObjective(solutionShape, true);
+            Image2D<bool> solutionMask = this.ImageSegmentator.GetLastSegmentationMask();
+            return new SegmentationSolution(solutionShape, solutionMask, solutionEnergy);
         }
 
-        private double CalcObjective(SegmentationSolution solution)
+        private double CalcObjective(Shape shape, bool report)
         {
-            double shapeEnergy = this.ShapeModel.CalculateEnergy(solution.Shape);
+            double shapeEnergy = this.ShapeModel.CalculateEnergy(shape);
             double labelingEnergy = this.ImageSegmentator.SegmentImageWithShapeTerms(
-                (x, y) => this.ShapeModel.CalculatePenalties(solution.Shape, new Vector(x, y)));
-            return shapeEnergy * this.ShapeEnergyWeight + labelingEnergy;
+                (x, y) => this.ShapeModel.CalculatePenalties(shape, new Vector(x, y)));
+            double energy = shapeEnergy * this.ShapeEnergyWeight + labelingEnergy;
+            double additionalPenalty = this.AdditionalShapePenalty == null ? 0 : this.AdditionalShapePenalty(shape);
+            double totalEnergy = energy + additionalPenalty;
+
+            if (report)
+            {
+                DebugConfiguration.WriteImportantDebugText(
+                    "Solution energy: {0:0.0000} ({1:0.0000} + {2:0.0000} * {3:0.0000} + {4:0.0000})",
+                    totalEnergy,
+                    labelingEnergy,
+                    this.ShapeEnergyWeight,
+                    shapeEnergy,
+                    additionalPenalty);
+            }
+
+            return totalEnergy;
         }
 
-        private SegmentationSolution MutateSolution(SegmentationSolution solution, double temperature)
+        private Shape MutateSolution(Shape shape, double temperature)
         {
-            Shape mutatedShape = this.ShapeMutator.MutateShape(
-                solution.Shape, this.ImageSegmentator.ImageSize, temperature / this.SolutionFitter.StartTemperature);
-            Image2D<bool> mutatedShapeMask = this.ShapeToMask(mutatedShape);
-            return new SegmentationSolution(mutatedShape, mutatedShapeMask);
-        }
-
-        private Image2D<bool> ShapeToMask(Shape shape)
-        {
-            this.ImageSegmentator.SegmentImageWithShapeTerms((x, y) => this.ShapeModel.CalculatePenalties(shape, new Vector(x, y)));
-            return this.ImageSegmentator.GetLastSegmentationMask();
+            return this.ShapeMutator.MutateShape(
+                shape, this.ShapeModel, this.ImageSegmentator.ImageSize, temperature / this.SolutionFitter.StartTemperature);
         }
     }
 }

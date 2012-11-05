@@ -44,8 +44,11 @@
                 <TextBlock>Learn color<LineBreak/>model</TextBlock>
             </Button>
             <Button Width="80" Name="segmentImageButton" Click="OnSegmentImageButtonClick" IsEnabled="False">Segment!</Button>
-            <Button IsEnabled="False" Name="segmentImageWithoutShapeButton" Width="80" Click="OnSegmentImageWithoutShapeButtonClick">
+            <Button IsEnabled="False" Name="segmentImageWithoutShapeButton" Width="80" Click="OnSegmentImageWithoutShapeButtonClick" Margin="0,0,10,0">
                 <TextBlock>Segment w/o<LineBreak/>shape model</TextBlock>
+            </Button>
+            <Button Width="80" Name="saveLatentSvmTrainingSetButton" Click="OnSaveLatentSvmTrainingSetButtonClick" IsEnabled="False">
+                <TextBlock>Save LSSVM<LineBreak/>training set...</TextBlock>
             </Button>
         </StackPanel>
         <ListBox Name="backgroundImagesListBox" SelectionMode="Single" Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="Auto" Height="Auto" Margin="5,5,5,0" SelectionChanged="OnBackgroundImagesListBoxSelectionChanged" Grid.Row="1" />

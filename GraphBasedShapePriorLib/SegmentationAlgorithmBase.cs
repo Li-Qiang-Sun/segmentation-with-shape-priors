@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 using System.Threading;
 using Research.GraphBasedShapePrior.Util;
 
@@ -9,19 +7,21 @@ namespace Research.GraphBasedShapePrior
 {
     public abstract class SegmentationAlgorithmBase
     {
-        private double brightnessBinaryTermCutoff;
-        private double constantBinaryTermWeight;
-        private double unaryTermWeight;
+        private double colorDifferencePairwiseTermCutoff;
+        private double colorDifferencePairwiseTermWeight;
+        private double constantPairwiseTermWeight;
+        private double colorUnaryTermWeight;
         private double shapeUnaryTermWeight;
         private double shapeEnergyWeight;
 
         protected SegmentationAlgorithmBase()
         {
-            this.BrightnessBinaryTermCutoff = 1.2;
-            this.ConstantBinaryTermWeight = 1;
-            this.UnaryTermWeight = 0.15;
+            this.ColorDifferencePairwiseTermCutoff = 1.2;
+            this.ColorDifferencePairwiseTermWeight = 0.015;
+            this.ConstantPairwiseTermWeight = 0;
+            this.ColorUnaryTermWeight = 1;
             this.ShapeUnaryTermWeight = 0.15;
-            this.ShapeEnergyWeight = 25;
+            this.ShapeEnergyWeight = 0.005;
         }
 
         public ShapeModel ShapeModel { get; set; }
@@ -34,58 +34,69 @@ namespace Research.GraphBasedShapePrior
 
         public bool WasStopped { get; private set; }
 
-        public double BrightnessBinaryTermCutoff
+        public double ColorDifferencePairwiseTermCutoff
         {
-            get { return brightnessBinaryTermCutoff; }
+            get { return this.colorDifferencePairwiseTermCutoff; }
             set
             {
                 if (value <= 0)
                     throw new ArgumentOutOfRangeException("value", "Property value should be positive.");
-                brightnessBinaryTermCutoff = value;
+                this.colorDifferencePairwiseTermCutoff = value;
             }
         }
 
-        public double ConstantBinaryTermWeight
+        public double ColorDifferencePairwiseTermWeight
         {
-            get { return constantBinaryTermWeight; }
+            get { return this.colorDifferencePairwiseTermWeight; }
             set
             {
                 if (value < 0)
                     throw new ArgumentOutOfRangeException("value", "Property value should not be negative.");
-                constantBinaryTermWeight = value;
+                this.colorDifferencePairwiseTermWeight = value;
             }
         }
 
-        public double UnaryTermWeight
+        public double ConstantPairwiseTermWeight
         {
-            get { return unaryTermWeight; }
+            get { return this.constantPairwiseTermWeight; }
             set
             {
                 if (value < 0)
                     throw new ArgumentOutOfRangeException("value", "Property value should not be negative.");
-                unaryTermWeight = value;
+                this.constantPairwiseTermWeight = value;
+            }
+        }
+
+        public double ColorUnaryTermWeight
+        {
+            get { return this.colorUnaryTermWeight; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException("value", "Property value should not be negative.");
+                this.colorUnaryTermWeight = value;
             }
         }
 
         public double ShapeUnaryTermWeight
         {
-            get { return shapeUnaryTermWeight; }
+            get { return this.shapeUnaryTermWeight; }
             set
             {
                 if (value < 0)
                     throw new ArgumentOutOfRangeException("value", "Property value should not be negative.");
-                shapeUnaryTermWeight = value;
+                this.shapeUnaryTermWeight = value;
             }
         }
 
         public double ShapeEnergyWeight
         {
-            get { return shapeEnergyWeight; }
+            get { return this.shapeEnergyWeight; }
             set
             {
                 if (value < 0)
                     throw new ArgumentOutOfRangeException("value", "Property value should not be negative.");
-                shapeEnergyWeight = value;
+                this.shapeEnergyWeight = value;
             }
         }
 
@@ -101,9 +112,10 @@ namespace Research.GraphBasedShapePrior
             this.ImageSegmentator = new ImageSegmentator(
                 image,
                 colorModels,
-                this.BrightnessBinaryTermCutoff,
-                this.ConstantBinaryTermWeight,
-                this.UnaryTermWeight,
+                this.ColorDifferencePairwiseTermCutoff,
+                this.ColorDifferencePairwiseTermWeight,
+                this.ConstantPairwiseTermWeight,
+                this.ColorUnaryTermWeight,
                 this.ShapeUnaryTermWeight);
 
             DebugConfiguration.WriteImportantDebugText(
@@ -136,57 +148,6 @@ namespace Research.GraphBasedShapePrior
             DebugConfiguration.WriteImportantDebugText("Finished");
 
             return solution;
-        }
-
-        public ObjectBackgroundColorModels LearnObjectBackgroundMixtureModels(
-            Image2D<Color> image,
-            Rectangle estimatedObjectLocation,
-            int mixtureComponentCount)
-        {            
-            if (image == null)
-                throw new ArgumentNullException("image");
-            if (!image.Rectangle.Contains(estimatedObjectLocation))
-                throw new ArgumentException("Object location should be inside given image");
-            if (estimatedObjectLocation.Width == image.Width && estimatedObjectLocation.Height == image.Height)
-                throw new ArgumentException("Estimated object location should be strictly inside an image.");
-
-            const double stopTolerance = 1;
-            const double mixtureFittingThreshold = 0.2;
-
-            // Extract background pixels (yeah, it can be done faster)
-            List<Color> backgroundPixels = new List<Color>();
-            for (int i = 0; i < image.Width; ++i)
-                for (int j = 0; j < image.Height; ++j)
-                    if (!estimatedObjectLocation.Contains(i, j))
-                        backgroundPixels.Add(image[i, j]);
-
-            // Fit GMM for background
-            GaussianMixtureColorModel backgroundColorModel = GaussianMixtureColorModel.Fit(backgroundPixels, mixtureComponentCount, stopTolerance);
-
-            // Find most unprobable background pixels in bbox
-            List<Tuple<Color, double>> innerPixelsWithProb = new List<Tuple<Color, double>>();
-            for (int i = estimatedObjectLocation.Left; i < estimatedObjectLocation.Right; ++i)
-                for (int j = estimatedObjectLocation.Top; j < estimatedObjectLocation.Bottom; ++j)
-                {
-                    Color color = image[i, j];
-                    double logProb = backgroundColorModel.LogProb(color);
-                    innerPixelsWithProb.Add(new Tuple<Color, double>(color, logProb));
-                }
-            innerPixelsWithProb.Sort(
-                (t1, t2) => Comparer<double>.Default.Compare(t1.Item2, t2.Item2));
-
-            // Fit GMM for foreground
-            List<Color> objectPixels =
-                innerPixelsWithProb.Take((int)(innerPixelsWithProb.Count * mixtureFittingThreshold)).Select(t => t.Item1).ToList();
-            GaussianMixtureColorModel objectColorModel = GaussianMixtureColorModel.Fit(objectPixels, mixtureComponentCount, stopTolerance);
-
-            // Re-learn GMM for background with some new data
-            List<Color> moreBackgroundPixels =
-                innerPixelsWithProb.Skip((int)(innerPixelsWithProb.Count * (1 - mixtureFittingThreshold))).Select(t => t.Item1).ToList();
-            backgroundPixels.AddRange(moreBackgroundPixels);
-            backgroundColorModel = GaussianMixtureColorModel.Fit(backgroundPixels, mixtureComponentCount, stopTolerance);
-
-            return new ObjectBackgroundColorModels(objectColorModel, backgroundColorModel);
         }
 
         public void Pause()

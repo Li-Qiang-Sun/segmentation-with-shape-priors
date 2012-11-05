@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.Serialization;
+using Research.GraphBasedShapePrior.Util;
 
 namespace Research.GraphBasedShapePrior
 {
@@ -27,26 +28,12 @@ namespace Research.GraphBasedShapePrior
 
         public static ObjectBackgroundColorModels LoadFromFile(string fileName)
         {
-            using (FileStream stream = new FileStream(fileName, FileMode.Open))
-            {
-                DataContractSerializer serializer = CreateSerializer();
-                return (ObjectBackgroundColorModels)serializer.ReadObject(stream);
-            }
+            return Helper.LoadFromFile<ObjectBackgroundColorModels>(fileName, new ColorModelDataContractSurrogate());
         }
 
         public void SaveToFile(string fileName)
         {
-            using (FileStream stream = new FileStream(fileName, FileMode.Create))
-            {
-                DataContractSerializer serializer = CreateSerializer();
-                serializer.WriteObject(stream, this);
-            }
-        }
-
-        private static DataContractSerializer CreateSerializer()
-        {
-            return new DataContractSerializer(
-                typeof(ObjectBackgroundColorModels), new Type[] { }, Int32.MaxValue, false, true, new ColorModelDataContractSurrogate());
+            Helper.SaveToFile(fileName, this, new ColorModelDataContractSurrogate());
         }
     }
 }

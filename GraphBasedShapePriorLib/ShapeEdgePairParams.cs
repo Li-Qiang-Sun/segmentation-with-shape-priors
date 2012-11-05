@@ -7,17 +7,33 @@ namespace Research.GraphBasedShapePrior
     [DataContract]
     public class ShapeEdgePairParams
     {
+        [DataMember]
+        private double meanAngle;
+
+        [DataMember]
+        private double meanLengthRatio;
+
+        [DataMember]
+        private double angleDeviation;
+
+        [DataMember]
+        private double lengthDiffDeviation;
+        
         public ShapeEdgePairParams(double meanAngle, double meanLengthRatio, double angleDeviation, double lengthDiffDeviation)
         {
-            Debug.Assert(meanAngle >= -Math.PI && meanAngle <= Math.PI);
-            Debug.Assert(meanLengthRatio >= 0);
-            Debug.Assert(angleDeviation >= 0);
-            Debug.Assert(lengthDiffDeviation >= 0);
+            if (meanAngle < -Math.PI || meanAngle > Math.PI)
+                throw new ArgumentOutOfRangeException("meanAngle", "Mean angle should be in [-pi, pi] range.");
+            if (meanLengthRatio <= 0)
+                throw new ArgumentOutOfRangeException("meanLengthRatio", "Mean length ratio should be positive.");
+            if (angleDeviation <= 0)
+                throw new ArgumentOutOfRangeException("angleDeviation", "Angle deviation should be positive.");
+            if (lengthDiffDeviation <= 0)
+                throw new ArgumentOutOfRangeException("lengthDiffDeviation", "Length diff deviation should be positive.");
 
-            this.MeanAngle = meanAngle;
-            this.MeanLengthRatio = meanLengthRatio;
-            this.AngleDeviation = angleDeviation;
-            this.LengthDiffDeviation = lengthDiffDeviation;
+            this.meanAngle = meanAngle;
+            this.meanLengthRatio = meanLengthRatio;
+            this.angleDeviation = angleDeviation;
+            this.lengthDiffDeviation = lengthDiffDeviation;
         }
 
         public ShapeEdgePairParams Swap()
@@ -25,31 +41,48 @@ namespace Research.GraphBasedShapePrior
             return new ShapeEdgePairParams(-this.MeanAngle, 1.0 / this.MeanLengthRatio, this.AngleDeviation, this.LengthDiffDeviation);
         }
 
-        /// <summary>
-        /// Gets mean angle from first to second edge.
-        /// </summary>
-        /// <remarks>
-        /// For angle calculations we consider edge as v2-v1 vector.
-        /// </remarks>
-        [DataMember]
-        public double MeanAngle { get; private set; }
+        public double MeanAngle
+        {
+            get { return this.meanAngle; }
+            set
+            {
+                if (value < -Math.PI || value > Math.PI)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be in [-pi, pi] range.");
+                this.meanAngle = value;
+            }
+        }
+        
+        public double MeanLengthRatio
+        {
+            get { return this.meanLengthRatio; }
+            set
+            {
+                if (value <= 0)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
+                this.meanLengthRatio = value;
+            }
+        }
 
-        /// <summary>
-        /// Gets first edge to second edge mean length ratio.
-        /// </summary>
-        [DataMember]
-        public double MeanLengthRatio { get; private set; }
-
-        /// <summary>
-        /// Gets angle constraint softness.
-        /// </summary>
-        [DataMember]
-        public double AngleDeviation { get; private set; }
-
-        /// <summary>
-        /// Gets length constraint softness.
-        /// </summary>
-        [DataMember]
-        public double LengthDiffDeviation { get; private set; }
+        public double AngleDeviation
+        {
+            get { return this.angleDeviation; }
+            set
+            {
+                if (value <= 0)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
+                this.angleDeviation = value;
+            }
+        }
+        
+        public double LengthDiffDeviation
+        {
+            get { return this.lengthDiffDeviation; }
+            set
+            {
+                if (value <= 0)
+                    throw new ArgumentOutOfRangeException("value", "Value of this property should be positive.");
+                this.lengthDiffDeviation = value;
+            }
+        }
     }
 }
