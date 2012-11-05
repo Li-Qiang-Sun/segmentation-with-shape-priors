@@ -1,0 +1,10 @@
+C:\segmentation-with-shape-priors\Data\giraffes\lssvm\color_model.clr
+C:\segmentation-with-shape-priors\Data\giraffes\lssvm\shape_000.s	C:\segmentation-with-shape-priors\Data\giraffes\lssvm\image_000.png
+C:\segmentation-with-shape-priors\Data\giraffes\lssvm\shape_001.s	C:\segmentation-with-shape-priors\Data\giraffes\lssvm\image_001.png
+C:\segmentation-with-shape-priors\Data\giraffes\lssvm\shape_002.s	C:\segmentation-with-shape-priors\Data\giraffes\lssvm\image_002.png
+C:\segmentation-with-shape-priors\Data\giraffes\lssvm\shape_003.s	C:\segmentation-with-shape-priors\Data\giraffes\lssvm\image_003.png
+C:\segmentation-with-shape-priors\Data\giraffes\lssvm\shape_004.s	C:\segmentation-with-shape-priors\Data\giraffes\lssvm\image_004.png
+C:\segmentation-with-shape-priors\Data\giraffes\lssvm\shape_005.s	C:\segmentation-with-shape-priors\Data\giraffes\lssvm\image_005.png
+C:\segmentation-with-shape-priors\Data\giraffes\lssvm\shape_006.s	C:\segmentation-with-shape-priors\Data\giraffes\lssvm\image_006.png
+C:\segmentation-with-shape-priors\Data\giraffes\lssvm\shape_007.s	C:\segmentation-with-shape-priors\Data\giraffes\lssvm\image_007.png
+C:\segmentation-with-shape-priors\Data\giraffes\lssvm\shape_008.s	C:\segmentation-with-shape-priors\Data\giraffes\lssvm\image_008.png

@@ -1,0 +1,3 @@
+C:\segmentation-with-shape-priors\Data\giraffes\lssvm\color_model.clr
+C:\segmentation-with-shape-priors\Data\giraffes\lssvm\shape_000.s	C:\segmentation-with-shape-priors\Data\giraffes\lssvm\image_000.png
+C:\segmentation-with-shape-priors\Data\giraffes\lssvm\shape_001.s	C:\segmentation-with-shape-priors\Data\giraffes\lssvm\image_001.png
