@@ -205,7 +205,9 @@ namespace Research.GraphBasedShapePrior
             }
 
             // Actually segment image
-            this.graphCutCalculator.Calculate();
+            double graphCutEnergy = this.graphCutCalculator.Calculate();
+            bool wasFirstTime = this.firstTime;
+            this.firstTime = false;
 
             // Fill segmentation mask
             for (int x = 0; x < this.lastSegmentationMask.Width; ++x)
@@ -217,8 +219,6 @@ namespace Research.GraphBasedShapePrior
                 }
             }
 
-            this.firstTime = false;
-
             // Compute energy
             double unaryColorTermSum, unaryShapeTermSum, colorDifferencePairwiseTermSum, constantPairwiseTermSum;
             this.ExtractSegmentationFeaturesForMask(
@@ -228,6 +228,9 @@ namespace Research.GraphBasedShapePrior
                 out colorDifferencePairwiseTermSum,
                 out constantPairwiseTermSum);
             double energy = unaryColorTermSum + unaryShapeTermSum + colorDifferencePairwiseTermSum + constantPairwiseTermSum;
+
+            // Sanity check: energies should be the same if graph cut calculator is "fresh"
+            Debug.Assert(!wasFirstTime || Math.Abs(graphCutEnergy - energy) < 1e-6);
 
             return energy;
         }

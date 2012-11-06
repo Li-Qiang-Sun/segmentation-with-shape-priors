@@ -143,8 +143,6 @@ namespace Research
 				double Calculate()
 				{
 					double energy = graph->maxflow(!firstGraphCut);
-					//assert(firstGraphCut || energy == graph->maxflow(false));
-
 					dirty = false;
 					firstGraphCut = false;
 					return energy;
