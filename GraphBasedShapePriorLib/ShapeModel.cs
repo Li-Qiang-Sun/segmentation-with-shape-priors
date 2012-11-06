@@ -448,10 +448,17 @@ namespace Research.GraphBasedShapePrior
 
         public Shape FitMeanShape(int width, int height)
         {
-            // Build tree, ignore scale           
+            return this.FitMeanShape(width, height, Vector.UnitX);
+        }
+
+        public Shape FitMeanShape(int width, int height, Vector rootEdgeDirection)
+        {
+            rootEdgeDirection = rootEdgeDirection.GetNormalized();
+            
+            // Build tree with a root edge scale
             Vector[] vertices = new Vector[this.Structure.VertexCount];
             vertices[this.Structure.Edges[this.rootEdgeIndex].Index1] = new Vector(0, 0);
-            vertices[this.Structure.Edges[this.rootEdgeIndex].Index2] = new Vector(this.RootEdgeMeanLength, 0);
+            vertices[this.Structure.Edges[this.rootEdgeIndex].Index2] = rootEdgeDirection * this.RootEdgeMeanLength;
             foreach (int childEdgeIndex in this.IterateNeighboringEdgeIndices(this.rootEdgeIndex))
             {
                 BuildShapeFromLengthAngleRepresentationDfs(
@@ -474,14 +481,13 @@ namespace Research.GraphBasedShapePrior
                 max.X = Math.Max(max.X, vertices[i].X);
                 max.Y = Math.Max(max.Y, vertices[i].Y);
             }
+            Vector center = 0.5 * (min + max);
 
-            // Scale & shift vertices, leaving some place near the borders
-            double scale = Math.Min(width / (max.X - min.X), height / (max.Y - min.Y));
+            // Shift vertices to the center of image
             for (int i = 0; i < this.Structure.VertexCount; ++i)
             {
                 Vector pos = vertices[i];
-                pos -= 0.5 * (max + min);
-                pos *= scale * 0.8;
+                pos -= center;
                 pos += new Vector(width * 0.5, height * 0.5);
                 vertices[i] = pos;
             }

@@ -35,12 +35,12 @@ using namespace cli;
 
 const double COLOR_DIFFERENCE_CUTOFF = 0.2;
 
-const int MAX_ANNEALING_ITERATIONS = 3000;
-const int MAX_ANNEALING_STALL_ITERATIONS = 750;
-const int REANNEALING_INTERVAL = 750;
-//const int MAX_ANNEALING_ITERATIONS = 1000;
-//const int MAX_ANNEALING_STALL_ITERATIONS = 300;
-//const int REANNEALING_INTERVAL = 300;
+//const int MAX_ANNEALING_ITERATIONS = 3000;
+//const int MAX_ANNEALING_STALL_ITERATIONS = 750;
+//const int REANNEALING_INTERVAL = 750;
+const int MAX_ANNEALING_ITERATIONS = 1000;
+const int MAX_ANNEALING_STALL_ITERATIONS = 300;
+const int REANNEALING_INTERVAL = 300;
 const double ANNEALING_START_TEMPERATURE = 1.0;
 const int ANNEALING_REPORT_RATE = 100;
 
@@ -55,8 +55,10 @@ const double SHAPE_TRANSLATION_POWER = 0.1;
 const double SHAPE_SCALE_WEIGHT = 0.0;
 const double SHAPE_SCALE_POWER = 0.1;
 
-const double VERTEX_LOSS_WEIGHT = 0.0001;
-const double EDGE_LOSS_WEIGHT = 0.0005;
+const double VERTEX_LOSS_WEIGHT = 0.001;
+const double EDGE_LOSS_WEIGHT = 0.01;
+const double MAX_VERTEX_LOSS_RELATIVE_DISTANCE = 0.25;
+const double MAX_EDGE_LOSS_RELATIVE_DIFF = 0.1;
 
 // Warm start
 const double START_COLOR_WEIGHT = 5.567759;		
@@ -69,8 +71,8 @@ const double START_COLOR_DIFFERENCE_PAIRWISE_WEIGHT = 0.030300;
 const double START_CONSTANT_PAIRWISE_WEIGHT = 0.0;
 const double START_SHAPE_ENERGY_WEIGHT = 0.0;
 
-const double EDGE_LENGTH_FEATURE_SCALE = 0.001;
-const double EDGE_WIDTH_FEATURE_SCALE = 0.005;
+const double EDGE_LENGTH_FEATURE_SCALE = 0.002;
+const double EDGE_WIDTH_FEATURE_SCALE = 0.02;
 
 double zero_or_more(double val) {
 	return val < 0 ? 0 : val;
@@ -152,17 +154,23 @@ void setup_annealing(AnnealingSegmentationAlgorithm ^annealingSegmentator) {
 }
 
 double calc_trunc_vertex_loss(Vector point1Pos, Vector point2Pos, Size imageSize) {
-	const double maxRelativeDistance = 0.2;
-	double maxDistanceSqr = maxRelativeDistance * maxRelativeDistance * Vector(imageSize.Width, imageSize.Height).LengthSquared;
-	double distanceSqr = (point1Pos - point2Pos).LengthSquared;
-	return MathHelper::Trunc(distanceSqr, 0, maxDistanceSqr);
+	//double maxDistanceSqr = MAX_VERTEX_LOSS_RELATIVE_DISTANCE * MAX_VERTEX_LOSS_RELATIVE_DISTANCE * Vector(imageSize.Width, imageSize.Height).LengthSquared;
+	//double distanceSqr = (point1Pos - point2Pos).LengthSquared;
+	//return MathHelper::Trunc(distanceSqr, 0, maxDistanceSqr);
+
+	double maxDistance = MAX_VERTEX_LOSS_RELATIVE_DISTANCE * Vector(imageSize.Width, imageSize.Height).Length;
+	double distance = (point1Pos - point2Pos).Length;
+	return MathHelper::Trunc(distance, 0, maxDistance);
 }
 
 double calc_trunc_edge_loss(double width1, double width2, Size imageSize) {
-	const double maxRelativeDiff = 0.05;
-	double maxDiffSqr = maxRelativeDiff * maxRelativeDiff * Vector(imageSize.Width, imageSize.Height).LengthSquared;
-	double diff = width1 - width2;
-	return MathHelper::Trunc(diff * diff, 0, maxDiffSqr);
+	//double maxDiffSqr = MAX_EDGE_LOSS_RELATIVE_DIFF * MAX_EDGE_LOSS_RELATIVE_DIFF * Vector(imageSize.Width, imageSize.Height).LengthSquared;
+	//double diff = width1 - width2;
+	//return MathHelper::Trunc(diff * diff, 0, maxDiffSqr);
+
+	double maxDiff = MAX_EDGE_LOSS_RELATIVE_DIFF * Vector(imageSize.Width, imageSize.Height).Length;
+	double diff = Math::Abs(width1 - width2);
+	return MathHelper::Trunc(diff, 0, maxDiff);
 }
 
 Tuple<double, double>^ calc_shape_loss(Shape ^shape1, Shape ^shape2, Size imageSize) {
@@ -292,8 +300,8 @@ SVECTOR *psi(PATTERN x, LABEL y, LATENT_VAR h, STRUCTMODEL *sm, STRUCT_LEARN_PAR
 	words[FT_CONSTANT_PAIRWISE_WEIGHT - 1].weight = -(float)constantPairwiseTermSum;
 
 	ShapeEdge rootEdge = sparm->shape_model->Structure->Edges[sparm->shape_model->RootEdgeIndex];
-	words[FT_SHAPE_SCALE_WEIGHT].weight = -(float)(sparm->shape_model->CalculateRootEdgeEnergyTerm(
-		y.shape->GetEdgeVector(rootEdge.Index1), y.shape->GetEdgeVector(rootEdge.Index2)) / edge_length_deviation_to_weight(sparm->shape_model->RootEdgeLengthDeviation));
+	words[FT_SHAPE_SCALE_WEIGHT - 1].weight = -(float)(sparm->shape_model->CalculateRootEdgeEnergyTerm(
+		y.shape->VertexPositions[rootEdge.Index1], y.shape->VertexPositions[rootEdge.Index2]) / edge_length_deviation_to_weight(sparm->shape_model->RootEdgeLengthDeviation));
 
 	size_t lengthDeviationWeightIndex = FT_OTHER_SHAPE_FEATURES_START - 1;
 	size_t angleDeviationWeightIndex = FT_OTHER_SHAPE_FEATURES_START - 1 + sparm->shape_model->ConstrainedEdgePairs->Count;
@@ -334,7 +342,9 @@ void find_most_violated_constraint_marginrescaling(PATTERN x, LABEL y, LABEL *yb
 	SegmentationSolution^ desiredShapeSolution = segmentator->SegmentImage(x.image, sparm->color_models);
 
 	// Start from mean shape
-	segmentator->StartShape = sparm->shape_model->FitMeanShape(x.image->Width, x.image->Height);
+	double randomAngle = Research::GraphBasedShapePrior::Util::Random::Double(0, Math::PI * 2);
+	Vector randomDirection(Math::Cos(randomAngle), -Math::Sin(randomAngle));
+	segmentator->StartShape = sparm->shape_model->FitMeanShape(x.image->Width, x.image->Height, randomDirection);
 	SegmentationSolution^ meanShapeSolution = segmentator->SegmentImage(x.image, sparm->color_models);
 	
 	SegmentationSolution ^mostViolatedConstraintSolution;

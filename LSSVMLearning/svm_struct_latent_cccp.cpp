@@ -16,7 +16,7 @@
 //#define CLEANUP_CHECK 100
 #define CUTTING_PLANE_EPS 1E-3
 
-#define MAX_INNER_ITER_NO_VIOLATION 3
+#define MAX_INNER_ITER_NO_VIOLATION 5
 //#define MIN_OUTER_ITER 3
 #define MAX_OUTER_ITER 10
 
@@ -98,6 +98,11 @@ SVECTOR* find_cutting_plane(EXAMPLE *ex, SVECTOR **fycache, double *margin, long
     free_label(ybar);
     free_latent_var(hbar);
 
+	printf("psi=");
+	for (int j = 0; j < sm->sizePsi; ++j)
+		printf("%.4lf ", fybar->words[j].weight);
+	printf("\n");
+
     /* scale difference vector */
     for (f=fy;f;f=f->next) {
       f->factor*=1.0/m;
@@ -119,12 +124,10 @@ SVECTOR* find_cutting_plane(EXAMPLE *ex, SVECTOR **fycache, double *margin, long
   free_svector(lhs);
 
   /* DEBUG */
-  /*
   printf("new_constraint=");
   for (i=1;i<sm->sizePsi+1;i++)
-	  printf("%.4f ", new_constraint[i]);
+	  printf("%.4lf ", new_constraint[i]);
   printf("\n");
-  */
 
   l=0;
   for (i=1;i<sm->sizePsi+1;i++) {
@@ -597,6 +600,13 @@ int main(int argc, char* argv[]) {
   fycache = (SVECTOR**)malloc(m*sizeof(SVECTOR*));
   for (i=0;i<m;i++) {
     fy = psi(ex[i].x, ex[i].y, ex[i].h, &sm, &sparm);
+
+	/* DEBUG */
+	printf("true_psi[%d]=", i);
+	for (int j = 0; j < sm.sizePsi; ++j)
+		printf("%.4lf ", fy->words[j].weight);
+	printf("\n");
+
     diff = add_list_ss(fy);
     free_svector(fy);
     fy = diff;
@@ -646,6 +656,13 @@ int main(int argc, char* argv[]) {
     for (i=0;i<m;i++) {
       free_svector(fycache[i]);
       fy = psi(ex[i].x, ex[i].y, ex[i].h, &sm, &sparm);
+
+	  /* DEBUG */
+	  printf("true_psi[%d]=", i);
+	  for (int j = 0; j < sm.sizePsi; ++j)
+		printf("%.4lf ", fy->words[j].weight);
+	  printf("\n");
+
       diff = add_list_ss(fy);
       free_svector(fy);
       fy = diff;
