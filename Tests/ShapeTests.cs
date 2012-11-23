@@ -40,7 +40,7 @@ namespace Research.GraphBasedShapePrior.Tests
 
             // Check GDT vs usual approach
             double energy = TestShapeEnergyCalculationApproachesImpl(
-                shapeModel, meanShape.VertexPositions, meanShape.EdgeWidths, imageSize, 1001, 1001, eps);
+                shapeModel, meanShape.VertexPositions, meanShape.EdgeWidths, imageSize, 3501, 1001, eps);
 
             // Check if energy is zero
             Assert.AreEqual(0, energy, eps);
@@ -171,19 +171,25 @@ namespace Research.GraphBasedShapePrior.Tests
         [TestMethod]
         public void TestMeanShape1()
         {
-            TestMeanShapeImpl(TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), 1e-3);
+            TestMeanShapeImpl(TestHelper.CreateTestShapeModelWith2Edges(Math.PI * 0.5, 1.1), 1e-2);
         }
 
         [TestMethod]
         public void TestMeanShape2()
         {
-            TestMeanShapeImpl(TestHelper.CreateTestShapeModel5Edges(), 1e-3);
+            TestMeanShapeImpl(TestHelper.CreateTestShapeModel5Edges(), 1e-2);
         }
 
         [TestMethod]
         public void TestMeanShape3()
         {
-            TestMeanShapeImpl(TestHelper.CreateLetterShapeModel(), 1e-3);
+            TestMeanShapeImpl(TestHelper.CreateLetterShapeModel(), 1e-2);
+        }
+
+        [TestMethod]
+        public void TestMeanShape5()
+        {
+            TestMeanShapeImpl(TestHelper.CreateTestShapeModelWith1Edge(), 1e-2);
         }
 
         [TestMethod]

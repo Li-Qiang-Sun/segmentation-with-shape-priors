@@ -261,17 +261,24 @@ namespace Research.GraphBasedShapePrior.ShapeModelLearning
             Helper.Subsample(objectColors, this.algorithmProperties.MaxPixelsToLearnFrom);
             Helper.Subsample(backgroundColors, this.algorithmProperties.MaxPixelsToLearnFrom);
 
-            GaussianMixtureColorModel objectModel = GaussianMixtureColorModel.Fit(
+            try
+            {
+                GaussianMixtureColorModel objectModel = GaussianMixtureColorModel.Fit(
                 objectColors.Take(this.algorithmProperties.MaxPixelsToLearnFrom),
                 this.algorithmProperties.MixtureComponentCount,
                 this.algorithmProperties.StopTolerance);
-            GaussianMixtureColorModel backgroundModel = GaussianMixtureColorModel.Fit(
-                backgroundColors.Take(this.algorithmProperties.MaxPixelsToLearnFrom),
-                this.algorithmProperties.MixtureComponentCount,
-                this.algorithmProperties.StopTolerance);
-            this.colorModels = new ObjectBackgroundColorModels(objectModel, backgroundModel);
+                GaussianMixtureColorModel backgroundModel = GaussianMixtureColorModel.Fit(
+                    backgroundColors.Take(this.algorithmProperties.MaxPixelsToLearnFrom),
+                    this.algorithmProperties.MixtureComponentCount,
+                    this.algorithmProperties.StopTolerance);
+                this.colorModels = new ObjectBackgroundColorModels(objectModel, backgroundModel);
 
-            this.UpdateControlsAccordingToCurrentState();
+                this.UpdateControlsAccordingToCurrentState();
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(exception.Message, "Error!", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void OnSaveLatentSvmTrainingSetButtonClick(object sender, RoutedEventArgs e)
@@ -318,7 +325,8 @@ namespace Research.GraphBasedShapePrior.ShapeModelLearning
                 (segmentator, scale) =>
                 {
                     segmentator.ShapeModel = this.shapeModel;
-                    segmentator.ShapeUnaryTermWeight = 0;
+                    segmentator.ObjectShapeUnaryTermWeight = 0;
+                    segmentator.BackgroundShapeUnaryTermWeight = 0;
                 });
         }
 
@@ -353,8 +361,10 @@ namespace Research.GraphBasedShapePrior.ShapeModelLearning
 
             // Customize segmentator
             SimpleSegmentationAlgorithm segmentator = new SimpleSegmentationAlgorithm();
-            segmentator.ShapeUnaryTermWeight = this.algorithmProperties.ShapeUnaryTermWeight;
-            segmentator.ColorUnaryTermWeight = this.algorithmProperties.ColorUnaryTermWeight;
+            segmentator.ObjectShapeUnaryTermWeight = this.algorithmProperties.ShapeUnaryTermWeight;
+            segmentator.BackgroundShapeUnaryTermWeight = this.algorithmProperties.ShapeUnaryTermWeight;
+            segmentator.ObjectColorUnaryTermWeight = this.algorithmProperties.ColorUnaryTermWeight;
+            segmentator.BackgroundColorUnaryTermWeight = this.algorithmProperties.ColorUnaryTermWeight;
             segmentator.ColorDifferencePairwiseTermWeight = this.algorithmProperties.BinaryTermWeight;
             segmentator.ColorDifferencePairwiseTermCutoff = this.algorithmProperties.BrightnessBinaryTermCutoff;
             segmentator.ShapeEnergyWeight = this.algorithmProperties.ShapeEnergyWeight;

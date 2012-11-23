@@ -23,7 +23,7 @@ private:
         for (int i = 0; i < shape->VertexPositions->Count; ++i)
         {
             graphics->FillEllipse(
-                gcnew SolidBrush(color),
+                Brushes::Black,
                 static_cast<float>(shape->VertexPositions[i].X - pointRadius),
                 static_cast<float>(shape->VertexPositions[i].Y - pointRadius),
                 2 * pointRadius,
@@ -35,8 +35,8 @@ private:
             ShapeEdge edge = shape->Structure->Edges[i];
             Vector point1 = shape->VertexPositions[edge.Index1];
             Vector point2 = shape->VertexPositions[edge.Index2];
-            graphics->DrawLine(gcnew Pen(color, lineWidth), MathHelper::VecToPointF(point1), MathHelper::VecToPointF(point2));
-			DrawOrientedRectange(graphics, gcnew Pen(color, lineWidth), point1, point2, static_cast<float>(shape->EdgeWidths[i] * 0.5));
+            graphics->DrawLine(gcnew Pen(Color::Black, lineWidth), MathHelper::VecToPointF(point1), MathHelper::VecToPointF(point2));
+			DrawOrientedRectange(graphics, gcnew Pen(color, lineWidth), point1, point2, static_cast<float>(shape->EdgeWidths[i]));
         }
     }
 
@@ -133,6 +133,25 @@ public:
 		Image2D::SaveToFile(Image2D::FromRegularImage(canvas), Path::Combine(loggingDir, fileName));
 	}
 
+	static void ReportGroundTruth(
+		int sampleIndex,
+		Image2D<Color> ^image,
+		Shape ^trueShape,
+		Image2D<ObjectBackgroundTerm> ^colorTerms,
+		Image2D<ObjectBackgroundTerm> ^shapeTerms,
+		Image2D<double> ^horizontalPairwiseTerms)
+	{
+		Bitmap ^canvas = gcnew Bitmap(image->Width, image->Height);
+		Graphics ^graphics = Graphics::FromImage(canvas);
+		graphics->DrawImage(Image2D::ToRegularImage(image), 0, 0, image->Width, image->Height);
+		DrawShape(graphics, Color::Blue, trueShape);
+		
+		Image2D::SaveToFile(Image2D::FromRegularImage(canvas), Path::Combine(loggingDir, String::Format("ground_truth_{0:000}.png", sampleIndex)));
+		Image2D::SaveToFile(colorTerms, -4, 4, Path::Combine(loggingDir, String::Format("ground_truth_color_{0:000}.png", sampleIndex)));
+		Image2D::SaveToFile(shapeTerms, -4, 4, Path::Combine(loggingDir, String::Format("ground_truth_shape_{0:000}.png", sampleIndex)));
+		Image2D::SaveToFile(horizontalPairwiseTerms, Path::Combine(loggingDir, String::Format("ground_truth_pairwise_h_{0:000}.png", sampleIndex)));
+	}
+	
 	static void ReportMostViolatedConstraint(int sampleIndex, Image2D<Color> ^image, Shape ^desiredShape, Shape ^foundShape, Image2D<bool> ^foundMask)
 	{
 		// Draw desired shape vs found shape
@@ -140,7 +159,6 @@ public:
 			Bitmap ^imageCanvas = gcnew Bitmap(image->Width, image->Height);
 			Graphics ^imageGraphics = Graphics::FromImage(imageCanvas);
 			imageGraphics->DrawImage(Image2D::ToRegularImage(image), 0, 0, imageCanvas->Width, imageCanvas->Height);
-			DrawShape(imageGraphics, Color::Green, desiredShape);
 			DrawShape(imageGraphics, Color::Red, foundShape);
 
 			String ^imageFileName = String::Format("constraint_{0:000}_{1:0000}_{2:000}.png", outerIteration, innerIteration, sampleIndex);

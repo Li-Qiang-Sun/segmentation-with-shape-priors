@@ -1,0 +1,5 @@
+C:\segmentation-with-shape-priors\Data\letters\lssvm\color_model.clr
+C:\segmentation-with-shape-priors\Data\letters\lssvm\shape_000.s	C:\segmentation-with-shape-priors\Data\letters\lssvm\image_000.png
+C:\segmentation-with-shape-priors\Data\letters\lssvm\shape_001.s	C:\segmentation-with-shape-priors\Data\letters\lssvm\image_001.png
+C:\segmentation-with-shape-priors\Data\letters\lssvm\shape_002.s	C:\segmentation-with-shape-priors\Data\letters\lssvm\image_002.png
+C:\segmentation-with-shape-priors\Data\letters\lssvm\shape_003.s	C:\segmentation-with-shape-priors\Data\letters\lssvm\image_003.png

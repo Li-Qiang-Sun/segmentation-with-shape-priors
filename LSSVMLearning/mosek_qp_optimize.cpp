@@ -121,8 +121,7 @@ void mosek_qp_optimize(double** G, double* delta, double* alpha, long k, double 
 	MOSEK_CHECK(MSK_linkfunctotaskstream(task, MSK_STREAM_ERR, NULL, MosekLogHandler));
 	MOSEK_CHECK(MSK_linkfunctotaskstream(task, MSK_STREAM_WRN, NULL, MosekLogHandler));
 	MOSEK_CHECK(MSK_putdouparam(task, MSK_DPAR_INTPNT_TOL_REL_GAP, 1E-14));
-	MOSEK_CHECK(MSK_putdouparam(task, MSK_DPAR_CHECK_CONVEXITY_REL_TOL, 1E-3));
-	MOSEK_CHECK(MSK_putintparam(task, MSK_IPAR_LOG_CHECK_CONVEXITY, 1));
+	MOSEK_CHECK(MSK_putintparam(task, MSK_IPAR_CHECK_CONVEXITY, MSK_CHECK_CONVEXITY_NONE));
 	  
 	// input linear part of data
 	MOSEK_CHECK(MSK_inputdata(task,

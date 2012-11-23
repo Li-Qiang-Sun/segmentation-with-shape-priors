@@ -18,12 +18,20 @@ namespace Segmentator
         #region Low-level energy
 
         [Category("Low-level energy")]
-        [DisplayName("Shape term weight")]
-        public double ShapeTermWeight { get; set; }
+        [DisplayName("Object shape unary term weight")]
+        public double ObjectShapeUnaryTermWeight { get; set; }
 
         [Category("Low-level energy")]
-        [DisplayName("Сolor term weight")]
-        public double ColorTermWeight { get; set; }
+        [DisplayName("Background shape unary term weight")]
+        public double BackgroundShapeUnaryTermWeight { get; set; }
+
+        [Category("Low-level energy")]
+        [DisplayName("Object color unary term weight")]
+        public double ObjectColorUnaryTermWeight { get; set; }
+
+        [Category("Low-level energy")]
+        [DisplayName("Background color unary term weight")]
+        public double BackgroundColorUnaryTermWeight { get; set; }
 
         [Category("Low-level energy")]
         [DisplayName("Pairwise constant term weight")]
@@ -165,6 +173,10 @@ namespace Segmentator
         [DisplayName("Shape scale power")]
         public double ShapeScalePower { get; set; }
 
+        [Category("Shape mutation")]
+        [DisplayName("Root edge angle")]
+        public double RootEdgeAngle { get; set; }
+
         #endregion
 
         #region Coordinate descent
@@ -229,10 +241,12 @@ namespace Segmentator
 
         public SegmentationProperties()
         {
-            this.ShapeTermWeight = 9.680417;
-            this.ColorTermWeight = 9.258642;
+            this.ObjectShapeUnaryTermWeight = 9.680417;
+            this.BackgroundShapeUnaryTermWeight = 9.680417;
+            this.ObjectColorUnaryTermWeight = 9.258642;
+            this.BackgroundColorUnaryTermWeight = 9.258642;
             this.ColorDifferencePairwiseTermWeight = 0.781996;
-            this.ColorDifferencePairwiseTermCutoff = 1.2;
+            this.ColorDifferencePairwiseTermCutoff = 0.2;
             this.ConstantPairwiseTermWeight = 0;
 
             this.ShapeEnergyWeight = 1.0;
@@ -264,6 +278,7 @@ namespace Segmentator
             this.EdgeAngleMutationPower = Math.PI * 0.25;
             this.ShapeTranslationPower = 0.1;
             this.ShapeScalePower = 0.1;
+            this.RootEdgeAngle = -Math.PI * 0.5;
 
             this.MaxAnnealingIterations = 5000;
             this.MaxAnnealingStallingIterations = 1000;
@@ -274,7 +289,8 @@ namespace Segmentator
             this.Algorithm = SegmentationAlgorithm.Simple;
             this.ShapeModel = @"..\..\..\Data\giraffes\giraffe_learned.shp";
             this.ColorModel = @"..\..\..\Data\giraffes\lssvm\color_model.clr";
-            this.ImageToSegment = @"..\..\..\Data\giraffes\lssvm\image_004.png";
+            this.ImageToSegment = @"..\..\..\Data\giraffes\lssvm\image_000.png";
+            this.InitialShape = @"..\..\..\Data\giraffes\lssvm\shape_000.s";
             this.DownscaledImageSize = 140;
         }
     }

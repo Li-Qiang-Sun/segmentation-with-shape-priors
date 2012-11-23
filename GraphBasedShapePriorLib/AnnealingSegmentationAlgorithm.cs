@@ -1,18 +1,13 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Research.GraphBasedShapePrior.Util;
 
 namespace Research.GraphBasedShapePrior
 {
     public class AnnealingSegmentationAlgorithm : SegmentationAlgorithmBase
     {
-        public SimulatedAnnealingMinimizer<Shape> SolutionFitter { get; private set; }
-
-        public ShapeMutator ShapeMutator { get; private set; }
-
-        public Func<Shape, double> AdditionalShapePenalty { get; set; }
-
-        public Shape StartShape { get; set; }
-
+        private Image2D<ObjectBackgroundTerm> shapeTerms;
+        
         public AnnealingSegmentationAlgorithm()
         {
             this.ShapeMutator = new ShapeMutator();
@@ -24,7 +19,15 @@ namespace Research.GraphBasedShapePrior
             this.SolutionFitter.ReportRate = 5;
             this.SolutionFitter.StartTemperature = 1000;
         }
-        
+
+        public SimulatedAnnealingMinimizer<Shape> SolutionFitter { get; private set; }
+
+        public ShapeMutator ShapeMutator { get; private set; }
+
+        public Func<Shape, double> AdditionalShapePenalty { get; set; }
+
+        public Shape StartShape { get; set; }
+
         protected override SegmentationSolution SegmentCurrentImage()
         {
             Shape startShape = this.StartShape;
@@ -34,17 +37,35 @@ namespace Research.GraphBasedShapePrior
                     this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height);
             }
 
+            this.shapeTerms = new Image2D<ObjectBackgroundTerm>(this.ImageSegmentator.ImageSize.Width, this.ImageSegmentator.ImageSize.Height);
+
             Shape solutionShape = this.SolutionFitter.Run(startShape, this.MutateSolution, s => this.CalcObjective(s, false));
             double solutionEnergy = CalcObjective(solutionShape, true);
             Image2D<bool> solutionMask = this.ImageSegmentator.GetLastSegmentationMask();
             return new SegmentationSolution(solutionShape, solutionMask, solutionEnergy);
         }
 
+        private void UpdateShapeTerms(Shape shape)
+        {
+            Parallel.For(
+                0,
+                this.shapeTerms.Width,
+                i =>
+                    {
+                        for (int j = 0; j < this.shapeTerms.Height; ++j)
+                        {
+                            this.shapeTerms[i, j] =
+                                this.ShapeModel.CalculatePenalties(shape, new Vector(i, j));
+                        }
+                    });
+        }
+
         private double CalcObjective(Shape shape, bool report)
         {
+            this.UpdateShapeTerms(shape);
+            
             double shapeEnergy = this.ShapeModel.CalculateEnergy(shape);
-            double labelingEnergy = this.ImageSegmentator.SegmentImageWithShapeTerms(
-                (x, y) => this.ShapeModel.CalculatePenalties(shape, new Vector(x, y)));
+            double labelingEnergy = this.ImageSegmentator.SegmentImageWithShapeTerms((x, y) => this.shapeTerms[x, y]);
             double energy = shapeEnergy * this.ShapeEnergyWeight + labelingEnergy;
             double additionalPenalty = this.AdditionalShapePenalty == null ? 0 : this.AdditionalShapePenalty(shape);
             double totalEnergy = energy + additionalPenalty;

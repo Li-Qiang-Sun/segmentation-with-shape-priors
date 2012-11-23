@@ -170,7 +170,6 @@ namespace Research
 					corners1,
 					corners2,
 					edgeWidthLimits,
-					static_cast<float>(1.f/*shapeModel->BackgroundDistanceCoeff*/),
 					result->Width,
 					result->Height,
 					objectPenaltiesGpu,

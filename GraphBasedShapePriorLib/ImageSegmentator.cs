@@ -33,8 +33,10 @@ namespace Research.GraphBasedShapePrior
             double colorDifferencePairwiseTermCutoff,
             double colorDifferencePairwiseTermWeight,
             double constantPairwiseTermWeight,
-            double colorUnaryTermWeight,
-            double shapeUnaryTermWeight)
+            double objectColorUnaryTermWeight,
+            double backgroundColorUnaryTermWeight,
+            double objectShapeUnaryTermWeight,
+            double backgroundShapeUnaryTermWeight)
         {
             if (image == null)
                 throw new ArgumentNullException("image");
@@ -47,16 +49,14 @@ namespace Research.GraphBasedShapePrior
                 throw new ArgumentOutOfRangeException("colorDifferencePairwiseTermWeight", "Parameter value should not be negative.");
             if (constantPairwiseTermWeight < 0)
                 throw new ArgumentOutOfRangeException("constantPairwiseTermWeight", "Parameter value should not be negative.");
-            if (colorUnaryTermWeight < 0)
-                throw new ArgumentOutOfRangeException("colorUnaryTermWeight", "Parameter value should not be negative.");
-            if (shapeUnaryTermWeight < 0)
-                throw new ArgumentOutOfRangeException("shapeUnaryTermWeight", "Parameter value should not be negative.");
 
             this.ColorDifferencePairwiseTermCutoff = colorDifferencePairwiseTermCutoff;
             this.ColorDifferencePairwiseTermWeight = colorDifferencePairwiseTermWeight;
             this.ConstantPairwiseTermWeight = constantPairwiseTermWeight;
-            this.ColorUnaryTermWeight = colorUnaryTermWeight;
-            this.ShapeUnaryTermWeight = shapeUnaryTermWeight;
+            this.ObjectColorUnaryTermWeight = objectColorUnaryTermWeight;
+            this.BackgroundColorUnaryTermWeight = backgroundColorUnaryTermWeight;
+            this.ObjectShapeUnaryTermWeight = objectShapeUnaryTermWeight;
+            this.BackgroundShapeUnaryTermWeight = backgroundShapeUnaryTermWeight;
 
             this.segmentedImage = image;
             
@@ -118,9 +118,13 @@ namespace Research.GraphBasedShapePrior
 
         public double ConstantPairwiseTermWeight { get; private set; }
 
-        public double ColorUnaryTermWeight { get; private set; }
+        public double ObjectColorUnaryTermWeight { get; private set; }
 
-        public double ShapeUnaryTermWeight { get; private set; }
+        public double BackgroundColorUnaryTermWeight { get; private set; }
+
+        public double ObjectShapeUnaryTermWeight { get; private set; }
+
+        public double BackgroundShapeUnaryTermWeight { get; private set; }
 
         public Size ImageSize
         {
@@ -185,8 +189,8 @@ namespace Research.GraphBasedShapePrior
                     
                     if (firstTime || shapeTerms != this.lastShapeTerms[x, y])
                     {
-                        double objectTermNew = this.UnaryTermScaleCoeff * (this.colorTerms[x, y].ObjectTerm * this.ColorUnaryTermWeight + shapeTerms.ObjectTerm * this.ShapeUnaryTermWeight);
-                        double backgroundTermNew = this.UnaryTermScaleCoeff * (this.colorTerms[x, y].BackgroundTerm * this.ColorUnaryTermWeight + shapeTerms.BackgroundTerm * this.ShapeUnaryTermWeight);
+                        double objectTermNew = this.UnaryTermScaleCoeff * (this.colorTerms[x, y].ObjectTerm * this.ObjectColorUnaryTermWeight + shapeTerms.ObjectTerm * this.ObjectShapeUnaryTermWeight);
+                        double backgroundTermNew = this.UnaryTermScaleCoeff * (this.colorTerms[x, y].BackgroundTerm * this.BackgroundColorUnaryTermWeight + shapeTerms.BackgroundTerm * this.BackgroundShapeUnaryTermWeight);
                         Debug.Assert(!Double.IsInfinity(objectTermNew) && !Double.IsNaN(objectTermNew));
                         Debug.Assert(!Double.IsInfinity(backgroundTermNew) && !Double.IsNaN(backgroundTermNew));
 
@@ -220,34 +224,25 @@ namespace Research.GraphBasedShapePrior
             }
 
             // Compute energy
-            double unaryColorTermSum, unaryShapeTermSum, colorDifferencePairwiseTermSum, constantPairwiseTermSum;
-            this.ExtractSegmentationFeaturesForMask(
-                this.lastSegmentationMask,
-                out unaryColorTermSum,
-                out unaryShapeTermSum,
-                out colorDifferencePairwiseTermSum,
-                out constantPairwiseTermSum);
-            double energy = unaryColorTermSum + unaryShapeTermSum + colorDifferencePairwiseTermSum + constantPairwiseTermSum;
+            ImageSegmentationFeatures features = this.ExtractSegmentationFeaturesForMask(this.lastSegmentationMask);
+            double energy = features.FeatureSum;
 
             // Sanity check: energies should be the same if graph cut calculator is "fresh"
-            Debug.Assert(!wasFirstTime || Math.Abs(graphCutEnergy - energy) < 1e-6);
+            Trace.Assert(!wasFirstTime || Math.Abs(graphCutEnergy - energy) < 1e-6);
 
             return energy;
         }
 
-        public void ExtractSegmentationFeaturesForMask(
-            Image2D<bool> mask,
-            out double unaryColorTermSum,
-            out double unaryShapeTermSum,
-            out double colorDifferencePairwiseTermSum,
-            out double constantPairwiseTermSum)
+        public ImageSegmentationFeatures ExtractSegmentationFeaturesForMask(
+            Image2D<bool> mask)
         {
             if (this.firstTime)
                 throw new InvalidOperationException("You should perform segmentation first.");
 
-            unaryColorTermSum = 0;
-            unaryShapeTermSum = 0;
-
+            double objectColorUnaryTermSum = 0;
+            double backgroundColorUnaryTermSum = 0;
+            double objectShapeUnaryTermSum = 0;
+            double backgroundShapeUnaryTermSum = 0;
             int nonZeroPairwiseTermsCount = 0;
             double pairwiseTermSum = 0;
 
@@ -257,13 +252,13 @@ namespace Research.GraphBasedShapePrior
                 {
                     if (mask[x, y])
                     {
-                        unaryColorTermSum += this.colorTerms[x, y].ObjectTerm;
-                        unaryShapeTermSum += this.lastShapeTerms[x, y].ObjectTerm;
+                        objectColorUnaryTermSum += this.colorTerms[x, y].ObjectTerm;
+                        objectShapeUnaryTermSum += this.lastShapeTerms[x, y].ObjectTerm;
                     }
                     else
                     {
-                        unaryColorTermSum += this.colorTerms[x, y].BackgroundTerm;
-                        unaryShapeTermSum += this.lastShapeTerms[x, y].BackgroundTerm;
+                        backgroundColorUnaryTermSum += this.colorTerms[x, y].BackgroundTerm;
+                        backgroundShapeUnaryTermSum += this.lastShapeTerms[x, y].BackgroundTerm;
                     }
 
                     if (x < mask.Width - 1 && mask[x, y] != mask[x + 1, y])
@@ -284,11 +279,21 @@ namespace Research.GraphBasedShapePrior
                 }
             }
 
-            unaryColorTermSum *= this.ColorUnaryTermWeight * this.UnaryTermScaleCoeff;
-            unaryShapeTermSum *= this.ShapeUnaryTermWeight * this.UnaryTermScaleCoeff;
+            objectColorUnaryTermSum *= this.ObjectColorUnaryTermWeight * this.UnaryTermScaleCoeff;
+            backgroundColorUnaryTermSum *= this.BackgroundColorUnaryTermWeight * this.UnaryTermScaleCoeff;
+            objectShapeUnaryTermSum *= this.ObjectShapeUnaryTermWeight * this.UnaryTermScaleCoeff;
+            backgroundShapeUnaryTermSum *= this.BackgroundShapeUnaryTermWeight * this.UnaryTermScaleCoeff;
 
-            constantPairwiseTermSum = nonZeroPairwiseTermsCount * this.ConstantPairwiseTermWeight * this.PairwiseTermScaleCoeff;
-            colorDifferencePairwiseTermSum = pairwiseTermSum - constantPairwiseTermSum;
+            double constantPairwiseTermSum = nonZeroPairwiseTermsCount * this.ConstantPairwiseTermWeight * this.PairwiseTermScaleCoeff;
+            double colorDifferencePairwiseTermSum = pairwiseTermSum - constantPairwiseTermSum;
+
+            return new ImageSegmentationFeatures(
+                objectColorUnaryTermSum,
+                backgroundColorUnaryTermSum,
+                objectShapeUnaryTermSum,
+                backgroundShapeUnaryTermSum,
+                constantPairwiseTermSum,
+                colorDifferencePairwiseTermSum);
         }
 
         private double CalculateMeanBrightnessDifference()

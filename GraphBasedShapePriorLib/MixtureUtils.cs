@@ -71,10 +71,12 @@ namespace Research.GraphBasedShapePrior
             double[,] expectations = new double[data.Length, componentCount];
             double lastEstimate;
             const double negativeInfinity = -1e+20;
+            bool convergenceDetected;
             double currentEstimate = negativeInfinity;
             do
             {
                 lastEstimate = currentEstimate;
+                convergenceDetected = false;
 
                 // E-step: estimate expectations on hidden variables
                 for (int i = 0; i < data.Length; ++i)
@@ -106,7 +108,6 @@ namespace Research.GraphBasedShapePrior
                 }
 
                 // Re-estimate covariances
-                bool convergenceDetected = false;
                 for (int j = 0; j < componentCount; ++j)
                 {
                     Matrix covariance = new Matrix(dimensions, dimensions);
@@ -136,7 +137,7 @@ namespace Research.GraphBasedShapePrior
 
                 if (convergenceDetected)
                 {
-                    lastEstimate = negativeInfinity;
+                    currentEstimate = negativeInfinity;
                     continue;
                 }
 
@@ -166,7 +167,7 @@ namespace Research.GraphBasedShapePrior
                 }
 
                 DebugConfiguration.WriteDebugText("L={0:0.000000}", currentEstimate);
-            } while (currentEstimate - lastEstimate > tolerance);
+            } while (convergenceDetected || (currentEstimate - lastEstimate > tolerance));
 
             Mixture<VectorGaussian> result = new Mixture<VectorGaussian>();
             for (int j = 0; j < componentCount; ++j)

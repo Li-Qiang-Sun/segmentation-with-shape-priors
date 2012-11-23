@@ -94,8 +94,8 @@ Global
 		{0CB408F6-0899-4C31-A359-9C58AE676BC4}.Debug|x86.Build.0 = Debug|Win32
 		{0CB408F6-0899-4C31-A359-9C58AE676BC4}.Release|x86.ActiveCfg = Release|Win32
 		{0CB408F6-0899-4C31-A359-9C58AE676BC4}.Release|x86.Build.0 = Release|Win32
-		{0CB408F6-0899-4C31-A359-9C58AE676BC4}.ReleaseGPU|x86.ActiveCfg = Release|Win32
-		{0CB408F6-0899-4C31-A359-9C58AE676BC4}.ReleaseGPU|x86.Build.0 = Release|Win32
+		{0CB408F6-0899-4C31-A359-9C58AE676BC4}.ReleaseGPU|x86.ActiveCfg = ReleaseGPU|Win32
+		{0CB408F6-0899-4C31-A359-9C58AE676BC4}.ReleaseGPU|x86.Build.0 = ReleaseGPU|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

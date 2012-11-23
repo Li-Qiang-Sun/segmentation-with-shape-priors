@@ -89,13 +89,9 @@ namespace Research.GraphBasedShapePrior
             T bestSolution = startSolution;
             double minObjective = objectiveFunction(bestSolution);
 
-            // TODO: remove me
-            int acceptedBecauseBetter = 0, acceptedRandomly = 0;
-
             int lastUpdateIteration = 0;
             int currentIteration = 0;
             int iterationsFromLastReannealing = 0;
-            int acceptedSolutionsFromLastReannealing = 0;
             double prevObjective = minObjective;
             T prevSolution = bestSolution;
             while (currentIteration < this.MaxIterations && currentIteration - lastUpdateIteration < this.MaxStallingIterations)
@@ -107,15 +103,8 @@ namespace Research.GraphBasedShapePrior
                 
                 if (Random.Double() < acceptanceProb)
                 {
-                    // TODO: remove me
-                    if (currentObjective < prevObjective)
-                        ++acceptedBecauseBetter;
-                    else
-                        ++acceptedRandomly;
-                    
                     prevObjective = currentObjective;
                     prevSolution = currentSolution;
-                    ++acceptedSolutionsFromLastReannealing;
                 }
 
                 if (currentObjective < minObjective)
@@ -136,10 +125,9 @@ namespace Research.GraphBasedShapePrior
                         this.AnnealingProgress(this, new SimulatedAnnealingProgressEventArgs<T>(currentSolution, bestSolution));
                 }
 
-                if (acceptedSolutionsFromLastReannealing >= this.ReannealingInterval)
+                if (iterationsFromLastReannealing >= this.ReannealingInterval)
                 {
                     iterationsFromLastReannealing = 0;
-                    acceptedSolutionsFromLastReannealing = 0;
                     prevSolution = bestSolution;
                     DebugConfiguration.WriteDebugText("Reannealing");
                 }
@@ -148,10 +136,6 @@ namespace Research.GraphBasedShapePrior
                     ++iterationsFromLastReannealing;
                 }
             }
-
-            // TODO: remove me
-            //Console.WriteLine("Accepted because better: {0}", acceptedBecauseBetter);
-            //Console.WriteLine("Accepted randomly: {0}", acceptedRandomly);
 
             return bestSolution;
         }

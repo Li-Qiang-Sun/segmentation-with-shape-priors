@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 
 namespace Research.GraphBasedShapePrior.Util
 {
@@ -23,20 +26,51 @@ namespace Research.GraphBasedShapePrior.Util
 
         public static Image ToRegularImage(Image2D<double> image, double min, double max)
         {
-            Debug.Assert(max >= min);
+            if (image == null)
+                throw new ArgumentNullException("image");
+            if (max <= min)
+                throw new ArgumentException("Min should be less than max.");
+
             double diff = max - min;
             return ToRegularImage(image, x => ZeroOneToRedBlue((MathHelper.Trunc(x, min, max) - min) / diff));
         }
 
+        public static Image ToRegularImage(Image2D<double> image)
+        {
+            if (image == null)
+                throw new ArgumentNullException("image");
+
+            return ToRegularImage(image, image.Min(), image.Max());
+        }
+
         public static Image ToRegularImage(Image2D<ObjectBackgroundTerm> image, double min, double max)
         {
-            Debug.Assert(max >= min);
+            if (image == null)
+                throw new ArgumentNullException("image");
+            if (max <= min)
+                throw new ArgumentException("Min should be less than max.");
+
             double diff = max - min;
             return ToRegularImage(image, x => ZeroOneToRedBlue((MathHelper.Trunc(x.ObjectTerm - x.BackgroundTerm, min, max) - min) / diff));
         }
 
+        public static Image ToRegularImage(Image2D<ObjectBackgroundTerm> image)
+        {
+            if (image == null)
+                throw new ArgumentNullException("image");
+
+            double min = image.Min(t => t.ObjectTerm - t.BackgroundTerm);
+            double max = image.Max(t => t.ObjectTerm - t.BackgroundTerm);
+            return ToRegularImage(image, min, max);
+        }
+
         private static Image ToRegularImage<T>(Image2D<T> image, Func<T, Color> converter)
         {
+            if (image == null)
+                throw new ArgumentNullException("image");
+            if (converter == null)
+                throw new ArgumentNullException("converter");
+            
             Bitmap result = new Bitmap(image.Width, image.Height);
             for (int i = 0; i < image.Width; ++i)
                 for (int j = 0; j < image.Height; ++j)
@@ -62,6 +96,9 @@ namespace Research.GraphBasedShapePrior.Util
         
         public static Image2D<Color> FromRegularImage(Bitmap image, double scaleCoeff)
         {
+            if (image == null)
+                throw new ArgumentNullException("image");
+            
             using (Bitmap scaledImage = new Bitmap(
                 image,
                 (int)Math.Round(image.Width * scaleCoeff),
@@ -96,14 +133,25 @@ namespace Research.GraphBasedShapePrior.Util
             ToRegularImage(image, min, max).Save(fileName);
         }
 
+        public static void SaveToFile(Image2D<double> image, string fileName)
+        {
+            ToRegularImage(image).Save(fileName);
+        }
+
         public static void SaveToFile(Image2D<ObjectBackgroundTerm> image, double min, double max, string fileName)
         {
             ToRegularImage(image, min, max).Save(fileName);
         }
 
+        public static void SaveToFile(Image2D<ObjectBackgroundTerm> image, string fileName)
+        {
+            ToRegularImage(image).Save(fileName);
+        }
+
         private static Color ZeroOneToRedBlue(double brightness)
         {
             Debug.Assert(brightness >= 0 && brightness <= 1);
+
             if (brightness >= 0.5)
             {
                 brightness = 2 * brightness - 1;
@@ -119,7 +167,7 @@ namespace Research.GraphBasedShapePrior.Util
         }
     }
 
-    public class Image2D<T>
+    public class Image2D<T> : IEnumerable<T>
     {
         private readonly T[,] data;
 
@@ -188,6 +236,18 @@ namespace Research.GraphBasedShapePrior.Util
                 for (int j = 0; j < this.Height; ++j)
                     result[i, j] = this.data[i, j];
             return result;
+        }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            for (int i = 0; i < this.Width; ++i)
+                for (int j = 0; j < this.Height; ++j)
+                    yield return this.data[i, j];
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
     }
 }

@@ -63,6 +63,7 @@
   <ItemGroup>
     <Compile Include="AllowedLengthAngleChecker.cs" />
     <Compile Include="AnnealingSegmentationAlgorithm.cs" />
+    <Compile Include="ImageSegmentationFeatures.cs" />
     <Compile Include="SegmentationSolution.cs" />
     <Compile Include="ShapeLengthAngleRepresentation.cs" />
     <Compile Include="SimulatedAnnealingProgressEventArgs.cs" />

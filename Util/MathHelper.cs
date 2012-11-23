@@ -43,9 +43,9 @@ namespace Research.GraphBasedShapePrior.Util
 
         public static double NormalizeAngle(double angle)
         {
-            while (angle >= Math.PI)
+            while (angle > Math.PI)
                 angle -= Math.PI * 2;
-            while (angle <= -Math.PI)
+            while (angle < -Math.PI)
                 angle += Math.PI * 2;
             return angle;
         }
@@ -64,6 +64,28 @@ namespace Research.GraphBasedShapePrior.Util
             double t1 = Vector.CrossProduct(dir2, point1 - point2) / denominator;
             double t2 = Vector.CrossProduct(dir1, point1 - point2) / denominator;
             return new Tuple<double, double>(t1, t2);
+        }
+
+        public static double InterpolateAngle(double angle1, double angle2, double t)
+        {
+            if (t < 0 || t > 1)
+                throw new ArgumentOutOfRangeException("t", "Value of this parameter should be in [0, 1] range.");
+            
+            angle1 = NormalizeAngle(angle1);
+            angle2 = NormalizeAngle(angle2);
+
+            if (Math.Abs(angle1 - angle2) <= Math.PI)
+                return angle1 * (1 - t) + angle2 * t;
+
+            return NormalizeAngle(InterpolateAngle(angle1 + Math.PI, angle2 + Math.PI, t) - Math.PI);
+        }
+
+        public static double AngleAbsDifference(double angle1, double angle2)
+        {
+            angle1 = NormalizeAngle(angle1);
+            angle2 = NormalizeAngle(angle2);
+
+            return Math.Min(Math.Min(Math.Abs(angle2 - angle1), Math.Abs(angle2 - angle1 + Math.PI * 2)), Math.Abs(angle2 - angle1 - Math.PI * 2));
         }
 
         public static Polygon SolvePulleyProblem(Circle circle1, Circle circle2)

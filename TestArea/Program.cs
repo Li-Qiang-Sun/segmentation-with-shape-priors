@@ -64,7 +64,7 @@ namespace TestArea
             edgePairParams.Add(new Tuple<int, int>(2, 3), new ShapeEdgePairParams(-Math.PI * 0.5, 1, Math.PI * 0.1, 5));
             edgePairParams.Add(new Tuple<int, int>(3, 4), new ShapeEdgePairParams(Math.PI * 0.5, 0.77, Math.PI * 0.1, 5));
 
-            return ShapeModel.Create(new ShapeStructure(edges), edgeParams, edgePairParams);
+            return ShapeModel.Create(new ShapeStructure(edges), edgeParams, edgePairParams, 0, 50, 10);
         }
 
         private static ShapeModel CreateGiraffeShapeModel()
@@ -95,6 +95,11 @@ namespace TestArea
         static void MainForGiraffeSave()
         {
             CreateGiraffeShapeModel().SaveToFile("giraffe.shp");
+        }
+
+        static void MainForLetterSave()
+        {
+            CreateLetterShapeModel().SaveToFile("letter.shp");
         }
 
         static double WeightToDeviation(double weight)
@@ -473,8 +478,8 @@ namespace TestArea
         {
             Random.SetSeed(666);
 
-            MainForGiraffeAdjustSave();
-
+            //MainForGiraffeAdjustSave();
+            MainForLetterSave();
             //PrintColorModels();
             //MainForDualDecomposition();
             //MainForPointIsClosestExperiment();

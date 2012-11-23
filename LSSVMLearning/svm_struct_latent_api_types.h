@@ -20,8 +20,10 @@
 
 enum FEATURES {
 	FT_NONE = 0,
-	FT_COLOR_WEIGHT,
-	FT_SHAPE_WEIGHT,
+	FT_OBJECT_COLOR_WEIGHT,
+	FT_BACKGROUND_COLOR_WEIGHT,
+	FT_OBJECT_SHAPE_WEIGHT,
+	FT_BACKGROUND_SHAPE_WEIGHT,
 	FT_COLOR_DIFFERENCE_PAIRWISE_WEIGHT,
 	FT_CONSTANT_PAIRWISE_WEIGHT,
 	FT_SHAPE_SCALE_WEIGHT,
@@ -54,9 +56,10 @@ typedef struct sample {
 
 
 typedef struct structmodel {
-  double *w;          /* pointer to the learned weights */
-  MODEL  *svm_model;  /* the learned SVM model */
-  long   sizePsi;     /* maximum number of weights in w */
+  double *w;					/* pointer to the learned weights */
+  MODEL *svm_model;				/* the learned SVM model */
+  long sizePsi;					/* number of weights in w */
+  long firstNonNegWeightIndex;	/* all weights starting from that index are assumed to be non-negative*/
 } STRUCTMODEL;
 
 

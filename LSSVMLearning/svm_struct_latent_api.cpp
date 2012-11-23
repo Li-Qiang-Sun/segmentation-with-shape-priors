@@ -35,22 +35,22 @@ using namespace cli;
 
 const double COLOR_DIFFERENCE_CUTOFF = 0.2;
 
-//const int MAX_ANNEALING_ITERATIONS = 3000;
-//const int MAX_ANNEALING_STALL_ITERATIONS = 750;
-//const int REANNEALING_INTERVAL = 750;
+//const int MAX_ANNEALING_ITERATIONS = 1500;
+//const int MAX_ANNEALING_STALL_ITERATIONS = 500;
+//const int REANNEALING_INTERVAL = 500;
 const int MAX_ANNEALING_ITERATIONS = 1000;
-const int MAX_ANNEALING_STALL_ITERATIONS = 300;
-const int REANNEALING_INTERVAL = 300;
-const double ANNEALING_START_TEMPERATURE = 1.0;
+const int MAX_ANNEALING_STALL_ITERATIONS = 250;
+const int REANNEALING_INTERVAL = 500;
+const double ANNEALING_START_TEMPERATURE = 0.8;
 const int ANNEALING_REPORT_RATE = 100;
 
 const double EDGE_WIDTH_MUTATION_WEIGHT = 0.2;
-const double EDGE_WIDTH_MUTATION_POWER = 0.1;
+const double EDGE_WIDTH_MUTATION_POWER = 0.05;
 const double EDGE_LENGTH_MUTATION_WEIGHT = 0.25;
-const double EDGE_LENGTH_MUTATION_POWER = 0.2;
+const double EDGE_LENGTH_MUTATION_POWER = 0.15;
 const double EDGE_ANGLE_MUTATION_WEIGHT = 0.25;
-const double EDGE_ANGLE_MUTATION_POWER = 0.8;
-const double SHAPE_TRANSLATION_WEIGHT = 0.0;
+const double EDGE_ANGLE_MUTATION_POWER = 0.4;
+const double SHAPE_TRANSLATION_WEIGHT = 0.05;
 const double SHAPE_TRANSLATION_POWER = 0.1;
 const double SHAPE_SCALE_WEIGHT = 0.0;
 const double SHAPE_SCALE_POWER = 0.1;
@@ -60,14 +60,9 @@ const double EDGE_LOSS_WEIGHT = 0.01;
 const double MAX_VERTEX_LOSS_RELATIVE_DISTANCE = 0.25;
 const double MAX_EDGE_LOSS_RELATIVE_DIFF = 0.1;
 
-// Warm start
-const double START_COLOR_WEIGHT = 5.567759;		
-const double START_SHAPE_WEIGHT = 7.470189;
-const double START_COLOR_DIFFERENCE_PAIRWISE_WEIGHT = 0.030300;
-
-//const double START_COLOR_WEIGHT = 1.0;
-//const double START_SHAPE_WEIGHT = 0.3;
-//const double START_COLOR_DIFFERENCE_PAIRWISE_WEIGHT = 0.0;
+const double START_COLOR_WEIGHT = 1;		
+const double START_SHAPE_WEIGHT = 0.3;
+const double START_COLOR_DIFFERENCE_PAIRWISE_WEIGHT = 0.001;
 const double START_CONSTANT_PAIRWISE_WEIGHT = 0.0;
 const double START_SHAPE_ENERGY_WEIGHT = 0.0;
 
@@ -103,7 +98,7 @@ double edge_width_weight_to_deviation(double weight) {
 }
 
 void setup_shape_model(ShapeModel ^shapeModel, STRUCTMODEL *sm) {	
-	shapeModel->RootEdgeLengthDeviation = edge_length_weight_to_deviation(sm->w[FT_SHAPE_SCALE_WEIGHT]);
+	shapeModel->RootEdgeLengthDeviation = weight_to_deviation(sm->w[FT_SHAPE_SCALE_WEIGHT]);
 	
 	size_t lengthDeviationFeatureIndex = FT_OTHER_SHAPE_FEATURES_START;
 	size_t angleDeviationFeatureIndex = FT_OTHER_SHAPE_FEATURES_START + shapeModel->ConstrainedEdgePairs->Count;
@@ -122,8 +117,11 @@ void setup_shape_model(ShapeModel ^shapeModel, STRUCTMODEL *sm) {
 }
 
 void setup_segmentator(SegmentationAlgorithmBase ^segmentator, STRUCTMODEL *sm, STRUCT_LEARN_PARM *sparm) {
-	segmentator->ColorUnaryTermWeight = zero_or_more(sm->w[FT_COLOR_WEIGHT]);
-	segmentator->ShapeUnaryTermWeight = zero_or_more(sm->w[FT_SHAPE_WEIGHT]);
+	segmentator->ObjectColorUnaryTermWeight = sm->w[FT_OBJECT_COLOR_WEIGHT];
+	segmentator->BackgroundColorUnaryTermWeight = sm->w[FT_BACKGROUND_COLOR_WEIGHT];
+	segmentator->ObjectShapeUnaryTermWeight = sm->w[FT_OBJECT_SHAPE_WEIGHT];
+	segmentator->BackgroundShapeUnaryTermWeight = sm->w[FT_BACKGROUND_SHAPE_WEIGHT];
+	
 	segmentator->ColorDifferencePairwiseTermWeight = zero_or_more(sm->w[FT_COLOR_DIFFERENCE_PAIRWISE_WEIGHT]);
 	segmentator->ConstantPairwiseTermWeight = zero_or_more(sm->w[FT_CONSTANT_PAIRWISE_WEIGHT]);
 
@@ -154,20 +152,12 @@ void setup_annealing(AnnealingSegmentationAlgorithm ^annealingSegmentator) {
 }
 
 double calc_trunc_vertex_loss(Vector point1Pos, Vector point2Pos, Size imageSize) {
-	//double maxDistanceSqr = MAX_VERTEX_LOSS_RELATIVE_DISTANCE * MAX_VERTEX_LOSS_RELATIVE_DISTANCE * Vector(imageSize.Width, imageSize.Height).LengthSquared;
-	//double distanceSqr = (point1Pos - point2Pos).LengthSquared;
-	//return MathHelper::Trunc(distanceSqr, 0, maxDistanceSqr);
-
 	double maxDistance = MAX_VERTEX_LOSS_RELATIVE_DISTANCE * Vector(imageSize.Width, imageSize.Height).Length;
 	double distance = (point1Pos - point2Pos).Length;
 	return MathHelper::Trunc(distance, 0, maxDistance);
 }
 
 double calc_trunc_edge_loss(double width1, double width2, Size imageSize) {
-	//double maxDiffSqr = MAX_EDGE_LOSS_RELATIVE_DIFF * MAX_EDGE_LOSS_RELATIVE_DIFF * Vector(imageSize.Width, imageSize.Height).LengthSquared;
-	//double diff = width1 - width2;
-	//return MathHelper::Trunc(diff * diff, 0, maxDiffSqr);
-
 	double maxDiff = MAX_EDGE_LOSS_RELATIVE_DIFF * Vector(imageSize.Width, imageSize.Height).Length;
 	double diff = Math::Abs(width1 - width2);
 	return MathHelper::Trunc(diff, 0, maxDiff);
@@ -235,7 +225,6 @@ SAMPLE read_struct_examples(char *file, STRUCT_LEARN_PARM *sparm) {
 	}
 
 	sparm->shape_model = ShapeModel::Learn(shapes);
-	Console::WriteLine("Root edge index is {0}", sparm->shape_model->RootEdgeIndex);
 
 	SAMPLE sample;
 	sample.n = shapes->Count;
@@ -244,6 +233,14 @@ SAMPLE read_struct_examples(char *file, STRUCT_LEARN_PARM *sparm) {
 		sample.examples[i].x.index = i;
 		sample.examples[i].x.image = images[i];
 		sample.examples[i].y.shape = shapes[i];
+
+		ImageSegmentator ^segmentator = gcnew ImageSegmentator(
+			images[i],
+			sparm->color_models,
+			COLOR_DIFFERENCE_CUTOFF,
+			1, 1, 1, 1, 1, 1);
+		segmentator->SegmentImageWithShapeTerms(gcnew Func<int, int, ObjectBackgroundTerm>(gcnew ShapeTermsCalcer(shapes[i], sparm->shape_model), &ShapeTermsCalcer::Calc));
+		LearningTracker::ReportGroundTruth(i, images[i], shapes[i], segmentator->GetColorTerms(), segmentator->GetLastShapeTerms(), segmentator->GetHorizontalColorDifferencePairwiseTerms());
 	}
 
 	return sample;
@@ -253,12 +250,14 @@ void init_struct_model(SAMPLE sample, STRUCTMODEL *sm, STRUCT_LEARN_PARM *sparm,
 	sm->sizePsi = FT_OTHER_SHAPE_FEATURES_START + sparm->shape_model->ConstrainedEdgePairs->Count * 2 + sparm->shape_model->Structure->Edges->Count - 1;
 	sm->w = (double*) malloc(sizeof(double) * (sm->sizePsi + 1));
 	sm->w[FT_NONE] = 0;
-	sm->w[FT_COLOR_WEIGHT] = START_COLOR_WEIGHT;
-	sm->w[FT_SHAPE_WEIGHT] = START_SHAPE_WEIGHT;
+	sm->w[FT_OBJECT_COLOR_WEIGHT] = START_COLOR_WEIGHT;
+	sm->w[FT_BACKGROUND_COLOR_WEIGHT] = START_COLOR_WEIGHT;
+	sm->w[FT_OBJECT_SHAPE_WEIGHT] = START_SHAPE_WEIGHT;
+	sm->w[FT_BACKGROUND_SHAPE_WEIGHT] = START_SHAPE_WEIGHT;
 	sm->w[FT_COLOR_DIFFERENCE_PAIRWISE_WEIGHT] = START_COLOR_DIFFERENCE_PAIRWISE_WEIGHT;
 	sm->w[FT_CONSTANT_PAIRWISE_WEIGHT] = START_CONSTANT_PAIRWISE_WEIGHT;
 	
-	sm->w[FT_SHAPE_SCALE_WEIGHT] = edge_length_deviation_to_weight(sparm->shape_model->RootEdgeLengthDeviation) * START_SHAPE_ENERGY_WEIGHT;
+	sm->w[FT_SHAPE_SCALE_WEIGHT] = deviation_to_weight(sparm->shape_model->RootEdgeLengthDeviation) * START_SHAPE_ENERGY_WEIGHT;
 
 	size_t lengthDeviationFeatureIndex = FT_OTHER_SHAPE_FEATURES_START;
 	size_t angleDeviationFeatureIndex = FT_OTHER_SHAPE_FEATURES_START + sparm->shape_model->ConstrainedEdgePairs->Count;
@@ -274,6 +273,8 @@ void init_struct_model(SAMPLE sample, STRUCTMODEL *sm, STRUCT_LEARN_PARM *sparm,
 		ShapeEdgeParams ^params = sparm->shape_model->GetEdgeParams(i);
 		sm->w[widthDeviationFeatureIndex] = edge_width_deviation_to_weight(params->WidthToEdgeLengthRatioDeviation) * START_SHAPE_ENERGY_WEIGHT;
 	}
+
+	sm->firstNonNegWeightIndex = FT_COLOR_DIFFERENCE_PAIRWISE_WEIGHT;
 }
 
 SVECTOR *psi(PATTERN x, LABEL y, LATENT_VAR h, STRUCTMODEL *sm, STRUCT_LEARN_PARM *sparm) {
@@ -283,25 +284,26 @@ SVECTOR *psi(PATTERN x, LABEL y, LATENT_VAR h, STRUCTMODEL *sm, STRUCT_LEARN_PAR
 		x.image,
 		sparm->color_models,
 		COLOR_DIFFERENCE_CUTOFF,
-		1, 1, 1, 1);
+		1, 1, 1, 1, 1, 1);
 	segmentator->SegmentImageWithShapeTerms(gcnew Func<int, int, ObjectBackgroundTerm>(gcnew ShapeTermsCalcer(y.shape, sparm->shape_model), &ShapeTermsCalcer::Calc));
 	
-	double colorTermSum, shapeTermSum, colorDifferencePairwiseTermSum, constantPairwiseTermSum;
-	segmentator->ExtractSegmentationFeaturesForMask(h.mask, colorTermSum, shapeTermSum, colorDifferencePairwiseTermSum, constantPairwiseTermSum);
+	ImageSegmentationFeatures ^features = segmentator->ExtractSegmentationFeaturesForMask(h.mask);
 
 	WORD *words = (WORD*) malloc(sizeof(WORD) * (sm->sizePsi + 1));
 	for (int i = 0; i <= sm->sizePsi; ++i)
 		words[i].wnum = (i + 1) % (sm->sizePsi + 1);
 	words[sm->sizePsi].weight = 0;
 
-	words[FT_COLOR_WEIGHT - 1].weight = -(float)colorTermSum;
-	words[FT_SHAPE_WEIGHT - 1].weight = -(float)shapeTermSum;
-	words[FT_COLOR_DIFFERENCE_PAIRWISE_WEIGHT - 1].weight = -(float)colorDifferencePairwiseTermSum;
-	words[FT_CONSTANT_PAIRWISE_WEIGHT - 1].weight = -(float)constantPairwiseTermSum;
+	words[FT_OBJECT_COLOR_WEIGHT - 1].weight = -(float)features->ObjectColorUnary;
+	words[FT_BACKGROUND_COLOR_WEIGHT - 1].weight = -(float)features->BackgroundColorUnary;
+	words[FT_OBJECT_SHAPE_WEIGHT - 1].weight = -(float)features->ObjectShapeUnary;
+	words[FT_BACKGROUND_SHAPE_WEIGHT - 1].weight = -(float)features->BackgroundShapeUnary;
+	words[FT_COLOR_DIFFERENCE_PAIRWISE_WEIGHT - 1].weight = -(float)features->ColorDifferencePairwise;
+	words[FT_CONSTANT_PAIRWISE_WEIGHT - 1].weight = -(float)features->ConstantPairwise;
 
 	ShapeEdge rootEdge = sparm->shape_model->Structure->Edges[sparm->shape_model->RootEdgeIndex];
 	words[FT_SHAPE_SCALE_WEIGHT - 1].weight = -(float)(sparm->shape_model->CalculateRootEdgeEnergyTerm(
-		y.shape->VertexPositions[rootEdge.Index1], y.shape->VertexPositions[rootEdge.Index2]) / edge_length_deviation_to_weight(sparm->shape_model->RootEdgeLengthDeviation));
+		y.shape->VertexPositions[rootEdge.Index1], y.shape->VertexPositions[rootEdge.Index2]) / deviation_to_weight(sparm->shape_model->RootEdgeLengthDeviation));
 
 	size_t lengthDeviationWeightIndex = FT_OTHER_SHAPE_FEATURES_START - 1;
 	size_t angleDeviationWeightIndex = FT_OTHER_SHAPE_FEATURES_START - 1 + sparm->shape_model->ConstrainedEdgePairs->Count;
@@ -400,9 +402,11 @@ void write_struct_model(char *file, STRUCTMODEL *sm, STRUCT_LEARN_PARM *sparm) {
 	setup_shape_model(sparm->shape_model, sm);
 	sparm->shape_model->SaveToFile(String::Format("{0}.shp", baseFileName));
 
-	StreamWriter ^writer = gcnew StreamWriter(String::Format("{0}.wgt", baseFileName));
-	writer->WriteLine("COLOR_WEIGHT={0}", sm->w[FT_COLOR_WEIGHT]);
-	writer->WriteLine("SHAPE_WEIGHT={0}", sm->w[FT_SHAPE_WEIGHT]);
+	StreamWriter ^writer = gcnew StreamWriter(String::Format("{0}.weights.txt", baseFileName));
+	writer->WriteLine("OBJECT_COLOR_WEIGHT={0}", sm->w[FT_OBJECT_COLOR_WEIGHT]);
+	writer->WriteLine("BACKGROUND_COLOR_WEIGHT={0}", sm->w[FT_BACKGROUND_COLOR_WEIGHT]);
+	writer->WriteLine("OBJECT_SHAPE_WEIGHT={0}", sm->w[FT_OBJECT_SHAPE_WEIGHT]);
+	writer->WriteLine("BACKGROUND_SHAPE_WEIGHT={0}", sm->w[FT_BACKGROUND_SHAPE_WEIGHT]);
 	writer->WriteLine("COLOR_DIFFERENCE_PAIRWISE_WEIGHT={0}", sm->w[FT_COLOR_DIFFERENCE_PAIRWISE_WEIGHT]);
 	writer->WriteLine("CONSTANT_PAIRWISE_WEIGHT={0}", sm->w[FT_CONSTANT_PAIRWISE_WEIGHT]);
 	writer->Close();

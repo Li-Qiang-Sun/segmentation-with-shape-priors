@@ -14,9 +14,9 @@
 #define ALPHA_THRESHOLD 1E-14
 //#define IDLE_ITER 20
 //#define CLEANUP_CHECK 100
-#define CUTTING_PLANE_EPS 1E-3
+#define CUTTING_PLANE_EPS 0.005
 
-#define MAX_INNER_ITER_NO_VIOLATION 5
+#define MAX_INNER_ITER_NO_VIOLATION 4
 //#define MIN_OUTER_ITER 3
 #define MAX_OUTER_ITER 10
 
@@ -233,7 +233,7 @@ double cutting_plane_algorithm(double *w, long m, int MAX_ITER, double C, /*doub
   //max_rho = C; 
 
   // Non negative weight constraints
-  int nNonNeg = sm->sizePsi;
+  int nNonNeg = sm->sizePsi - sm->firstNonNegWeightIndex + 1;
   G = (double**)malloc(sizeof(double*)*nNonNeg);
   for (j=0;j<nNonNeg;j++) {
     G[j] = (double*)malloc(sizeof(double)*nNonNeg);
@@ -304,7 +304,7 @@ double cutting_plane_algorithm(double *w, long m, int MAX_ITER, double C, /*doub
 
 	for (j=0;j<nNonNeg;j++) {
 	  WORD indicator[2];
-	  indicator[0].wnum = j + 1;
+	  indicator[0].wnum = j + sm->firstNonNegWeightIndex;
 	  indicator[0].weight = 1.0;
 	  indicator[1].wnum = 0;
 	  indicator[1].weight = 0.0;
@@ -354,7 +354,7 @@ double cutting_plane_algorithm(double *w, long m, int MAX_ITER, double C, /*doub
 
     clear_nvector(w,sm->sizePsi);
 	for (i = 0; i < nNonNeg; i++) {
-	  w[i + 1] = alphabeta[i];//alphabeta[i]/(1+rho);  // add betas
+	  w[sm->firstNonNegWeightIndex + i] = alphabeta[i];//alphabeta[i]/(1+rho);  // add betas
 	}
     for (j=0;j<size_active;j++) {
       if (alpha[j]>C*ALPHA_THRESHOLD) {

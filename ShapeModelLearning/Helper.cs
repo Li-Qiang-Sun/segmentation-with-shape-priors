@@ -12,7 +12,7 @@ namespace Research.GraphBasedShapePrior.ShapeModelLearning
             
             for (int i = 0; i < count; ++i)
             {
-                int swapIndex = Random.Int(i, items.Count - i);
+                int swapIndex = Random.Int(i, items.Count);
                 T tmp = items[i];
                 items[i] = items[swapIndex];
                 items[swapIndex] = tmp;

@@ -10,8 +10,6 @@ namespace Research.GraphBasedShapePrior
         private double colorDifferencePairwiseTermCutoff;
         private double colorDifferencePairwiseTermWeight;
         private double constantPairwiseTermWeight;
-        private double colorUnaryTermWeight;
-        private double shapeUnaryTermWeight;
         private double shapeEnergyWeight;
 
         protected SegmentationAlgorithmBase()
@@ -19,9 +17,11 @@ namespace Research.GraphBasedShapePrior
             this.ColorDifferencePairwiseTermCutoff = 1.2;
             this.ColorDifferencePairwiseTermWeight = 0.015;
             this.ConstantPairwiseTermWeight = 0;
-            this.ColorUnaryTermWeight = 1;
-            this.ShapeUnaryTermWeight = 0.15;
-            this.ShapeEnergyWeight = 0.005;
+            this.ObjectColorUnaryTermWeight = 1;
+            this.BackgroundColorUnaryTermWeight = 1;
+            this.ObjectShapeUnaryTermWeight = 1;
+            this.BackgroundShapeUnaryTermWeight = 1;
+            this.ShapeEnergyWeight = 1;
         }
 
         public ShapeModel ShapeModel { get; set; }
@@ -67,27 +67,13 @@ namespace Research.GraphBasedShapePrior
             }
         }
 
-        public double ColorUnaryTermWeight
-        {
-            get { return this.colorUnaryTermWeight; }
-            set
-            {
-                if (value < 0)
-                    throw new ArgumentOutOfRangeException("value", "Property value should not be negative.");
-                this.colorUnaryTermWeight = value;
-            }
-        }
+        public double ObjectColorUnaryTermWeight { get; set; }
 
-        public double ShapeUnaryTermWeight
-        {
-            get { return this.shapeUnaryTermWeight; }
-            set
-            {
-                if (value < 0)
-                    throw new ArgumentOutOfRangeException("value", "Property value should not be negative.");
-                this.shapeUnaryTermWeight = value;
-            }
-        }
+        public double BackgroundColorUnaryTermWeight { get; set; }
+
+        public double ObjectShapeUnaryTermWeight  { get; set; }
+
+        public double BackgroundShapeUnaryTermWeight { get; set; }
 
         public double ShapeEnergyWeight
         {
@@ -115,8 +101,10 @@ namespace Research.GraphBasedShapePrior
                 this.ColorDifferencePairwiseTermCutoff,
                 this.ColorDifferencePairwiseTermWeight,
                 this.ConstantPairwiseTermWeight,
-                this.ColorUnaryTermWeight,
-                this.ShapeUnaryTermWeight);
+                this.ObjectColorUnaryTermWeight,
+                this.BackgroundColorUnaryTermWeight,
+                this.ObjectShapeUnaryTermWeight,
+                this.BackgroundShapeUnaryTermWeight);
 
             DebugConfiguration.WriteImportantDebugText(
                 "Segmented image size is {0}x{1}.",

@@ -1,18 +1,19 @@
 #include "CudaMath.h"
 #include "Kernels.h"
 
-__device__ float DistanceSqrToObjectPenalty(float distanceSqr, float edgeWidthSqr, float backgroundDistanceCoeff)
-{
-	return distanceSqr;
-}
-
-__device__ float DistanceSqrToBackgroundPenalty(float distanceSqr, float edgeWidthSqr, float backgroundDistanceCoeff)
-{
-	return max(0.25 * edgeWidthSqr * (1 + backgroundDistanceCoeff) - backgroundDistanceCoeff * distanceSqr, 0.f);
-}
-
 #define BLOCK_DIM 16
 #define INFINITY 1e+20f
+#define LOG_2 0.69314718
+
+__device__ float DistanceSqrToObjectPenalty(float distanceSqr, float edgeWidthSqr)
+{
+	return 4 * LOG_2 * distanceSqr / (edgeWidthSqr + 1e-6);
+}
+
+__device__ float DistanceSqrToBackgroundPenalty(float distanceSqr, float edgeWidthSqr)
+{
+	return -log(1 + 1e-6 - exp(-DistanceSqrToObjectPenalty(distanceSqr, edgeWidthSqr)));
+}
 
 __device__ __constant__ float2 EdgeConvexHull[8];
 __device__ __constant__ float2 Corners1[4]; 
@@ -21,7 +22,6 @@ __device__ __constant__ float2 Corners2[4];
 __global__ void CalcMinPenaltiesForEdgeKernel(
     int2 imageSize,
     int edgeConvexHullSize,
-	float backgroundDistanceCoeff,
     float2 minMaxWidthSqr,
     float *objectPenalties,
 	float *backgroundPenalties)
@@ -57,8 +57,8 @@ __global__ void CalcMinPenaltiesForEdgeKernel(
 		}
 	}
 	
-	float minObjectPenalty = DistanceSqrToObjectPenalty(minDistanceSqr, minMaxWidthSqr.y, backgroundDistanceCoeff);
-	float minBackgroundPenalty = DistanceSqrToBackgroundPenalty(maxDistanceSqr, minMaxWidthSqr.x, backgroundDistanceCoeff);
+	float minObjectPenalty = DistanceSqrToObjectPenalty(minDistanceSqr, minMaxWidthSqr.y);
+	float minBackgroundPenalty = DistanceSqrToBackgroundPenalty(maxDistanceSqr, minMaxWidthSqr.x);
 
     objectPenalties[index] = min(objectPenalties[index], minObjectPenalty);
 	backgroundPenalties[index] = max(backgroundPenalties[index], minBackgroundPenalty);
@@ -71,7 +71,6 @@ void CalculateShapeUnaryTerms(
 	float2 **corners1,
 	float2 **corners2,
 	float2 *edgeWidthLimits,
-	float backgroundDistanceCoeff,
     int imageWidth,
     int imageHeight,
     float *objectPenalties,
@@ -92,7 +91,6 @@ void CalculateShapeUnaryTerms(
         CalcMinPenaltiesForEdgeKernel<<<gridDim, blockDim, 0>>>(
             make_int2(imageWidth, imageHeight),
             convexHullSizes[i],
-			backgroundDistanceCoeff,
             make_float2(edgeWidthLimits[i].x * edgeWidthLimits[i].x, edgeWidthLimits[i].y * edgeWidthLimits[i].y),
             objectPenalties,
 			backgroundPenalties);

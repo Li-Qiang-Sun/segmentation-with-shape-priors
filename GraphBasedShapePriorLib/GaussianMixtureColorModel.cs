@@ -48,7 +48,7 @@ namespace Research.GraphBasedShapePrior
             foreach (Color pixel in pixels)
                 observedData[index++] = pixel.ToInferNetVector();
 
-            Mixture<VectorGaussian> result = MixtureUtils.Fit(observedData, mixtureComponentCount, mixtureComponentCount, stopTolerance);
+            Mixture<VectorGaussian> result = MixtureUtils.Fit(observedData, mixtureComponentCount, mixtureComponentCount * 5, stopTolerance);
             return new GaussianMixtureColorModel(result);
         }
         

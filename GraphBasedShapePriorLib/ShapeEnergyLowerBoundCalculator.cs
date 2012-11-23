@@ -62,8 +62,8 @@ namespace Research.GraphBasedShapePrior
 
             // Calculate distance transforms for all the child edges
             List<GeneralizedDistanceTransform2D> childTransforms = new List<GeneralizedDistanceTransform2D>();
-            foreach (int edgeIndex in model.IterateNeighboringEdgeIndices(0))
-                childTransforms.Add(CalculateMinEnergiesForAllParentEdges(model, shapeConstraints, 0, edgeIndex, lengthAngleConstraints));
+            foreach (int edgeIndex in model.IterateNeighboringEdgeIndices(model.RootEdgeIndex))
+                childTransforms.Add(CalculateMinEnergiesForAllParentEdges(model, shapeConstraints, model.RootEdgeIndex, edgeIndex, lengthAngleConstraints));
 
             // Find best overall solution
             double minEnergySum = Double.PositiveInfinity;
@@ -71,7 +71,7 @@ namespace Research.GraphBasedShapePrior
             foreach (int lengthGridIndex in transform.EnumerateInterestGridIndicesX())
             {
                 double length = transform.GridIndexToCoordX(lengthGridIndex);
-                double currentMinEnergySum = Double.PositiveInfinity;
+                double minPairwiseEnergy = Double.PositiveInfinity;
 
                 foreach (int angleGridIndex in transform.EnumerateInterestGridIndicesY())
                 {
@@ -80,11 +80,12 @@ namespace Research.GraphBasedShapePrior
                     if (angle > Math.PI + eps || angle < -Math.PI - eps)
                         continue;   // Consider only natural angle representations here
 
-                    currentMinEnergySum = Math.Min(currentMinEnergySum, CalculateMinPairwiseEdgeEnergy(length, angle, childTransforms));
+                    minPairwiseEnergy = Math.Min(minPairwiseEnergy, CalculateMinPairwiseEdgeEnergy(length, angle, childTransforms));
                 }
 
-                double unaryEdgeEnergy = CalculateMinUnaryEdgeEnergy(0, model, shapeConstraints, length);
-                minEnergySum = Math.Min(minEnergySum, currentMinEnergySum + unaryEdgeEnergy);
+                double unaryEdgeEnergy = CalculateMinUnaryEdgeEnergy(model.RootEdgeIndex, model, shapeConstraints, length);
+                double rootEdgeEnergy = model.CalculateRootEdgeEnergyTerm(length);
+                minEnergySum = Math.Min(minEnergySum, minPairwiseEnergy + unaryEdgeEnergy + rootEdgeEnergy);
             }
 
             Debug.Assert(minEnergySum >= 0);

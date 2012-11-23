@@ -136,13 +136,13 @@ namespace Research.GraphBasedShapePrior
                 {
                     
                     if (mask[x, y])
-                        shapeTermSum += this.ShapeModel.CalculateObjectPenalty(shape, new Vector(x, y));
+                        shapeTermSum += this.ShapeModel.CalculateObjectPenalty(shape, new Vector(x, y)) * this.ObjectShapeUnaryTermWeight;
                     else
-                        shapeTermSum += this.ShapeModel.CalculateBackgroundPenalty(shape, new Vector(x, y));
+                        shapeTermSum += this.ShapeModel.CalculateBackgroundPenalty(shape, new Vector(x, y)) * this.BackgroundShapeUnaryTermWeight;
                 }
             }
 
-            return shapeTermSum * this.ShapeUnaryTermWeight * this.ImageSegmentator.UnaryTermScaleCoeff;
+            return shapeTermSum * this.ImageSegmentator.UnaryTermScaleCoeff;
         }
     }
 }

@@ -153,26 +153,33 @@ namespace Research.GraphBasedShapePrior
             // Learn root edge
             double rootEdgeLengthDeviation = Double.PositiveInfinity;
             double rootEdgeMeanLength = 0;
-            double rootEdgeRelativeDeviation = 0;
             int rootEdgeIndex = -1;
             for (int i = 0; i < structure.Edges.Count; ++i)
             {
-                double sum = 0, sumSqr = 0;
+                double lengthSum = 0, lengthSumSqr = 0;
                 foreach (Shape shape in shapes)
                 {
                     double edgeLength = shape.GetEdgeVector(i).Length;
-                    sum += edgeLength;
-                    sumSqr += edgeLength * edgeLength;
+                    lengthSum += edgeLength;
+                    lengthSumSqr += edgeLength * edgeLength;
                 }
 
-                double meanLength = sum / shapeCount;
-                double lengthDeviation = Math.Sqrt(sumSqr / shapeCount - meanLength * meanLength);
-                double relativeDeviation = lengthDeviation / meanLength;
-                if (rootEdgeIndex == -1 || relativeDeviation < rootEdgeRelativeDeviation)
+                double meanLength = lengthSumSqr / lengthSum;
+
+                double lengthRatioDiffSqrSum = 0;
+                foreach (Shape shape in shapes)
+                {
+                    double edgeLength = shape.GetEdgeVector(i).Length;
+                    double lengthRatioDiff = edgeLength / meanLength - 1;
+                    lengthRatioDiffSqrSum += lengthRatioDiff * lengthRatioDiff;
+                }
+
+                double lengthDeviation = Math.Sqrt(lengthRatioDiffSqrSum / shapeCount);
+
+                if (rootEdgeIndex == -1 || lengthDeviation < rootEdgeLengthDeviation)
                 {
                     rootEdgeLengthDeviation = lengthDeviation;
                     rootEdgeMeanLength = meanLength;
-                    rootEdgeRelativeDeviation = relativeDeviation;
                     rootEdgeIndex = i;
                 }
             }
@@ -210,10 +217,14 @@ namespace Research.GraphBasedShapePrior
                     throw new ArgumentException("Constrained edge pairs should be connected.", "constrainedEdgePairs");
                 }
 
+                // Learn means
                 double lengthProdSum = 0, lengthSqrSum = 0;
-                double angleSum = 0, angleSumSqr = 0; // TODO: angle estimation is suboptimal when angles are big, fix it!
+                double meanAngle = 0;
+                int shapesConsidered = 0;
                 foreach (Shape shape in shapes)
                 {
+                    ++shapesConsidered;
+                    
                     Vector edge1Vec = shape.GetEdgeVector(edgePair.Item1);
                     Vector edge2Vec = shape.GetEdgeVector(edgePair.Item2);
 
@@ -223,14 +234,14 @@ namespace Research.GraphBasedShapePrior
                     lengthSqrSum += length2 * length2;
 
                     double angle = Vector.AngleBetween(edge1Vec, edge2Vec);
-                    angleSum += angle;
-                    angleSumSqr += angle * angle;
+
+                    meanAngle = MathHelper.InterpolateAngle(meanAngle, angle, 1.0 / shapesConsidered);
                 }
 
-                double meanAngle = angleSum / shapeCount;
-                double angleDeviation = Math.Sqrt(angleSumSqr / shapeCount - meanAngle * meanAngle);
-
                 double meanLengthRatio = lengthProdSum / lengthSqrSum;
+
+                // Learn deviations
+                double angleAbsDiffSqrSum = 0;
                 double lengthDiffSqrSum = 0;
                 foreach (Shape shape in shapes)
                 {
@@ -239,11 +250,16 @@ namespace Research.GraphBasedShapePrior
 
                     double length1 = edge1Vec.Length;
                     double length2 = edge2Vec.Length;
-                    double diff = length1 - meanLengthRatio * length2;
-                    lengthDiffSqrSum += diff * diff;
+                    double lengthDiff = length1 - meanLengthRatio * length2;
+                    lengthDiffSqrSum += lengthDiff * lengthDiff;
+
+                    double angle = Vector.AngleBetween(edge1Vec, edge2Vec);
+                    double angleDiff = MathHelper.AngleAbsDifference(meanAngle, angle);
+                    angleAbsDiffSqrSum += angleDiff * angleDiff;
                 }
 
                 double lengthDiffDeviation = Math.Sqrt(lengthDiffSqrSum / shapeCount);
+                double angleDeviation = Math.Sqrt(angleAbsDiffSqrSum / shapeCount);
 
                 if (shapeEdgePairParams.ContainsKey(edgePair) || shapeEdgePairParams.ContainsKey(new Tuple<int, int>(edgePair.Item2, edgePair.Item1)))
                     throw new ArgumentException("Same pair of edges is constrained more than once.", "constrainedEdgePairs");
@@ -365,9 +381,7 @@ namespace Research.GraphBasedShapePrior
                 throw new ArgumentException("Given edge pair has no common pairwise constraints.");
 
             double angle = Vector.AngleBetween(edge1Vector, edge2Vector);
-            double angleDiff1 = Math.Abs(angle - pairParams.MeanAngle);
-            double angleDiff2 = Math.Abs(angle - pairParams.MeanAngle + (angle < 0 ? Math.PI * 2 : -Math.PI * 2));
-            double angleDiff = Math.Min(angleDiff1, angleDiff2);
+            double angleDiff = MathHelper.AngleAbsDifference(angle, pairParams.MeanAngle);
             double angleTerm = angleDiff * angleDiff / (2 * pairParams.AngleDeviation * pairParams.AngleDeviation);
             return angleTerm;
         }
@@ -379,7 +393,7 @@ namespace Research.GraphBasedShapePrior
 
         public double CalculateRootEdgeEnergyTerm(double length)
         {
-            double diff = length - this.RootEdgeMeanLength;
+            double diff = length / this.RootEdgeMeanLength - 1;
             return diff * diff / (2 * this.RootEdgeLengthDeviation * this.RootEdgeLengthDeviation);
         }
 

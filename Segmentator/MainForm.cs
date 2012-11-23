@@ -152,6 +152,13 @@ namespace Segmentator
 
             if (!String.IsNullOrEmpty(this.segmentationProperties.InitialShape))
                 algorithm.StartShape = Shape.LoadFromFile(this.segmentationProperties.InitialShape);
+            else
+            {
+                double angle = this.segmentationProperties.RootEdgeAngle;
+                Vector rootEdgeDirection = new Vector(Math.Cos(angle), -Math.Sin(angle));
+                algorithm.StartShape = algorithm.ShapeModel.FitMeanShape(
+                    this.segmentedImage.Width, this.segmentedImage.Height, rootEdgeDirection);
+            }
 
             this.SetupShapeMutator(algorithm.ShapeMutator);
             this.SetupAnnealing(algorithm.SolutionFitter);
@@ -189,10 +196,25 @@ namespace Segmentator
         private void DoSegmentation(object sender, DoWorkEventArgs e)
         {
             Random.SetSeed(666);
-            
+
+            // Load and downscale image
+            Image2D<Color> originalImage = Image2D.LoadFromFile(this.segmentationProperties.ImageToSegment);
+            double scale = this.segmentationProperties.DownscaledImageSize / (double)Math.Max(originalImage.Width, originalImage.Height);
+            Image2D<Color> downscaledImage = Image2D.LoadFromFile(this.segmentationProperties.ImageToSegment, scale);
+            this.segmentedImage = Image2D.ToRegularImage(downscaledImage);
+
+            // Load color models
+            ObjectBackgroundColorModels colorModels = ObjectBackgroundColorModels.LoadFromFile(this.segmentationProperties.ColorModel);
+
+            // Setup shape model
+            ShapeModel model = ShapeModel.LoadFromFile(this.segmentationProperties.ShapeModel);
+            this.segmentator.ShapeModel = model;
+
             // Common settings
-            segmentator.ColorUnaryTermWeight = this.segmentationProperties.ColorTermWeight;
-            segmentator.ShapeUnaryTermWeight = this.segmentationProperties.ShapeTermWeight;
+            segmentator.ObjectColorUnaryTermWeight = this.segmentationProperties.ObjectColorUnaryTermWeight;
+            segmentator.BackgroundColorUnaryTermWeight = this.segmentationProperties.BackgroundColorUnaryTermWeight;
+            segmentator.ObjectShapeUnaryTermWeight = this.segmentationProperties.ObjectShapeUnaryTermWeight;
+            segmentator.BackgroundShapeUnaryTermWeight = this.segmentationProperties.BackgroundShapeUnaryTermWeight;
             segmentator.ColorDifferencePairwiseTermWeight = this.segmentationProperties.ColorDifferencePairwiseTermWeight;
             segmentator.ColorDifferencePairwiseTermCutoff = this.segmentationProperties.ColorDifferencePairwiseTermCutoff;
             segmentator.ConstantPairwiseTermWeight = this.segmentationProperties.ConstantPairwiseTermWeight;
@@ -207,19 +229,6 @@ namespace Segmentator
                 this.SetupAnnealingSegmentationAlgorithm((AnnealingSegmentationAlgorithm)this.segmentator);
             else if (this.segmentator is SimpleSegmentationAlgorithm)
                 this.SetupSimpleSegmentationAlgorithm((SimpleSegmentationAlgorithm)this.segmentator);
-
-            // Load color models
-            ObjectBackgroundColorModels colorModels = ObjectBackgroundColorModels.LoadFromFile(this.segmentationProperties.ColorModel);
-
-            // Load and downscale image
-            Image2D<Color> originalImage = Image2D.LoadFromFile(this.segmentationProperties.ImageToSegment);
-            double scale = this.segmentationProperties.DownscaledImageSize / (double)Math.Max(originalImage.Width, originalImage.Height);
-            Image2D<Color> downscaledImage = Image2D.LoadFromFile(this.segmentationProperties.ImageToSegment, scale);
-            this.segmentedImage = Image2D.ToRegularImage(downscaledImage);
-
-            // Setup shape model
-            ShapeModel model = ShapeModel.LoadFromFile(this.segmentationProperties.ShapeModel);
-            this.segmentator.ShapeModel = model;
 
             // Show original image in status window)
             this.currentImage.Image = (Image)this.segmentedImage.Clone();
@@ -338,14 +347,21 @@ namespace Segmentator
 
         private void OnSegmentationCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            this.DisposeStatusImages();
-            SegmentationSolution result = (SegmentationSolution)e.Result;
-            if (result.Shape != null)
-                this.currentImage.Image = CreateStatusImage(result.Shape);
+            if (e.Error == null)
+            {
+                this.DisposeStatusImages();
+                SegmentationSolution result = (SegmentationSolution)e.Result;
+                if (result.Shape != null)
+                    this.currentImage.Image = CreateStatusImage(result.Shape);
+                else
+                    this.currentImage.Image = (Image)this.segmentedImage.Clone();
+                if (result.Mask != null)
+                    this.segmentationMaskImage.Image = Image2D.ToRegularImage(result.Mask);    
+            }
             else
-                this.currentImage.Image = (Image)this.segmentedImage.Clone();
-            if (result.Mask != null)
-                this.segmentationMaskImage.Image = Image2D.ToRegularImage(result.Mask);
+            {
+                MessageBox.Show(e.Error.Message, "Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
 
             this.startGpuButton.Enabled = true;
             this.startCpuButton.Enabled = true;

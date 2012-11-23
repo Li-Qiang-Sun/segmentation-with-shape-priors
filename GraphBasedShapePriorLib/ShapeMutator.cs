@@ -206,8 +206,20 @@ namespace Research.GraphBasedShapePrior
                 // Translate shape
                 if (rand < this.shapeTranslationWeight)
                 {
+                    Vector maxTopLeftShift = new Vector(Double.NegativeInfinity, Double.NegativeInfinity);
+                    Vector minBottomRightShift = new Vector(Double.PositiveInfinity, Double.PositiveInfinity);
+                    for (int i  = 0; i < mutatedShape.VertexPositions.Count; ++i)
+                    {
+                        maxTopLeftShift.X = Math.Max(maxTopLeftShift.X, -mutatedShape.VertexPositions[i].X);
+                        maxTopLeftShift.Y = Math.Max(maxTopLeftShift.Y, -mutatedShape.VertexPositions[i].Y);
+                        minBottomRightShift.X = Math.Min(minBottomRightShift.X, imageSize.Width - mutatedShape.VertexPositions[i].X);
+                        minBottomRightShift.Y = Math.Min(minBottomRightShift.Y, imageSize.Height - mutatedShape.VertexPositions[i].Y);
+                    }
+
                     double translationStdDev = maxImageSideSize * this.shapeTranslationPower * normalizedTemperature;
                     Vector shift = new Vector(Random.Normal(0, translationStdDev), Random.Normal(0, translationStdDev));
+                    shift = MathHelper.Trunc(shift, maxTopLeftShift, minBottomRightShift);
+
                     for (int i = 0; i < mutatedShape.VertexPositions.Count; ++i)
                         mutatedShape.VertexPositions[i] += shift;
                 }
@@ -223,14 +235,7 @@ namespace Research.GraphBasedShapePrior
                 }
             }
 
-            // Clamp vertex positions to image
             Debug.Assert(mutatedShape != null);
-            for (int i = 0; i < mutatedShape.VertexPositions.Count; ++i)
-            {
-                mutatedShape.VertexPositions[i] = MathHelper.Trunc(
-                    mutatedShape.VertexPositions[i], Vector.Zero, new Vector(imageSize.Width, imageSize.Height));
-            }
-
             return mutatedShape;
         }
     }
