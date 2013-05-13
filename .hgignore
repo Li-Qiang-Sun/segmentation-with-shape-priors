@@ -12,5 +12,6 @@ GpuBranchAndBoundSegmentatorLib/vc90.pdb
 GraphBasedShapePrior.sdf
 GraphBasedShapePrior.opensdf
 GraphBasedShapePrior.v11.suo
+ipch/lssvmlearning-4dd5c3dd/lssvmlearning-2e234a71.ipch
 syntax: regexp
 .*\.DotSettings.user
